@@ -10,6 +10,7 @@ import { Avatar } from "./ui";
 const NAV = [
   { href: "/", label: "Mein Tag" },
   { href: "/pool", label: "Aufgabenpool" },
+  { href: "/onoffice", label: "onOffice-Eingang" },
   { href: "/uebersicht", label: "Übersicht", adminOnly: true },
   { href: "/admin", label: "Adminbereich", adminOnly: true },
   { href: "/protokoll", label: "Mail-Protokoll", adminOnly: true },

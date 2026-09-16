@@ -13,9 +13,12 @@
     "felder": "node scripts/felder.mjs",
     "werte": "node scripts/werte.mjs",
     "feldtest": "node scripts/feldtest.mjs",
-    "smtp": "node scripts/smtp-test.mjs"
+    "smtp": "node scripts/smtp-test.mjs",
+    "mailidentity": "node scripts/mailidentity.mjs",
+    "db": "node scripts/db-test.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "next": "^15.5.0",
     "nodemailer": "^7.0.13",
     "react": "^19.1.0",

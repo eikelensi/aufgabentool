@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Traegt Zugangsdaten in .env.local ein.
-#   bash scripts/zugangsdaten.sh            -> onOffice-API
-#   bash scripts/zugangsdaten.sh smtp       -> SMTP-Postfach
-# Passwoerter und Secrets werden bei der Eingabe nicht angezeigt und landen
-# nicht in der Shell-History.
+# Traegt Zugangsdaten in .env.local ein, ohne sie anzuzeigen.
+#
+#   npm run zugangsdaten            -> onOffice API-Token und Secret
+#   npm run zugangsdaten smtp       -> SMTP-Postfach
+#   npm run zugangsdaten supabase   -> Supabase Service-Role-Schluessel
+#
+# Eingaben erscheinen nicht auf dem Bildschirm und landen nicht in der
+# Shell-History.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -15,36 +18,84 @@ fi
 WAS="${1:-onoffice}"
 
 schreibe() {
-  # schreibe KEY WERT  – ersetzt die Zeile oder haengt sie an
   KEY="$1" WERT="$2" node -e '
 const fs = require("fs");
 const p = ".env.local";
 const lines = fs.readFileSync(p, "utf8").split("\n");
-const key = process.env.KEY, value = process.env.WERT;
+const key = process.env.KEY, value = (process.env.WERT || "").trim();
 const i = lines.findIndex((l) => l.startsWith(key + "="));
 if (i >= 0) lines[i] = key + "=" + value; else lines.push(key + "=" + value);
 fs.writeFileSync(p, lines.join("\n"), { mode: 0o600 });
 '
 }
 
+if [ "$WAS" = "supabase" ]; then
+  echo ""
+  echo "=== Supabase Service-Role-Schluessel eintragen ==="
+  echo ""
+  echo "Wo er steht:"
+  echo "  https://supabase.com/dashboard/project/zopntlggvtcdwmuvayxs/settings/api-keys"
+  echo "  Abschnitt 'Secret keys' -> service_role -> Reveal -> kopieren"
+  echo ""
+  echo "Dieser Schluessel umgeht jede Rechtepruefung. Er gehoert nur hierher"
+  echo "und spaeter in die Vercel-Umgebungsvariablen - nie in den Browser-Code"
+  echo "und nie in einen Chat."
+  echo ""
+  printf "Service-Role-Schluessel: "
+  read -rs SB_KEY
+  echo ""
+
+  if [ -z "$SB_KEY" ]; then
+    echo ""
+    echo "Abgebrochen: nichts eingegeben. Nichts geaendert."
+    exit 1
+  fi
+
+  case "$SB_KEY" in
+    sb_secret_*|eyJ*) : ;;
+    *) echo ""
+       echo "Warnung: das sieht nicht wie ein Service-Role-Schluessel aus."
+       echo "Erwartet wird 'sb_secret_...' oder ein JWT, das mit 'eyJ' beginnt."
+       printf "Trotzdem speichern? [j/N]: "
+       read -r JA
+       case "$JA" in j|J|y|Y) : ;; *) echo "Abgebrochen."; exit 1 ;; esac ;;
+  esac
+
+  schreibe SUPABASE_SERVICE_ROLE_KEY "$SB_KEY"
+  echo ""
+  echo "Gespeichert in .env.local (${#SB_KEY} Zeichen)."
+  echo ""
+  echo "Naechster Schritt - Verbindung zur Datenbank pruefen:"
+  echo "  npm run db"
+  echo ""
+  exit 0
+fi
+
 if [ "$WAS" = "smtp" ]; then
   echo ""
-  echo "=== SMTP-Postfach eintragen (4-wk.de) ==="
+  echo "=== SMTP-Postfach eintragen ==="
   echo "Host, Port und Benutzer sind sichtbar, das Passwort nicht."
   echo ""
-  printf "SMTP-Host (z.B. mail.your-server.de): "
+  ALT_HOST="$(grep '^SMTP_HOST=' .env.local | cut -d= -f2- || true)"
+  ALT_USER="$(grep '^SMTP_USER=' .env.local | cut -d= -f2- || true)"
+  ALT_PORT="$(grep '^SMTP_PORT=' .env.local | cut -d= -f2- || true)"
+  ALT_FROM="$(grep '^SMTP_FROM=' .env.local | cut -d= -f2- || true)"
+
+  printf "SMTP-Host [%s]: " "${ALT_HOST:-mail.example.de}"
   read -r SMTP_HOST
-  printf "Port [587]: "
+  SMTP_HOST="${SMTP_HOST:-$ALT_HOST}"
+  printf "Port [%s]: " "${ALT_PORT:-587}"
   read -r SMTP_PORT
-  SMTP_PORT="${SMTP_PORT:-587}"
-  printf "Benutzer (z.B. aufgaben@4-wk.de): "
+  SMTP_PORT="${SMTP_PORT:-${ALT_PORT:-587}}"
+  printf "Benutzer [%s]: " "${ALT_USER:-name@4-wk.de}"
   read -r SMTP_USER
-  printf "Passwort: "
+  SMTP_USER="${SMTP_USER:-$ALT_USER}"
+  printf "Passwort (unsichtbar): "
   read -rs SMTP_PASS
   echo ""
-  printf "Absender [Aufgabentool 4waendekanzlei <%s>]: " "$SMTP_USER"
+  printf "Absender [%s]: " "${ALT_FROM:-Aufgabentool 4waendekanzlei <$SMTP_USER>}"
   read -r SMTP_FROM
-  SMTP_FROM="${SMTP_FROM:-Aufgabentool 4waendekanzlei <$SMTP_USER>}"
+  SMTP_FROM="${SMTP_FROM:-${ALT_FROM:-Aufgabentool 4waendekanzlei <$SMTP_USER>}}"
 
   if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASS" ]; then
     echo ""
@@ -59,9 +110,9 @@ if [ "$WAS" = "smtp" ]; then
   schreibe SMTP_FROM "$SMTP_FROM"
 
   echo ""
-  echo "Gespeichert in .env.local."
+  echo "Gespeichert (Passwort: ${#SMTP_PASS} Zeichen)."
   echo ""
-  echo "Naechster Schritt – Verbindung pruefen, ohne zu senden:"
+  echo "Naechster Schritt - anmelden ohne zu senden:"
   echo "  npm run smtp"
   echo "Testmail an dich selbst:"
   echo "  npm run smtp $SMTP_USER"

@@ -549,7 +549,11 @@ create policy sync_select on public.onoffice_sync_log
 -- ---------------------------------------------------------------------
 -- Tagesgeschäft: nur Aufgaben, deren Sichtbarkeitsdatum erreicht ist,
 -- plus erledigte innerhalb der Ausblendfrist.
-create or replace view public.v_tagesgeschaeft as
+-- security_invoker: die Sicht rechnet mit den Rechten des Aufrufers, nicht
+-- des Eigentuemers. Ohne das wuerde sie die Zeilensicherheit auf tasks
+-- umgehen und jeder Mitarbeiter saehe alle Aufgaben.
+create or replace view public.v_tagesgeschaeft
+with (security_invoker = true) as
 select t.*,
        c.name  as category_name,
        c.color as category_color,
@@ -567,7 +571,8 @@ where t.visible_from <= current_date
   );
 
 -- Fällige Erinnerungen (3 Tage) – Basis für den Cron-Job
-create or replace view public.v_faellige_erinnerungen as
+create or replace view public.v_faellige_erinnerungen
+with (security_invoker = true) as
 select t.id, t.title, t.assignee_id, t.creator_id, t.created_at
 from public.tasks t, public.app_settings s
 where t.status = 'offen'
@@ -578,7 +583,8 @@ where t.status = 'offen'
   and t.created_at < now() - make_interval(days => s.reminder_days);
 
 -- Fällige Eskalationen (7 Tage)
-create or replace view public.v_faellige_eskalationen as
+create or replace view public.v_faellige_eskalationen
+with (security_invoker = true) as
 select t.id, t.title, t.assignee_id, t.creator_id, t.created_at
 from public.tasks t, public.app_settings s
 where t.status = 'offen'

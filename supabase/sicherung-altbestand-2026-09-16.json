@@ -1,0 +1,74 @@
+{
+  "_hinweis": "Sicherung der Konfiguration des vorherigen Aufgabentool-Schemas im Supabase-Projekt zopntlggvtcdwmuvayxs, gezogen am 16.09.2026 vor dem Leeren der Datenbank. Die 239 Aufgaben sind NICHT enthalten: sie waren ein reiner Spiegel der onOffice-Aufgaben (sync_read_only = true) ohne lokale Zusaetze - keine Notizen, keine Kategorien, keine Maklerzuordnung, keine Kommentare. Nur drei Aufgaben existierten ausschliesslich lokal, alle mit dem Titel 'Test'.",
+  "boards": [
+    { "name": "Aufgabeneingang", "type": "pool", "position": 0 },
+    { "name": "Eike Lensinger", "type": "personal", "position": 10 }
+  ],
+  "board_columns": [
+    { "name": "Eingang", "color": "#88cc44", "position": 0, "is_done": false, "onoffice_status": 1, "hide_after_days": null },
+    { "name": "Offen", "color": "#9aa38c", "position": 0, "is_done": false, "onoffice_status": 1, "hide_after_days": null },
+    { "name": "In Bearbeitung", "color": "#88cc44", "position": 1, "is_done": false, "onoffice_status": 2, "hide_after_days": null },
+    { "name": "Erledigt", "color": "#4a7616", "position": 2, "is_done": true, "onoffice_status": 3, "hide_after_days": 7 }
+  ],
+  "app_users": [
+    { "email": "lensinger@4-wk.de", "display_name": "Eike Lensinger", "initials": "EL", "role": "superadmin", "onoffice_username": "BaufiLensinger", "onoffice_user_id": null },
+    { "email": "eike@lensi.de", "display_name": "Eike Lensinger", "initials": "EL", "role": "lead", "onoffice_username": null, "onoffice_user_id": null }
+  ],
+  "categories": [
+    { "name": "Aufbereitung", "color": "#d8a800", "position": 0 },
+    { "name": "Buchhaltung", "color": "#2f6d94", "position": 1 }
+  ],
+  "org_settings": {
+    "sync_interval_minutes": 3,
+    "sync_overlap_minutes": 5,
+    "sync_page_size": 500,
+    "sync_read_only": true,
+    "onoffice_api_version": "stable",
+    "default_priority": 3,
+    "show_private_to_leads": false,
+    "conflict_strategy": {
+      "title": "newest",
+      "description": "newest",
+      "status": "onoffice",
+      "is_done": "onoffice",
+      "progress": "onoffice",
+      "deadline": "newest",
+      "priority": "newest",
+      "task_type": "newest",
+      "assignee": "tool",
+      "responsible": "tool",
+      "board": "tool"
+    },
+    "pool_rule": { "no_assignee": true, "unmapped_assignee": false, "groups": [] }
+  },
+  "automation_rules": [
+    {
+      "name": "Zurueckgestellt wacht auf",
+      "is_enabled": true,
+      "dry_run": true,
+      "trigger": "schedule",
+      "conditions": { "cron": "0 6 * * *", "status": 4, "fallback_days": 14, "starts_at_reached": true },
+      "actions": [
+        { "type": "set_status", "status": 1 },
+        { "type": "move_to_board", "target": "previous" },
+        { "type": "notify_in_app", "target": "assignee" }
+      ]
+    }
+  ],
+  "sync_cursor": {
+    "resource": "task",
+    "initial_done": true,
+    "last_run_at": "2026-09-16T11:55:49.441+00:00",
+    "last_modified_seen": "2026-09-16T09:42:19+00:00"
+  },
+  "aufgabenarten_labels": [
+    "Telefonat", "CareCall - Bestandslead", "Qualifizierung", "Immofeedback / Terminnachbereitung",
+    "Baufinanzierungsfeedback", "Termin", "Notiz / Hinweis", "Ergebnis Vertriebsstart", "Jour-Fix",
+    "AGB bestätigt", "Kaufpreisangebot", "Widerruf bestätigt", "Aufgabe", "Word", "Brief", "Email",
+    "Fax", "Anzeige", "Sonstige", "SMS", "Immobilientracking", "PDF-Brief", "Rechnung",
+    "Gutschrift/Provisionsabrechnung", "Report", "DSGVO Speicherung", "Gesuchsanlage per Formular",
+    "Videocall", "Kosten", "WhatsApp", "Bestellung", "Vertrag", "Werbemittel", "Terminblock",
+    "Autoprozess"
+  ],
+  "_warnung_aufgabenarten": "Im alten Schema trugen diese 35 Arten die onoffice_art_id 0 bis 34, also schlicht ihre Position in der Liste. Das sind NICHT die echten IDs des Mandanten: an echten Aufgaben wurden 167, 279 und 441 gemessen. Die Beschriftungen sind verwertbar, die Zuordnung zur ID muss neu ermittelt werden."
+}
