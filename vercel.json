@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/sync/onoffice",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/mail/eskalation",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/sync/anhaenge",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}
