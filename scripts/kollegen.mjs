@@ -85,16 +85,25 @@ if (!VOLL) console.log("  Werte gekuerzt. Fuer alles:  npm run kollegen voll\n")
 // ---------------------------------------------------------------
 // 1) Welche Ressource antwortet ueberhaupt?
 // ---------------------------------------------------------------
+// Wichtig: die Benutzerliste kommt ueber die Aktion "get", nicht "read",
+// und sie braucht eine data-Liste. Mit "read" antwortet sie mit Code 25
+// bzw. Code 170, was wie ein Rechteproblem aussieht, aber keines ist.
+const PROBE = ["email", "Vorname", "Name"];
 let ressource = "";
+let aktion = "";
 for (const kandidat of ["users", "user"]) {
-  try {
-    await call("read", kandidat, { listlimit: 1 });
-    ressource = kandidat;
-    console.log(`  Ressource : "${kandidat}" antwortet.`);
-    break;
-  } catch (e) {
-    console.log(`  Ressource : "${kandidat}" - ${e.message}`);
+  for (const versuch of ["get", "read"]) {
+    try {
+      await call(versuch, kandidat, { data: PROBE });
+      ressource = kandidat;
+      aktion = versuch;
+      console.log(`  Ressource : "${kandidat}" antwortet auf "${versuch}".`);
+      break;
+    } catch (e) {
+      console.log(`  Ressource : "${kandidat}" mit "${versuch}" - ${e.message}`);
+    }
   }
+  if (ressource) break;
 }
 if (!ressource) {
   console.log("\n  Keine Benutzerressource erreichbar. Abbruch.\n");
@@ -159,7 +168,7 @@ const akzeptiert = [];
 const abgelehnt = [];
 for (const feld of zuTesten) {
   try {
-    await call("read", ressource, { data: [feld], listlimit: 1 });
+    await call(aktion, ressource, { data: [feld] });
     akzeptiert.push(feld);
   } catch (e) {
     abgelehnt.push(feld);
@@ -179,7 +188,7 @@ if (!akzeptiert.length) {
 console.log("\n--- Befuellungsgrad ---");
 let benutzer = [];
 try {
-  benutzer = await call("read", ressource, { data: akzeptiert, listlimit: 200 });
+  benutzer = await call(aktion, ressource, { data: akzeptiert });
 } catch (e) {
   console.log(`  Sammelabruf fehlgeschlagen: ${e.message}`);
   process.exit(1);
