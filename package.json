@@ -15,7 +15,8 @@
     "feldtest": "node scripts/feldtest.mjs",
     "smtp": "node scripts/smtp-test.mjs",
     "mailidentity": "node scripts/mailidentity.mjs",
-    "db": "node scripts/db-test.mjs"
+    "db": "node scripts/db-test.mjs",
+    "kollegen": "node scripts/kollegen.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
