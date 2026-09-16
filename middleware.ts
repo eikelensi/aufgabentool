@@ -63,7 +63,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Alles ausser Next-Interna und Dateien mit Endung.
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Alles ausser Next-Interna, Dateien mit Endung - und /api.
+    //
+    // /api bleibt bewusst aussen vor: die Routen pruefen selbst, und zwar
+    // strenger, als es hier moeglich waere (x-api-secret, CRON_SECRET oder
+    // eine Adminsitzung). Wuerde die Middleware sie mitfangen, bekaeme der
+    // Zeitplan von Vercel eine Weiterleitung auf /anmelden statt der Route,
+    // und kein Lauf wuerde je stattfinden.
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
