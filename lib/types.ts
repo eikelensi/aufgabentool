@@ -1,0 +1,149 @@
+export type TaskStatus = "offen" | "in_bearbeitung" | "erledigt";
+export type TaskPriority = "normal" | "hoch";
+export type AppRole = "superadmin" | "admin" | "mitarbeiter";
+export type TaskSource = "manuell" | "email" | "onoffice" | "qm";
+
+export type NotifyKind =
+  | "aufgabe_erledigt_makler"
+  | "in_bearbeitung_notiz"
+  | "erinnerung_3t"
+  | "eskalation_7t";
+
+export interface Profile {
+  id: string;
+  fullName: string;
+  email: string;
+  role: AppRole;
+  onofficeUsername: string;
+  color: string;
+  initials: string;
+}
+
+export interface BrokerContact {
+  id: string;
+  displayName: string;
+  shortCode: string;
+  email: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface StatusHistoryEntry {
+  at: string;
+  from: TaskStatus | null;
+  to: TaskStatus;
+  by: string;
+  note?: string;
+}
+
+export type AttachmentOrigin = "lokal" | "onoffice";
+
+export type AttachmentSync =
+  | "lokal"        // nur im Aufgabentool
+  | "wartet"       // in der Warteschlange für onOffice
+  | "synchron"     // in beiden Systemen
+  | "nur_onoffice" // hängt in onOffice, Inhalt liegt uns nicht vor
+  | "fehler";
+
+export interface Attachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  origin: AttachmentOrigin;
+  uploadedBy: string | null;
+  onofficeFileId?: string;
+  syncState: AttachmentSync;
+  syncError?: string;
+  createdAt: string;
+  /** Im Prototyp: Inhalt liegt als Blob in dieser Browsersitzung vor. */
+  hasContent: boolean;
+}
+
+export const SYNC_LABEL: Record<AttachmentSync, string> = {
+  lokal: "nur hier",
+  wartet: "wird übertragen",
+  synchron: "in onOffice",
+  nur_onoffice: "nur in onOffice",
+  fehler: "Fehler",
+};
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  categoryId: string | null;
+  creatorId: string;
+  assigneeId: string | null;
+  brokerContactId: string | null;
+  isPool: boolean;
+  isPrivate: boolean;
+  visibleFrom: string; // ISO-Datum
+  dueDate: string | null;
+  onofficeEstateNo?: string;
+  onofficeAddressId?: string;
+  source: TaskSource;
+  inProgressNote?: string;
+  createdAt: string;
+  completedAt: string | null;
+  history: StatusHistoryEntry[];
+  attachments: Attachment[];
+  reminder3dSentAt?: string | null;
+  escalation7dSentAt?: string | null;
+}
+
+export interface NotificationEntry {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  kind: NotifyKind;
+  recipient: string;
+  recipientName: string;
+  subject: string;
+  body: string;
+  provider: "onoffice" | "smtp" | "log";
+  status: "sent" | "queued" | "skipped";
+  dedupeKey: string;
+  createdAt: string;
+}
+
+export interface EmailTemplate {
+  key: NotifyKind;
+  label: string;
+  subject: string;
+  body: string;
+  isActive: boolean;
+}
+
+export interface AppSettings {
+  reminderDays: number;
+  escalationDays: number;
+  mailProvider: "onoffice" | "smtp" | "log";
+  onofficeEmailIdentity: string;
+  smtpFrom: string;
+  doneHideAfterHours: number;
+  attachmentMaxMb: number;
+  attachmentPushOnoffice: boolean;
+  attachmentDefaultArt: string;
+}
+
+export const STATUS_LABEL: Record<TaskStatus, string> = {
+  offen: "Offen",
+  in_bearbeitung: "In Bearbeitung",
+  erledigt: "Erledigt",
+};
+
+export const NOTIFY_LABEL: Record<NotifyKind, string> = {
+  aufgabe_erledigt_makler: "Erledigt-Info an Maklerkollegen",
+  in_bearbeitung_notiz: "Rückmeldung „In Bearbeitung“",
+  erinnerung_3t: "Erinnerung nach 3 Tagen",
+  eskalation_7t: "Eskalation nach 7 Tagen",
+};

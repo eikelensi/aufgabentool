@@ -1,0 +1,33 @@
+{
+  "name": "aufgabentool",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "probe": "node scripts/probe.mjs",
+    "zugangsdaten": "bash scripts/zugangsdaten.sh",
+    "diagnose": "node scripts/diagnose.mjs",
+    "hmac": "node scripts/hmac-varianten.mjs",
+    "felder": "node scripts/felder.mjs",
+    "werte": "node scripts/werte.mjs",
+    "feldtest": "node scripts/feldtest.mjs",
+    "smtp": "node scripts/smtp-test.mjs"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "nodemailer": "^7.0.13",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.15.0",
+    "@types/nodemailer": "^8.0.2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0"
+  }
+}
