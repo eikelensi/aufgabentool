@@ -5,7 +5,14 @@ import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { NewTaskDialog } from "./dialogs";
-import { Avatar } from "./ui";
+import type { AppRole } from "@/lib/types";
+
+export interface ShellProfil {
+  id: string;
+  email: string;
+  fullName: string;
+  role: AppRole;
+}
 
 const NAV = [
   { href: "/", label: "Mein Tag" },
@@ -16,16 +23,43 @@ const NAV = [
   { href: "/protokoll", label: "Mail-Protokoll", adminOnly: true },
 ];
 
-export default function Shell({ children }: { children: React.ReactNode }) {
-  const { me, profiles, setCurrentUser, isAdmin, resetDemo } = useStore();
+const ROLLE_LABEL: Record<AppRole, string> = {
+  superadmin: "Superadmin",
+  admin: "Admin",
+  mitarbeiter: "Mitarbeiter",
+};
+
+function initialen(name: string): string {
+  const teile = name.trim().split(/\s+/).filter(Boolean);
+  if (!teile.length) return "?";
+  if (teile.length === 1) return teile[0].slice(0, 2).toUpperCase();
+  return (teile[0][0] + teile[teile.length - 1][0]).toUpperCase();
+}
+
+export default function Shell({
+  children,
+  profil,
+}: {
+  children: React.ReactNode;
+  profil: ShellProfil;
+}) {
+  const { resetDemo } = useStore();
   const pathname = usePathname();
   const [dark, setDark] = useState(false);
   const [newTask, setNewTask] = useState(false);
+  const [menuOffen, setMenuOffen] = useState(false);
+
+  const isAdmin = profil.role === "admin" || profil.role === "superadmin";
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("aufgabentool-theme");
+    let gespeichert: string | null = null;
+    try {
+      gespeichert = window.localStorage.getItem("aufgabentool-theme");
+    } catch {
+      /* Privatmodus oder gesperrte Speicherung - dann eben die Systemwahl */
+    }
     const prefers = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = saved ? saved === "dark" : prefers;
+    const isDark = gespeichert ? gespeichert === "dark" : prefers;
     setDark(isDark);
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
   }, []);
@@ -34,7 +68,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     const next = !dark;
     setDark(next);
     document.documentElement.dataset.theme = next ? "dark" : "light";
-    window.localStorage.setItem("aufgabentool-theme", next ? "dark" : "light");
+    try {
+      window.localStorage.setItem("aufgabentool-theme", next ? "dark" : "light");
+    } catch {
+      /* nicht wichtig genug, um darueber zu stolpern */
+    }
   };
 
   const nav = NAV.filter((n) => !n.adminOnly || isAdmin);
@@ -86,21 +124,53 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <button className="btn btn-ghost" onClick={toggleTheme} title="Design umschalten">
               {dark ? "☀️" : "🌙"}
             </button>
-            <div className="flex items-center gap-1.5">
-              <Avatar profile={me} size={26} />
-              <select
-                className="field"
-                style={{ width: "auto", padding: "0.3rem 0.5rem", fontSize: "0.75rem" }}
-                value={me.id}
-                onChange={(e) => setCurrentUser(e.target.value)}
-                title="Demo: Benutzer wechseln"
+
+            <div className="relative">
+              <button
+                className="flex items-center gap-1.5 rounded-md px-1 py-0.5"
+                onClick={() => setMenuOffen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={menuOffen}
+                title={profil.email}
               >
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fullName} ({p.role === "mitarbeiter" ? "Mitarbeiter" : "Admin"})
-                  </option>
-                ))}
-              </select>
+                <span
+                  className="flex h-[26px] w-[26px] items-center justify-center rounded-full text-[10px] font-bold"
+                  style={{ background: "var(--color-ci-400)", color: "#10200a" }}
+                >
+                  {initialen(profil.fullName)}
+                </span>
+                <span className="muted hidden text-[12px] sm:inline">
+                  {profil.fullName}
+                </span>
+              </button>
+
+              {menuOffen ? (
+                <div
+                  className="panel absolute right-0 z-50 mt-1 w-[230px] p-2 text-[12px]"
+                  role="menu"
+                >
+                  <div className="line mb-2 border-b pb-2">
+                    <div className="font-medium">{profil.fullName}</div>
+                    <div className="muted text-[11px]">{profil.email}</div>
+                    <div className="muted text-[11px]">{ROLLE_LABEL[profil.role]}</div>
+                  </div>
+                  <Link
+                    href="/passwort-setzen"
+                    className="block rounded px-1.5 py-1 hover:underline"
+                    onClick={() => setMenuOffen(false)}
+                  >
+                    Passwort ändern
+                  </Link>
+                  <form action="/auth/abmelden" method="post">
+                    <button
+                      className="mt-0.5 w-full rounded px-1.5 py-1 text-left hover:underline"
+                      type="submit"
+                    >
+                      Abmelden
+                    </button>
+                  </form>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -110,10 +180,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           style={{ background: "var(--panel-2)", color: "var(--muted)" }}
         >
           <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-2">
-            <strong style={{ color: "var(--color-ci-500)" }}>Prototyp</strong>
+            <strong style={{ color: "var(--color-ci-500)" }}>Umbau</strong>
             <span>
-              Demo-Daten im Browser, keine Datenbank, keine echten E-Mails. Benutzer oben rechts
-              umschalten, um Rollen zu testen.
+              Anmeldung und Nutzerverwaltung laufen gegen die echte Datenbank. Die
+              Aufgabenlisten zeigen noch Demo-Daten aus dem Browser.
             </span>
             <button className="btn btn-ghost ml-auto" style={{ fontSize: 11 }} onClick={resetDemo}>
               Demo zurücksetzen

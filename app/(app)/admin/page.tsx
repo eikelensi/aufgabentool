@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { Field } from "@/components/ui";
@@ -54,6 +55,23 @@ export default function AdminPage() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <h1 className="text-lg font-semibold lg:col-span-2">Adminbereich</h1>
+
+      {/* ------------------------------------------- Verwaltung (echte Daten) */}
+      <section className="panel p-4 lg:col-span-2">
+        <h2 className="mb-1 text-sm font-semibold">Verwaltung</h2>
+        <p className="muted mb-3 text-[11px]">
+          Diese beiden Bereiche arbeiten mit der echten Datenbank, nicht mit
+          Demo-Daten.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Link className="btn btn-primary" href="/admin/nutzer">
+            Nutzerverwaltung
+          </Link>
+          <Link className="btn btn-ghost" href="/admin/kollegen">
+            Mitarbeiterverwaltung
+          </Link>
+        </div>
+      </section>
 
       {/* -------------------------------------------------- Kategorien */}
       <section className="panel p-4">

@@ -1,22 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { StoreProvider } from "@/lib/store";
-import Shell from "@/components/Shell";
 
 export const metadata: Metadata = {
   title: "Aufgabentool – 4wändekanzlei",
   description:
-    "Klickbarer Prototyp des internen Aufgabenmanagements: Board mit Drag-and-drop, Aufgabenpool, Pflichtnotiz, Kategorien, Eskalation und onOffice-Bezug.",
+    "Internes Aufgabenmanagement: Board mit Drag-and-drop, Aufgabenpool, Pflichtnotiz, Kategorien, Eskalation und onOffice-Bezug.",
 };
 
+/**
+ * Nur Huelle. Die Navigation und der Demo-Store sitzen in app/(app),
+ * damit Anmeldung und Passwortseiten ohne sie auskommen - dort ist noch
+ * niemand angemeldet, den eine Navigation etwas anginge.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de" suppressHydrationWarning>
-      <body>
-        <StoreProvider>
-          <Shell>{children}</Shell>
-        </StoreProvider>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
