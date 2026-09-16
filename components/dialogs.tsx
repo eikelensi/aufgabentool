@@ -25,8 +25,13 @@ export function NoteDialog({
   const creator = profileById(task.creatorId);
   const broker = brokerById(task.brokerContactId);
 
-  const submit = () => {
-    const res = moveTask(task.id, "in_bearbeitung", note);
+  const [laeuft, setLaeuft] = useState(false);
+
+  const submit = async () => {
+    setError(null);
+    setLaeuft(true);
+    const res = await moveTask(task.id, "in_bearbeitung", note);
+    setLaeuft(false);
     if (!res.ok) {
       setError(res.error ?? "Speichern nicht möglich.");
       return;
@@ -103,9 +108,9 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   const [addressId, setAddressId] = useState("");
   const [files, setFiles] = useState<File[]>([]);
 
-  const submit = () => {
+  const submit = async () => {
     if (!title.trim()) return;
-    const newId = createTask({
+    const newId = await createTask({
       title,
       description,
       categoryId: categoryId || null,
@@ -120,7 +125,8 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
       onofficeAddressId: addressId || undefined,
       source: prefill?.source ?? "manuell",
     });
-    if (files.length) addAttachments(newId, files);
+    if (!newId) return;
+    if (files.length) await addAttachments(newId, files);
     onClose();
   };
 

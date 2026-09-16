@@ -217,14 +217,17 @@ export default function AdminPage() {
         <div className="mt-3 flex items-center gap-2">
           <button
             className="btn btn-primary"
-            onClick={() => {
-              const r = runEscalationJob();
+            onClick={async () => {
+              setJobResult("Läuft…");
+              const r = await runEscalationJob();
               setJobResult(
-                `${r.reminders} Erinnerung(en) und ${r.escalations} Eskalationsmail(s) erzeugt. Bereits versendete Anlässe wurden dank Dedupe-Schlüssel übersprungen.`,
+                r.meldung ??
+                  `${r.reminders} Erinnerung(en) und ${r.escalations} Eskalationsmail(s) versendet. ` +
+                    "Bereits versendete Anlässe wurden über den Dedupe-Schlüssel übersprungen.",
               );
             }}
           >
-            Täglichen Lauf jetzt simulieren
+            Täglichen Lauf jetzt starten
           </button>
           {jobResult ? <p className="muted text-[11px]">{jobResult}</p> : null}
         </div>
@@ -277,12 +280,14 @@ export default function AdminPage() {
         <div className="mt-3 flex items-center gap-2">
           <button
             className="btn btn-primary"
-            onClick={() => {
-              const r = runAttachmentSync();
+            onClick={async () => {
+              setSyncResult("Läuft…");
+              const r = await runAttachmentSync();
               setSyncResult(
-                r.pushed === 0
-                  ? "Keine Datei in der Warteschlange."
-                  : `${r.pushed} Datei(en) nach onOffice übertragen und mit Datei-ID versehen.`,
+                r.meldung ??
+                  (r.pushed === 0
+                    ? "Keine Datei in der Warteschlange."
+                    : `${r.pushed} Datei(en) nach onOffice übertragen und mit Datei-ID versehen.`),
               );
             }}
           >

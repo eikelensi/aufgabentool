@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 import { serviceRoleVorhanden, supabaseAdmin } from "@/lib/supabase/admin";
-import { EinladenFormular, NutzerTabelle, type NutzerZeile } from "./tabelle";
+import { EinladenFormular, NutzerTabelle, SyncBereich, type NutzerZeile } from "./tabelle";
 import type { AppRole } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -47,7 +47,7 @@ export default async function NutzerSeite() {
 
   const { data: profile, error } = await sb
     .from("profiles")
-    .select("id, email, full_name, role, is_active, onoffice_username, phone, invited_at")
+    .select("id, email, full_name, role, is_active, onoffice_username, onoffice_display_name, phone, invited_at")
     .order("full_name");
 
   if (error) {
@@ -77,12 +77,25 @@ export default async function NutzerSeite() {
     role: p.role as AppRole,
     isActive: p.is_active,
     onofficeUsername: p.onoffice_username,
+    onofficeDisplayName: p.onoffice_display_name,
     phone: p.phone,
     invitedAt: p.invited_at,
     hatSichAngemeldet: angemeldet.has(p.id),
   }));
 
   const offeneEinladungen = nutzer.filter((n) => !n.hatSichAngemeldet && n.isActive).length;
+  const ohneZuordnung = nutzer.filter((n) => !n.onofficeDisplayName && n.isActive).length;
+
+  // Namen aus geholten Aufgaben, die zu keinem Nutzer passen.
+  const { data: unbekannt } = await sb
+    .from("v_unbekannte_onoffice_namen")
+    .select("name, aufgaben")
+    .limit(40);
+
+  const unbekannteNamen = (unbekannt ?? []).map((u) => ({
+    name: u.name as string,
+    aufgaben: Number(u.aufgaben ?? 0),
+  }));
 
   return (
     <div>
@@ -96,6 +109,21 @@ export default async function NutzerSeite() {
           Zurück zum Adminbereich
         </Link>
       </div>
+
+      {ohneZuordnung ? (
+        <p
+          className="mb-4 rounded-md px-2.5 py-2 text-xs leading-relaxed"
+          style={{ background: "#fef3c7", color: "#b45309" }}
+        >
+          {ohneZuordnung === 1
+            ? "Für einen Nutzer fehlt der onOffice-Name"
+            : `Für ${ohneZuordnung} Nutzer fehlt der onOffice-Name`}
+          . Solange er fehlt, werden für diese Personen keine Aufgaben aus dem CRM
+          geholt – der Abgleich erkennt sie nicht.
+        </p>
+      ) : null}
+
+      <SyncBereich unbekannteNamen={unbekannteNamen} />
 
       <EinladenFormular darfSuperadmin={profil!.role === "superadmin"} />
 

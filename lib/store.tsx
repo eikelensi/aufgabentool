@@ -1,20 +1,34 @@
 "use client";
 
+/**
+ * Der Zustand der Oberflaeche - jetzt gegen die echte Datenbank.
+ *
+ * Die Demo-Daten sind weg. Gelesen und geschrieben wird mit dem Schluessel
+ * des angemeldeten Menschen, das heisst: was sichtbar ist und was sich
+ * aendern laesst, entscheidet die Zeilensicherheit in Postgres. Dieser Code
+ * filtert nicht nach Rechten - er koennte es gar nicht verlaesslich.
+ *
+ * Nach jeder Aenderung wird neu geladen statt lokal weitergerechnet. Etwas
+ * mehr Netzverkehr, dafuer zeigt die Oberflaeche nie etwas an, das die
+ * Datenbank abgelehnt hat.
+ */
+
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import {
-  ALLOWED_EXTENSIONS,
-  BROKERS,
-  CATEGORIES,
-  PROFILES,
-  SETTINGS,
-  TEMPLATES,
-  buildNotifications,
-  buildTasks,
-  isoDate,
-} from "./data";
+  aufgabeZurZeile,
+  einstellungenZurZeile,
+  zuAufgabe,
+  zuBenachrichtigung,
+  zuEinstellungen,
+  zuKategorie,
+  zuKollege,
+  zuProfil,
+  zuVorlage,
+} from "@/lib/daten/abbildung";
+import { ALLOWED_EXTENSIONS } from "./data";
 import type {
   AppSettings,
-  Attachment,
   BrokerContact,
   Category,
   EmailTemplate,
@@ -25,47 +39,58 @@ import type {
   TaskStatus,
 } from "./types";
 
-const STORAGE_KEY = "aufgabentool-demo-v2";
+const AUFGABE_SPALTEN = `
+  id, title, description, status, priority, category_id, creator_id, assignee_id,
+  broker_contact_id, is_pool, is_private, visible_from, due_date,
+  onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
+  in_progress_note, created_at, completed_at, reminder_3d_sent_at,
+  escalation_7d_sent_at,
+  task_status_history ( created_at, from_status, to_status, note, changed_by ),
+  task_attachments ( id, file_name, mime_type, size_bytes, origin, uploaded_by,
+                     onoffice_file_id, sync_state, sync_error, created_at, storage_path )
+`;
 
-/**
- * Dateiinhalte liegen im Prototyp nur als Blob-URL in dieser Browsersitzung –
- * bewusst außerhalb des persistierten Zustands, damit localStorage nicht
- * volläuft. Im Echtbetrieb übernimmt das Supabase Storage.
- */
-const blobUrls = new Map<string, string>();
-
-interface State {
-  currentUserId: string;
-  tasks: Task[];
-  categories: Category[];
-  notifications: NotificationEntry[];
-  templates: EmailTemplate[];
-  settings: AppSettings;
+export interface Ergebnis {
+  ok: boolean;
+  error?: string;
 }
 
-interface StoreValue extends State {
+interface StoreValue {
+  bereit: boolean;
+  fehler: string | null;
+
+  tasks: Task[];
+  visibleTasks: Task[];
   profiles: Profile[];
   brokers: BrokerContact[];
+  categories: Category[];
+  templates: EmailTemplate[];
+  notifications: NotificationEntry[];
+  settings: AppSettings;
+
   me: Profile;
   isAdmin: boolean;
-  setCurrentUser: (id: string) => void;
-  moveTask: (taskId: string, status: TaskStatus, note?: string) => { ok: boolean; error?: string };
-  claimTask: (taskId: string) => void;
-  createTask: (input: Partial<Task> & { title: string }) => string;
-  updateTask: (taskId: string, patch: Partial<Task>) => void;
-  deleteTask: (taskId: string) => void;
-  addAttachments: (taskId: string, files: File[]) => { added: number; rejected: string[] };
-  removeAttachment: (taskId: string, attachmentId: string) => void;
-  attachmentUrl: (attachmentId: string) => string | null;
-  runAttachmentSync: () => { pushed: number };
-  upsertCategory: (cat: Category) => void;
-  removeCategory: (id: string) => void;
-  moveCategory: (id: string, dir: -1 | 1) => void;
-  updateTemplate: (key: NotifyKind, patch: Partial<EmailTemplate>) => void;
-  updateSettings: (patch: Partial<AppSettings>) => void;
-  runEscalationJob: () => { reminders: number; escalations: number };
-  resetDemo: () => void;
-  visibleTasks: Task[];
+
+  neuLaden: () => Promise<void>;
+
+  moveTask: (taskId: string, status: TaskStatus, note?: string) => Promise<Ergebnis>;
+  claimTask: (taskId: string) => Promise<Ergebnis>;
+  createTask: (input: Partial<Task> & { title: string }) => Promise<string | null>;
+  updateTask: (taskId: string, patch: Partial<Task>) => Promise<Ergebnis>;
+  deleteTask: (taskId: string) => Promise<Ergebnis>;
+
+  addAttachments: (taskId: string, files: File[]) => Promise<{ added: number; rejected: string[] }>;
+  removeAttachment: (taskId: string, attachmentId: string) => Promise<Ergebnis>;
+  attachmentUrl: (attachmentId: string) => Promise<string | null>;
+  runAttachmentSync: () => Promise<{ pushed: number; meldung?: string }>;
+
+  upsertCategory: (cat: Category) => Promise<Ergebnis>;
+  removeCategory: (id: string) => Promise<Ergebnis>;
+  moveCategory: (id: string, dir: -1 | 1) => Promise<Ergebnis>;
+  updateTemplate: (key: NotifyKind, patch: Partial<EmailTemplate>) => Promise<Ergebnis>;
+  updateSettings: (patch: Partial<AppSettings>) => Promise<Ergebnis>;
+  runEscalationJob: () => Promise<{ reminders: number; escalations: number; meldung?: string }>;
+
   profileById: (id: string | null) => Profile | undefined;
   categoryById: (id: string | null) => Category | undefined;
   brokerById: (id: string | null) => BrokerContact | undefined;
@@ -73,472 +98,378 @@ interface StoreValue extends State {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-function initialState(): State {
-  const tasks = buildTasks();
-  return {
-    currentUserId: "u-sarah",
-    tasks,
-    categories: CATEGORIES,
-    notifications: buildNotifications(tasks),
-    templates: TEMPLATES,
-    settings: SETTINGS,
-  };
+export interface StoreProfil {
+  id: string;
+  email: string;
+  fullName: string;
+  role: Profile["role"];
 }
 
-function fillTemplate(tpl: string, vars: Record<string, string>): string {
-  let out = tpl;
-  for (const [key, value] of Object.entries(vars)) {
-    out = out.split("{{" + key + "}}").join(value);
-  }
-  return out;
-}
+export function StoreProvider({
+  children,
+  profil,
+}: {
+  children: React.ReactNode;
+  profil: StoreProfil;
+}) {
+  const [bereit, setBereit] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<State | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [brokers, setBrokers] = useState<BrokerContact[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(zuEinstellungen(null));
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as State;
-        if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length) {
-          // Zustand aus einer älteren Version kennt noch keine Anhänge
-          setState({
-            ...parsed,
-            settings: { ...SETTINGS, ...parsed.settings },
-            tasks: parsed.tasks.map((t) => ({ ...t, attachments: t.attachments ?? [] })),
-          });
-          return;
-        }
-      }
-    } catch {
-      /* Demo-Daten neu aufbauen */
-    }
-    setState(initialState());
+  const neuLaden = useCallback(async () => {
+    const sb = supabaseBrowser();
+    setFehler(null);
+
+    const [a, p, k, ka, v, e, n] = await Promise.all([
+      sb.from("tasks").select(AUFGABE_SPALTEN).order("created_at", { ascending: false }),
+      sb.from("profiles").select("id, email, full_name, role, onoffice_display_name, onoffice_username, color, is_active").order("full_name"),
+      sb.from("broker_contacts").select("id, display_name, short_code, email, is_active").eq("is_active", true).order("display_name"),
+      sb.from("categories").select("id, name, color, sort_order, is_active").order("sort_order"),
+      sb.from("email_templates").select("key, label, subject, body, is_active"),
+      sb.from("app_settings").select("*").maybeSingle(),
+      sb
+        .from("notifications_log")
+        .select("id, task_id, kind, recipient, recipient_name, subject, body, provider, status, dedupe_key, created_at, tasks ( title )")
+        .order("created_at", { ascending: false })
+        .limit(200),
+    ]);
+
+    const ersterFehler = [a.error, p.error, k.error, ka.error, v.error, e.error].find(Boolean);
+    if (ersterFehler) setFehler(ersterFehler.message);
+
+    if (a.data) setTasks(a.data.map(zuAufgabe));
+    if (p.data) setProfiles(p.data.map(zuProfil));
+    if (k.data) setBrokers(k.data.map(zuKollege));
+    if (ka.data) setCategories(ka.data.map(zuKategorie));
+    if (v.data) setTemplates(v.data.map(zuVorlage));
+    if (e.data) setSettings(zuEinstellungen(e.data));
+    // Das Protokoll sehen nur Admins - ein Fehler hier ist kein Problem.
+    if (n.data) setNotifications(n.data.map(zuBenachrichtigung));
+
+    setBereit(true);
   }, []);
 
   useEffect(() => {
-    if (!state) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      /* Speicher nicht verfügbar – Demo läuft trotzdem */
-    }
-  }, [state]);
+    void neuLaden();
+  }, [neuLaden]);
 
-  const patch = useCallback((fn: (s: State) => State) => {
-    setState((s) => (s ? fn(s) : s));
-  }, []);
+  const value = useMemo<StoreValue>(() => {
+    const sb = supabaseBrowser();
 
-  const value = useMemo<StoreValue | null>(() => {
-    if (!state) return null;
+    const me: Profile =
+      profiles.find((p) => p.id === profil.id) ?? {
+        id: profil.id,
+        fullName: profil.fullName,
+        email: profil.email,
+        role: profil.role,
+        onofficeUsername: "",
+        color: "#88cc44",
+        initials: profil.fullName.slice(0, 2).toUpperCase(),
+      };
 
-    const me = PROFILES.find((p) => p.id === state.currentUserId) ?? PROFILES[0];
     const isAdmin = me.role === "admin" || me.role === "superadmin";
 
-    const profileById = (id: string | null) => PROFILES.find((p) => p.id === id);
-    const categoryById = (id: string | null) => state.categories.find((c) => c.id === id);
-    const brokerById = (id: string | null) => BROKERS.find((b) => b.id === id);
+    const profileById = (id: string | null) => profiles.find((p) => p.id === id);
+    const categoryById = (id: string | null) => categories.find((c) => c.id === id);
+    const brokerById = (id: string | null) => brokers.find((b) => b.id === id);
 
-    const today = isoDate(0);
+    const heute = new Date().toISOString().slice(0, 10);
+    const grenze = Date.now() - settings.doneHideAfterHours * 3600_000;
 
-    // Sichtbarkeit: Rollenrecht + Startdatum + Ausblendfrist für Erledigte
-    const visibleTasks = state.tasks.filter((t) => {
-      if (t.isPrivate && t.creatorId !== me.id) return false;
-      if (!isAdmin && !t.isPrivate) {
-        const mine = t.assigneeId === me.id || t.creatorId === me.id;
-        const pool = t.isPool && t.assigneeId === null;
-        if (!mine && !pool) return false;
-      }
-      if (t.visibleFrom > today) return false;
+    /** Tagesgeschaeft: sichtbar ab Startdatum, Erledigtes nur kurz. */
+    const visibleTasks = tasks.filter((t) => {
+      if (t.visibleFrom > heute) return false;
       if (t.status === "erledigt" && t.completedAt) {
-        const ageH = (Date.now() - new Date(t.completedAt).getTime()) / 36e5;
-        if (ageH > state.settings.doneHideAfterHours) return false;
+        return new Date(t.completedAt).getTime() > grenze;
       }
       return true;
     });
 
-    const logMail = (
-      s: State,
-      kind: NotifyKind,
-      task: Task,
-      recipientName: string,
-      recipient: string,
-      vars: Record<string, string>,
-      suffix = "",
-    ): NotificationEntry | null => {
-      const tpl = s.templates.find((t) => t.key === kind);
-      if (!tpl || !tpl.isActive) return null;
-      const dedupeKey = `task:${task.id}:${kind}${suffix}`;
-      if (s.notifications.some((n) => n.dedupeKey === dedupeKey)) return null; // Doppelversand verhindern
-      return {
-        id: `n-${Math.random().toString(36).slice(2, 9)}`,
-        taskId: task.id,
-        taskTitle: task.title,
-        kind,
-        recipient,
-        recipientName,
-        subject: fillTemplate(tpl.subject, vars),
-        body: fillTemplate(tpl.body, { ...vars, empfaenger: recipientName }),
-        provider: s.settings.mailProvider,
-        status: "sent",
-        dedupeKey,
-        createdAt: new Date().toISOString(),
-      };
-    };
+    async function moveTask(taskId: string, status: TaskStatus, note?: string): Promise<Ergebnis> {
+      const aufgabe = tasks.find((t) => t.id === taskId);
+      if (!aufgabe) return { ok: false, error: "Aufgabe nicht gefunden." };
 
-    const moveTask: StoreValue["moveTask"] = (taskId, status, note) => {
-      const task = state.tasks.find((t) => t.id === taskId);
-      if (!task) return { ok: false, error: "Aufgabe nicht gefunden." };
-      if (status === "in_bearbeitung" && (!note || !note.trim())) {
-        return { ok: false, error: "Für „In Bearbeitung“ ist eine Notiz verpflichtend." };
-      }
-      if (task.status === status) return { ok: true };
+      const zeile: Record<string, unknown> = { status, updated_by: profil.id };
 
-      patch((s) => {
-        const now = new Date().toISOString();
-        const mails: NotificationEntry[] = [];
-        const t = s.tasks.find((x) => x.id === taskId)!;
-        const assignee = profileById(t.assigneeId) ?? me;
-        const creator = profileById(t.creatorId);
-        const broker = brokerById(t.brokerContactId);
-        const objekt = t.onofficeEstateNo ?? t.onofficeAddressId ?? "–";
-
-        const updated: Task = {
-          ...t,
-          status,
-          assigneeId: t.assigneeId ?? me.id,
-          isPool: t.assigneeId ? t.isPool : false,
-          inProgressNote: status === "in_bearbeitung" ? note!.trim() : t.inProgressNote,
-          completedAt: status === "erledigt" ? now : null,
-          // Eskalationsuhr stoppt, sobald die Aufgabe nicht mehr offen ist
-          reminder3dSentAt: status !== "offen" ? t.reminder3dSentAt ?? now : t.reminder3dSentAt,
-          escalation7dSentAt: status !== "offen" ? t.escalation7dSentAt ?? now : t.escalation7dSentAt,
-          history: [
-            ...t.history,
-            { at: now, from: t.status, to: status, by: me.id, note: note?.trim() },
-          ],
-        };
-
-        if (!t.isPrivate) {
-          const vars = {
-            titel: t.title,
-            bearbeiter: assignee.fullName,
-            ersteller: creator?.fullName ?? "–",
-            notiz: note?.trim() ?? "",
-            objekt,
-            datum: new Date().toLocaleDateString("de-DE"),
-            tage: String(
-              Math.max(
-                0,
-                Math.round((Date.now() - new Date(t.createdAt).getTime()) / 864e5),
-              ),
-            ),
+      if (status === "in_bearbeitung") {
+        const text = (note ?? aufgabe.inProgressNote ?? "").trim();
+        if (!text) {
+          return {
+            ok: false,
+            error: "Für „In Bearbeitung“ ist eine Notiz erforderlich.",
           };
-
-          if (status === "in_bearbeitung") {
-            const suffix = `:${updated.history.length}`;
-            if (creator) {
-              const m = logMail(s, "in_bearbeitung_notiz", t, creator.fullName, creator.email, vars, suffix);
-              if (m) mails.push(m);
-            }
-            if (broker) {
-              const m = logMail(
-                s,
-                "in_bearbeitung_notiz",
-                t,
-                broker.displayName,
-                broker.email,
-                vars,
-                `${suffix}:makler`,
-              );
-              if (m) mails.push(m);
-            }
-          }
-
-          if (status === "erledigt" && broker) {
-            const m = logMail(s, "aufgabe_erledigt_makler", t, broker.displayName, broker.email, vars);
-            if (m) mails.push(m);
-          }
         }
+        zeile.in_progress_note = text;
+      }
 
+      if (status === "erledigt") {
+        zeile.completed_at = new Date().toISOString();
+        zeile.completed_by = profil.id;
+      }
+
+      // Sofort umschalten, damit sich das Ziehen nicht zaeh anfuehlt.
+      setTasks((alt) => alt.map((t) => (t.id === taskId ? { ...t, status } : t)));
+
+      const { error } = await sb.from("tasks").update(zeile).eq("id", taskId);
+      await neuLaden();
+
+      if (error) {
         return {
-          ...s,
-          tasks: s.tasks.map((x) => (x.id === taskId ? updated : x)),
-          notifications: [...mails, ...s.notifications],
+          ok: false,
+          error: /tasks_in_bearbeitung_braucht_notiz/.test(error.message)
+            ? "Die Datenbank verlangt für „In Bearbeitung“ eine Notiz."
+            : error.message,
         };
-      });
+      }
+
+      if (status === "in_bearbeitung" || status === "erledigt") {
+        // Mails laufen auf dem Server; ein Fehlschlag darf den
+        // Statuswechsel nicht rueckgaengig machen.
+        void fetch("/api/mail/aufgabe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId, status }),
+        }).catch(() => undefined);
+      }
 
       return { ok: true };
-    };
+    }
 
-    const claimTask: StoreValue["claimTask"] = (taskId) => {
-      patch((s) => ({
-        ...s,
-        tasks: s.tasks.map((t) =>
-          t.id === taskId ? { ...t, assigneeId: me.id, isPool: false } : t,
-        ),
-      }));
-    };
+    async function claimTask(taskId: string): Promise<Ergebnis> {
+      const { error } = await sb
+        .from("tasks")
+        .update({ assignee_id: profil.id, is_pool: false, updated_by: profil.id })
+        .eq("id", taskId);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
 
-    const createTask: StoreValue["createTask"] = (input) => {
-      const newId = `t-${Math.random().toString(36).slice(2, 9)}`;
-      patch((s) => {
-        const task: Task = {
-          id: newId,
-          title: input.title.trim(),
-          description: input.description ?? "",
-          status: "offen",
-          priority: input.priority ?? "normal",
-          categoryId: input.categoryId ?? null,
-          creatorId: me.id,
-          assigneeId: input.isPool ? null : input.assigneeId ?? me.id,
-          brokerContactId: input.isPrivate ? null : input.brokerContactId ?? null,
-          isPool: Boolean(input.isPool),
-          isPrivate: Boolean(input.isPrivate),
-          visibleFrom: input.visibleFrom ?? isoDate(0),
-          dueDate: input.dueDate ?? null,
-          onofficeEstateNo: input.onofficeEstateNo,
-          onofficeAddressId: input.onofficeAddressId,
-          source: input.source ?? "manuell",
-          createdAt: new Date().toISOString(),
-          completedAt: null,
-          history: [],
-          attachments: [],
-          reminder3dSentAt: null,
-          escalation7dSentAt: null,
-        };
-        return { ...s, tasks: [task, ...s.tasks] };
-      });
-      return newId;
-    };
+    async function createTask(input: Partial<Task> & { title: string }): Promise<string | null> {
+      const zeile = {
+        ...aufgabeZurZeile(input),
+        title: input.title,
+        creator_id: profil.id,
+        status: input.status ?? "offen",
+        priority: input.priority ?? "normal",
+        visible_from: input.visibleFrom ?? heute,
+        is_pool: input.isPool ?? false,
+        is_private: input.isPrivate ?? false,
+        source: "manuell",
+        updated_by: profil.id,
+      };
 
-    /* ---------------- Dateianhänge ---------------- */
+      const { data, error } = await sb.from("tasks").insert(zeile).select("id").single();
+      await neuLaden();
 
-    const addAttachments: StoreValue["addAttachments"] = (taskId, files) => {
-      const maxBytes = state.settings.attachmentMaxMb * 1024 * 1024;
+      if (error) {
+        setFehler(error.message);
+        return null;
+      }
+      return data?.id ?? null;
+    }
+
+    async function updateTask(taskId: string, patch: Partial<Task>): Promise<Ergebnis> {
+      const zeile = { ...aufgabeZurZeile(patch), updated_by: profil.id };
+      const { error } = await sb.from("tasks").update(zeile).eq("id", taskId);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function deleteTask(taskId: string): Promise<Ergebnis> {
+      const { error } = await sb.from("tasks").delete().eq("id", taskId);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function addAttachments(taskId: string, files: File[]) {
       const rejected: string[] = [];
-      const accepted: Attachment[] = [];
+      let added = 0;
+      const maxBytes = settings.attachmentMaxMb * 1024 * 1024;
 
       for (const file of files) {
-        const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-        if (!ALLOWED_EXTENSIONS.includes(ext)) {
-          rejected.push(`${file.name} – Dateityp ${ext ? `.${ext}` : "unbekannt"} nimmt onOffice nicht an`);
+        const endung = "." + (file.name.split(".").pop() ?? "").toLowerCase();
+        if (!ALLOWED_EXTENSIONS.includes(endung)) {
+          rejected.push(`${file.name} – Dateityp nicht erlaubt`);
           continue;
         }
         if (file.size > maxBytes) {
-          rejected.push(`${file.name} – größer als ${state.settings.attachmentMaxMb} MB`);
+          rejected.push(`${file.name} – größer als ${settings.attachmentMaxMb} MB`);
           continue;
         }
-        const id = `a-${Math.random().toString(36).slice(2, 10)}`;
-        try {
-          blobUrls.set(id, URL.createObjectURL(file));
-        } catch {
-          /* ohne Blob-URL bleibt die Datei hier nur als Eintrag */
+
+        const pfad = `${taskId}/${crypto.randomUUID()}${endung}`;
+        const { error: ladeFehler } = await sb.storage
+          .from("task-attachments")
+          .upload(pfad, file, { contentType: file.type || undefined, upsert: false });
+
+        if (ladeFehler) {
+          rejected.push(`${file.name} – ${ladeFehler.message}`);
+          continue;
         }
-        accepted.push({
-          id,
-          fileName: file.name,
-          mimeType: file.type || "application/octet-stream",
-          sizeBytes: file.size,
+
+        const { error: zeileFehler } = await sb.from("task_attachments").insert({
+          task_id: taskId,
+          file_name: file.name,
+          mime_type: file.type || null,
+          size_bytes: file.size,
+          storage_path: pfad,
           origin: "lokal",
-          uploadedBy: me.id,
-          syncState: state.settings.attachmentPushOnoffice ? "wartet" : "lokal",
-          createdAt: new Date().toISOString(),
-          hasContent: blobUrls.has(id),
-        });
-      }
-
-      if (accepted.length) {
-        patch((s) => ({
-          ...s,
-          tasks: s.tasks.map((t) =>
-            t.id === taskId ? { ...t, attachments: [...t.attachments, ...accepted] } : t,
-          ),
-        }));
-      }
-
-      return { added: accepted.length, rejected };
-    };
-
-    const removeAttachment: StoreValue["removeAttachment"] = (taskId, attachmentId) => {
-      const url = blobUrls.get(attachmentId);
-      if (url) {
-        URL.revokeObjectURL(url);
-        blobUrls.delete(attachmentId);
-      }
-      patch((s) => ({
-        ...s,
-        tasks: s.tasks.map((t) =>
-          t.id === taskId
-            ? { ...t, attachments: t.attachments.filter((a) => a.id !== attachmentId) }
-            : t,
-        ),
-      }));
-    };
-
-    const attachmentUrl: StoreValue["attachmentUrl"] = (attachmentId) =>
-      blobUrls.get(attachmentId) ?? null;
-
-    /** Simuliert den Upload der Warteschlange nach onOffice (module=task). */
-    const runAttachmentSync: StoreValue["runAttachmentSync"] = () => {
-      let pushed = 0;
-      patch((s) => ({
-        ...s,
-        tasks: s.tasks.map((t) => {
-          if (!t.attachments.some((a) => a.syncState === "wartet")) return t;
-          return {
-            ...t,
-            attachments: t.attachments.map((a) => {
-              if (a.syncState !== "wartet") return a;
-              pushed++;
-              return {
-                ...a,
-                syncState: "synchron" as const,
-                onofficeFileId: `of-${Math.floor(100000 + Math.random() * 899999)}`,
-                syncError: undefined,
-              };
-            }),
-          };
-        }),
-      }));
-      return { pushed };
-    };
-
-    const updateTask: StoreValue["updateTask"] = (taskId, p) => {
-      patch((s) => ({
-        ...s,
-        tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, ...p } : t)),
-      }));
-    };
-
-    const deleteTask: StoreValue["deleteTask"] = (taskId) => {
-      patch((s) => ({ ...s, tasks: s.tasks.filter((t) => t.id !== taskId) }));
-    };
-
-    const upsertCategory: StoreValue["upsertCategory"] = (cat) => {
-      patch((s) => {
-        const exists = s.categories.some((c) => c.id === cat.id);
-        return {
-          ...s,
-          categories: exists
-            ? s.categories.map((c) => (c.id === cat.id ? cat : c))
-            : [...s.categories, cat],
-        };
-      });
-    };
-
-    const removeCategory: StoreValue["removeCategory"] = (id) => {
-      patch((s) => ({
-        ...s,
-        categories: s.categories.filter((c) => c.id !== id),
-        tasks: s.tasks.map((t) => (t.categoryId === id ? { ...t, categoryId: null } : t)),
-      }));
-    };
-
-    const moveCategory: StoreValue["moveCategory"] = (id, dir) => {
-      patch((s) => {
-        const sorted = [...s.categories].sort((a, b) => a.sortOrder - b.sortOrder);
-        const i = sorted.findIndex((c) => c.id === id);
-        const j = i + dir;
-        if (i < 0 || j < 0 || j >= sorted.length) return s;
-        [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
-        return {
-          ...s,
-          categories: sorted.map((c, idx) => ({ ...c, sortOrder: (idx + 1) * 10 })),
-        };
-      });
-    };
-
-    const updateTemplate: StoreValue["updateTemplate"] = (key, p) => {
-      patch((s) => ({
-        ...s,
-        templates: s.templates.map((t) => (t.key === key ? { ...t, ...p } : t)),
-      }));
-    };
-
-    const updateSettings: StoreValue["updateSettings"] = (p) => {
-      patch((s) => ({ ...s, settings: { ...s.settings, ...p } }));
-    };
-
-    // Simuliert den täglichen Cron-Lauf für Erinnerungen und Eskalationen
-    const runEscalationJob: StoreValue["runEscalationJob"] = () => {
-      let reminders = 0;
-      let escalations = 0;
-
-      patch((s) => {
-        const now = new Date().toISOString();
-        const mails: NotificationEntry[] = [];
-        const tasks = s.tasks.map((t) => {
-          if (t.status !== "offen" || t.isPrivate || t.visibleFrom > isoDate(0)) return t;
-          const ageDays = (Date.now() - new Date(t.createdAt).getTime()) / 864e5;
-          let next = t;
-          const assignee = PROFILES.find((p) => p.id === t.assigneeId);
-          const creator = PROFILES.find((p) => p.id === t.creatorId);
-          const vars = {
-            titel: t.title,
-            bearbeiter: assignee?.fullName ?? "unbesetzt",
-            ersteller: creator?.fullName ?? "–",
-            objekt: t.onofficeEstateNo ?? t.onofficeAddressId ?? "–",
-            notiz: "",
-            datum: new Date().toLocaleDateString("de-DE"),
-            tage: String(Math.round(ageDays)),
-          };
-
-          if (ageDays >= s.settings.reminderDays && !t.reminder3dSentAt && assignee) {
-            const m = logMail(
-              { ...s, notifications: [...mails, ...s.notifications] },
-              "erinnerung_3t",
-              t,
-              assignee.fullName,
-              assignee.email,
-              vars,
-            );
-            if (m) {
-              mails.push(m);
-              reminders++;
-              next = { ...next, reminder3dSentAt: now };
-            }
-          }
-
-          if (ageDays >= s.settings.escalationDays && !t.escalation7dSentAt) {
-            for (const person of [assignee, creator]) {
-              if (!person) continue;
-              const m = logMail(
-                { ...s, notifications: [...mails, ...s.notifications] },
-                "eskalation_7t",
-                t,
-                person.fullName,
-                person.email,
-                vars,
-                person === creator ? ":ersteller" : "",
-              );
-              if (m) {
-                mails.push(m);
-                escalations++;
-              }
-            }
-            next = { ...next, escalation7dSentAt: now };
-          }
-
-          return next;
+          uploaded_by: profil.id,
+          sync_state: settings.attachmentPushOnoffice ? "wartet" : "lokal",
+          onoffice_art: settings.attachmentDefaultArt,
         });
 
-        return { ...s, tasks, notifications: [...mails, ...s.notifications] };
-      });
+        if (zeileFehler) {
+          // Datei liegt schon im Speicher, der Eintrag fehlt - dann die
+          // Datei wieder weg, sonst bleibt sie unerreichbar liegen.
+          await sb.storage.from("task-attachments").remove([pfad]);
+          rejected.push(`${file.name} – ${zeileFehler.message}`);
+          continue;
+        }
+        added++;
+      }
 
-      return { reminders, escalations };
-    };
+      await neuLaden();
+      return { added, rejected };
+    }
 
-    const resetDemo = () => setState(initialState());
+    async function removeAttachment(taskId: string, attachmentId: string): Promise<Ergebnis> {
+      const { data } = await sb
+        .from("task_attachments")
+        .select("storage_path")
+        .eq("id", attachmentId)
+        .maybeSingle();
+
+      const { error } = await sb.from("task_attachments").delete().eq("id", attachmentId);
+      if (!error && data?.storage_path) {
+        await sb.storage.from("task-attachments").remove([data.storage_path]);
+      }
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    /** Kurzlebiger Link statt oeffentlicher Adresse. */
+    async function attachmentUrl(attachmentId: string): Promise<string | null> {
+      const { data } = await sb
+        .from("task_attachments")
+        .select("storage_path")
+        .eq("id", attachmentId)
+        .maybeSingle();
+
+      if (!data?.storage_path) return null;
+
+      const { data: link } = await sb.storage
+        .from("task-attachments")
+        .createSignedUrl(data.storage_path, 300);
+
+      return link?.signedUrl ?? null;
+    }
+
+    async function runAttachmentSync() {
+      try {
+        const res = await fetch("/api/sync/anhaenge", { method: "POST" });
+        const json = await res.json().catch(() => ({}));
+        await neuLaden();
+        return { pushed: Number(json.pushed ?? 0), meldung: json.meldung };
+      } catch (err) {
+        return { pushed: 0, meldung: (err as Error).message };
+      }
+    }
+
+    async function upsertCategory(cat: Category): Promise<Ergebnis> {
+      const zeile = {
+        name: cat.name,
+        color: cat.color,
+        sort_order: cat.sortOrder,
+        is_active: cat.isActive,
+      };
+      const { error } = cat.id
+        ? await sb.from("categories").update(zeile).eq("id", cat.id)
+        : await sb.from("categories").insert(zeile);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function removeCategory(id: string): Promise<Ergebnis> {
+      const { error } = await sb.from("categories").delete().eq("id", id);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function moveCategory(id: string, dir: -1 | 1): Promise<Ergebnis> {
+      const sortiert = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
+      const i = sortiert.findIndex((c) => c.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= sortiert.length) return { ok: true };
+
+      const a = sortiert[i];
+      const b = sortiert[j];
+      const [e1, e2] = await Promise.all([
+        sb.from("categories").update({ sort_order: b.sortOrder }).eq("id", a.id),
+        sb.from("categories").update({ sort_order: a.sortOrder }).eq("id", b.id),
+      ]);
+      await neuLaden();
+      const err = e1.error ?? e2.error;
+      return err ? { ok: false, error: err.message } : { ok: true };
+    }
+
+    async function updateTemplate(key: NotifyKind, patch: Partial<EmailTemplate>): Promise<Ergebnis> {
+      const zeile: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (patch.subject !== undefined) zeile.subject = patch.subject;
+      if (patch.body !== undefined) zeile.body = patch.body;
+      if (patch.isActive !== undefined) zeile.is_active = patch.isActive;
+      if (patch.label !== undefined) zeile.label = patch.label;
+
+      const { error } = await sb.from("email_templates").update(zeile).eq("key", key);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function updateSettings(patch: Partial<AppSettings>): Promise<Ergebnis> {
+      const { error } = await sb
+        .from("app_settings")
+        .update({ ...einstellungenZurZeile(patch), updated_at: new Date().toISOString() })
+        .eq("id", true);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function runEscalationJob() {
+      try {
+        const res = await fetch("/api/mail/eskalation", { method: "POST" });
+        const json = await res.json().catch(() => ({}));
+        await neuLaden();
+        return {
+          reminders: Number(json.erinnerungen ?? 0),
+          escalations: Number(json.eskalationen ?? 0),
+          meldung: json.meldung,
+        };
+      } catch (err) {
+        return { reminders: 0, escalations: 0, meldung: (err as Error).message };
+      }
+    }
 
     return {
-      ...state,
-      profiles: PROFILES,
-      brokers: BROKERS,
+      bereit,
+      fehler,
+      tasks,
+      visibleTasks,
+      profiles,
+      brokers,
+      categories,
+      templates,
+      notifications,
+      settings,
       me,
       isAdmin,
-      setCurrentUser: (id) => patch((s) => ({ ...s, currentUserId: id })),
+      neuLaden,
       moveTask,
       claimTask,
       createTask,
@@ -554,21 +485,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateTemplate,
       updateSettings,
       runEscalationJob,
-      resetDemo,
-      visibleTasks,
       profileById,
       categoryById,
       brokerById,
     };
-  }, [state, patch]);
-
-  if (!value) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="muted text-sm">Aufgabentool wird geladen …</p>
-      </div>
-    );
-  }
+  }, [
+    bereit,
+    fehler,
+    tasks,
+    profiles,
+    brokers,
+    categories,
+    templates,
+    notifications,
+    settings,
+    profil,
+    neuLaden,
+  ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

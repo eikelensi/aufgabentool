@@ -5,8 +5,10 @@
 import { useState, useTransition } from "react";
 import {
   aktivSetzen,
+  aufgabenSynchronisieren,
   einladungErneutSenden,
   nutzerEinladen,
+  onofficeNameSetzen,
   passwortZuruecksetzen,
   rolleAendern,
   type Ergebnis,
@@ -20,6 +22,7 @@ export interface NutzerZeile {
   role: AppRole;
   isActive: boolean;
   onofficeUsername: string | null;
+  onofficeDisplayName: string | null;
   phone: string | null;
   invitedAt: string | null;
   hatSichAngemeldet: boolean;
@@ -166,7 +169,12 @@ export function NutzerTabelle({
               <th className="px-3 py-2 font-medium">Name</th>
               <th className="px-3 py-2 font-medium">E-Mail</th>
               <th className="px-3 py-2 font-medium">Rolle</th>
-              <th className="px-3 py-2 font-medium">onOffice</th>
+              <th className="px-3 py-2 font-medium">
+                Name in onOffice
+                <span className="block font-normal normal-case tracking-normal">
+                  entscheidet, welche Aufgaben kommen
+                </span>
+              </th>
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 font-medium">Aktionen</th>
             </tr>
@@ -203,7 +211,14 @@ export function NutzerTabelle({
                       </select>
                     )}
                   </td>
-                  <td className="muted px-3 py-2 text-[12px]">{n.onofficeUsername || "–"}</td>
+                  <td className="px-3 py-2">
+                    <OnofficeNameFeld
+                      id={n.id}
+                      wert={n.onofficeDisplayName}
+                      gesperrt={laeuft}
+                      onFertig={setErgebnis}
+                    />
+                  </td>
                   <td className="px-3 py-2">
                     {!n.isActive ? (
                       <span className="chip" style={{ background: "#fee2e2", color: "#b91c1c" }}>
@@ -254,5 +269,125 @@ export function NutzerTabelle({
         </table>
       </div>
     </>
+  );
+}
+
+/**
+ * Der onOffice-Anzeigename einer Person. Genau dieser String muss in den
+ * onOffice-Feldern Bearbeiter oder Verantwortung stehen, sonst wird die
+ * Aufgabe nicht geholt. Deshalb hier zum Abtippen und nicht geraten.
+ */
+function OnofficeNameFeld({
+  id,
+  wert,
+  gesperrt,
+  onFertig,
+}: {
+  id: string;
+  wert: string | null;
+  gesperrt: boolean;
+  onFertig: (e: Ergebnis) => void;
+}) {
+  const [text, setText] = useState(wert ?? "");
+  const [laeuft, starte] = useTransition();
+  const geaendert = text.trim() !== (wert ?? "").trim();
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        className="field"
+        style={{ width: 168, padding: "0.2rem 0.4rem", fontSize: "0.72rem" }}
+        placeholder="Nachname, Vorname (kz)"
+        value={text}
+        disabled={gesperrt || laeuft}
+        onChange={(e) => setText(e.target.value)}
+      />
+      {geaendert ? (
+        <button
+          className="btn btn-primary"
+          style={{ fontSize: 11 }}
+          disabled={laeuft}
+          onClick={() => starte(async () => onFertig(await onofficeNameSetzen(id, text)))}
+        >
+          {laeuft ? "…" : "Speichern"}
+        </button>
+      ) : text.trim() ? (
+        <span className="muted text-[11px]">✓</span>
+      ) : (
+        <span className="muted text-[11px]" title="Ohne Zuordnung werden fuer diese Person keine Aufgaben geholt.">
+          fehlt
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Aufgaben aus onOffice holen und zeigen, welche Namen dabei durchgefallen
+ * sind. Die Liste ist das Werkzeug fuer die Zuordnung oben: was hier steht,
+ * gehoert entweder zu einem Nutzer oder bewusst nicht ins Tool.
+ */
+export function SyncBereich({ unbekannteNamen }: { unbekannteNamen: { name: string; aufgaben: number }[] }) {
+  const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
+  const [laeuft, starte] = useTransition();
+
+  return (
+    <div className="panel mb-4 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">Aufgaben aus onOffice holen</h2>
+          <p className="muted text-[11px] leading-relaxed">
+            Übernommen wird nur, was einen Nutzer als Bearbeiter oder als
+            Verantwortung hat. Alles andere bleibt im CRM.
+          </p>
+        </div>
+        <button
+          className="btn btn-primary"
+          disabled={laeuft}
+          onClick={() => starte(async () => setErgebnis(await aufgabenSynchronisieren()))}
+        >
+          {laeuft ? "Hole…" : "Jetzt abgleichen"}
+        </button>
+      </div>
+
+      {ergebnis ? (
+        <p
+          className="mt-3 rounded-md px-2.5 py-2 text-[11px] leading-relaxed"
+          style={
+            ergebnis.ok
+              ? { background: "#dcfce7", color: "#15803d" }
+              : { background: "#fef3c7", color: "#b45309" }
+          }
+          role="status"
+        >
+          {ergebnis.meldung}
+        </p>
+      ) : null}
+
+      {unbekannteNamen.length ? (
+        <div className="line mt-3 border-t pt-3">
+          <h3 className="mb-1.5 text-xs font-medium">
+            Namen aus onOffice ohne Zuordnung ({unbekannteNamen.length})
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {unbekannteNamen.map((u) => (
+              <span
+                key={u.name}
+                className="chip"
+                style={{ background: "var(--panel-2)", color: "var(--muted)" }}
+                title={`${u.aufgaben} Aufgaben`}
+              >
+                {u.name} <strong>{u.aufgaben}</strong>
+              </span>
+            ))}
+          </div>
+          <p className="muted mt-2 text-[11px] leading-relaxed">
+            Diese Namen stehen in geholten Aufgaben, gehören aber zu keinem Nutzer.
+            Trage den Namen oben bei der passenden Person ein – oder lass ihn stehen,
+            wenn die Person nicht ins Tool soll.
+          </p>
+        </div>
+      ) : null}
+    </div>
   );
 }

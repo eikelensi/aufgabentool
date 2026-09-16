@@ -17,6 +17,7 @@ import { headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { verlangeAdmin } from "@/lib/supabase/profil";
+import { synchronisiereAufgaben } from "@/lib/sync/onoffice-aufgaben";
 import type { AppRole } from "@/lib/types";
 
 export interface Ergebnis {
@@ -219,4 +220,89 @@ export async function passwortZuruecksetzen(email: string): Promise<Ergebnis> {
 
 export async function einladungErneutSenden(email: string): Promise<Ergebnis> {
   return passwortZuruecksetzen(email);
+}
+
+/**
+ * Den onOffice-Anzeigenamen eines Nutzers setzen - der Schluessel fuer den
+ * Aufgaben-Sync. Nur Aufgaben, deren Bearbeiter oder Verantwortung auf
+ * einen dieser Namen passt, werden uebernommen.
+ */
+export async function onofficeNameSetzen(id: string, name: string): Promise<Ergebnis> {
+  try {
+    await verlangeAdmin();
+  } catch (err) {
+    return { ok: false, meldung: (err as Error).message };
+  }
+
+  const wert = name.trim().replace(/\s+/g, " ");
+  const sb = supabaseAdmin();
+
+  const { error } = await sb
+    .from("profiles")
+    .update({ onoffice_display_name: wert || null })
+    .eq("id", id);
+
+  if (error) {
+    if (/profiles_onoffice_display_idx|duplicate key/i.test(error.message)) {
+      return {
+        ok: false,
+        meldung: `"${wert}" ist schon einem anderen Nutzer zugeordnet. Ein onOffice-Name gehoert zu genau einer Person.`,
+      };
+    }
+    return { ok: false, meldung: error.message };
+  }
+
+  revalidatePath("/admin/nutzer");
+  return {
+    ok: true,
+    meldung: wert
+      ? `Zuordnung gespeichert: ${wert}`
+      : "Zuordnung entfernt - fuer diese Person werden keine Aufgaben mehr geholt.",
+  };
+}
+
+export interface SyncMeldung extends Ergebnis {
+  gelesen?: number;
+  uebernommen?: number;
+  uebersprungen?: number;
+  unbekannteNamen?: string[];
+}
+
+/** Aufgaben aus onOffice holen. */
+export async function aufgabenSynchronisieren(seit?: string): Promise<SyncMeldung> {
+  try {
+    await verlangeAdmin();
+  } catch (err) {
+    return { ok: false, meldung: (err as Error).message };
+  }
+
+  try {
+    const r = await synchronisiereAufgaben({ seit });
+    revalidatePath("/admin/nutzer");
+    revalidatePath("/");
+    revalidatePath("/pool");
+    revalidatePath("/uebersicht");
+
+    const teile = [
+      `${r.gelesen} Aufgaben aus onOffice gelesen`,
+      `${r.uebernommen} uebernommen (${r.neu} neu, ${r.aktualisiert} aktualisiert)`,
+      `${r.uebersprungen} uebersprungen, weil weder Bearbeiter noch Verantwortung ein Nutzer ist`,
+    ];
+    if (r.unbekannteNamen.length) {
+      teile.push(`Unbekannte Namen: ${r.unbekannteNamen.slice(0, 12).join(", ")}`);
+    }
+    for (const h of r.hinweise) teile.push(h);
+    for (const f of r.fehler) teile.push(`Fehler: ${f}`);
+
+    return {
+      ok: r.fehler.length === 0,
+      meldung: teile.join(". "),
+      gelesen: r.gelesen,
+      uebernommen: r.uebernommen,
+      uebersprungen: r.uebersprungen,
+      unbekannteNamen: r.unbekannteNamen,
+    };
+  } catch (err) {
+    return { ok: false, meldung: (err as Error).message };
+  }
 }

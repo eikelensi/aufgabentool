@@ -43,7 +43,7 @@ export default function Shell({
   children: React.ReactNode;
   profil: ShellProfil;
 }) {
-  const { resetDemo } = useStore();
+  const { neuLaden, bereit } = useStore();
   const pathname = usePathname();
   const [dark, setDark] = useState(false);
   const [newTask, setNewTask] = useState(false);
@@ -180,13 +180,18 @@ export default function Shell({
           style={{ background: "var(--panel-2)", color: "var(--muted)" }}
         >
           <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-2">
-            <strong style={{ color: "var(--color-ci-500)" }}>Umbau</strong>
+            <strong style={{ color: "var(--color-ci-500)" }}>Live</strong>
             <span>
-              Anmeldung und Nutzerverwaltung laufen gegen die echte Datenbank. Die
-              Aufgabenlisten zeigen noch Demo-Daten aus dem Browser.
+              {bereit
+                ? "Echte Daten. Aufgaben kommen aus onOffice, sobald Bearbeiter oder Verantwortung ein Nutzer ist."
+                : "Lade Daten…"}
             </span>
-            <button className="btn btn-ghost ml-auto" style={{ fontSize: 11 }} onClick={resetDemo}>
-              Demo zurücksetzen
+            <button
+              className="btn btn-ghost ml-auto"
+              style={{ fontSize: 11 }}
+              onClick={() => void neuLaden()}
+            >
+              Neu laden
             </button>
           </div>
         </div>

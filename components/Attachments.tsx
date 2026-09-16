@@ -112,7 +112,17 @@ export function PendingFiles({
 
 function Row({ task, attachment }: { task: Task; attachment: Attachment }) {
   const { attachmentUrl, removeAttachment, profileById, me, isAdmin } = useStore();
-  const url = attachmentUrl(attachment.id);
+  const [holt, setHolt] = useState(false);
+
+  // Kein dauerhafter Link: die Adresse wird beim Klick erzeugt und gilt
+  // fuenf Minuten. Sonst waere ein einmal kopierter Link fuer immer offen.
+  const oeffnen = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHolt(true);
+    const url = await attachmentUrl(attachment.id);
+    setHolt(false);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  };
   const uploader = profileById(attachment.uploadedBy);
   const canRemove = isAdmin || attachment.uploadedBy === me.id || attachment.uploadedBy === null;
 
@@ -135,20 +145,20 @@ function Row({ task, attachment }: { task: Task; attachment: Attachment }) {
 
       <SyncChip state={attachment.syncState} />
 
-      {url ? (
-        <a className="btn" href={url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-          Öffnen
-        </a>
+      {attachment.hasContent ? (
+        <button type="button" className="btn" onClick={oeffnen} disabled={holt}>
+          {holt ? "…" : "Öffnen"}
+        </button>
       ) : (
         <span
           className="muted text-[11px]"
           title={
             attachment.syncState === "nur_onoffice"
               ? "Diese Datei hängt in onOffice an der Aufgabe. Ein Download über die API ist nicht dokumentiert."
-              : "Im Prototyp ist zu dieser Demo-Datei kein Inhalt hinterlegt."
+              : "Zu diesem Eintrag liegt keine Datei im Speicher."
           }
         >
-          {attachment.syncState === "nur_onoffice" ? "in onOffice" : "kein Inhalt (Demo)"}
+          {attachment.syncState === "nur_onoffice" ? "in onOffice" : "kein Inhalt"}
         </span>
       )}
 
@@ -171,8 +181,9 @@ export function AttachmentSection({ task }: { task: Task }) {
   const { addAttachments, settings } = useStore();
   const [rejected, setRejected] = useState<string[]>([]);
 
-  const handle = (files: File[]) => {
-    const res = addAttachments(task.id, files);
+  const handle = async (files: File[]) => {
+    setRejected([]);
+    const res = await addAttachments(task.id, files);
     setRejected(res.rejected);
   };
 

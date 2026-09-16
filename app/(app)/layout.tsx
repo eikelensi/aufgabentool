@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <StoreProvider>
+    <StoreProvider profil={profil}>
       <Shell profil={profil}>{children}</Shell>
     </StoreProvider>
   );
