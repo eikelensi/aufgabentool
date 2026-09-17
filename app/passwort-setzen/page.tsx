@@ -26,11 +26,39 @@ export default function PasswortSetzenSeite() {
 
   useEffect(() => {
     const supabase = supabaseBrowser();
-    supabase.auth.getUser().then(({ data }) => {
-      setAngemeldet(Boolean(data.user));
-      setEmail(data.user?.email ?? "");
+    let aufgeraeumt = false;
+
+    // Kommt die Sitzung im Anker der Adresse (#access_token=...), liest der
+    // Browser-Client sie beim Start selbst aus - das dauert aber einen
+    // Moment. Ein einzelnes getUser() direkt beim Aufbau kommt zu frueh und
+    // meldete den Link faelschlich als nicht verfuegbar. Deshalb: auf das
+    // Ereignis hoeren UND zweimal nachfassen.
+    const { data: abo } = supabase.auth.onAuthStateChange((_ereignis, sitzung) => {
+      if (aufgeraeumt || !sitzung?.user) return;
+      setAngemeldet(true);
+      setEmail(sitzung.user.email ?? "");
       setPruefe(false);
     });
+
+    void (async () => {
+      for (const wartezeit of [0, 300, 900]) {
+        if (aufgeraeumt) return;
+        if (wartezeit) await new Promise((r) => setTimeout(r, wartezeit));
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+          setAngemeldet(true);
+          setEmail(data.user.email ?? "");
+          setPruefe(false);
+          return;
+        }
+      }
+      if (!aufgeraeumt) setPruefe(false);
+    })();
+
+    return () => {
+      aufgeraeumt = true;
+      abo.subscription.unsubscribe();
+    };
   }, []);
 
   async function speichern(e: React.FormEvent) {
@@ -78,8 +106,10 @@ export default function PasswortSetzenSeite() {
         ) : !angemeldet ? (
           <>
             <p className="muted mb-4 text-xs leading-relaxed">
-              Dieser Link ist abgelaufen oder wurde schon benutzt. Links aus
-              Einladungs- und Passwortmails gelten nur einmal.
+              Dieser Link lässt sich nicht öffnen. Das hat meist einen von drei
+              Gründen: er wurde schon einmal benutzt, er ist älter als eine
+              Stunde, oder er wurde in einem anderen Browser geöffnet als dem,
+              in dem du ihn angefordert hast. Fordere ihn einfach neu an.
             </p>
             <a className="btn btn-primary w-full text-center" href="/anmelden">
               Zur Anmeldung
