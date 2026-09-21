@@ -15,10 +15,11 @@ type Tab = "tag" | "person" | "kategorie";
 const STATUSES: TaskStatus[] = ["offen", "in_bearbeitung", "erledigt"];
 
 export default function UebersichtPage() {
-  const { isAdmin, visibleTasks, profiles, categories, moveTask, updateTask } = useStore();
+  const { bereit, isAdmin, visibleTasks, profiles, categories, moveTask, updateTask } = useStore();
   const [tab, setTab] = useState<Tab>("tag");
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
-  const [person, setPerson] = useState(profiles[2]?.id ?? profiles[0].id);
+  // Kein profiles[0].id: beim ersten Rendern ist die Liste noch leer.
+  const [person, setPerson] = useState("");
   const [detail, setDetail] = useState<Task | null>(null);
   const [noteFor, setNoteFor] = useState<Task | null>(null);
   const [over, setOver] = useState<string | null>(null);
@@ -26,12 +27,17 @@ export default function UebersichtPage() {
   if (!isAdmin) {
     return (
       <p className="muted text-sm">
-        Diese Ansicht ist Admins und Vorgesetzten vorbehalten. Wechsle oben rechts den Demo-Benutzer.
+        Diese Ansicht ist Admins und Vorgesetzten vorbehalten.
       </p>
     );
   }
 
+  if (!bereit) {
+    return <p className="muted text-sm">Lade Aufgaben…</p>;
+  }
+
   const tasks = applyFilters(visibleTasks, filter);
+  const personId = person || profiles[0]?.id || "";
 
   const dropInto = (taskId: string, assigneeId: string | null, status: TaskStatus) => {
     const task = visibleTasks.find((t) => t.id === taskId);
@@ -129,7 +135,7 @@ export default function UebersichtPage() {
           <select
             className="field mb-3"
             style={{ width: 220 }}
-            value={person}
+            value={personId}
             onChange={(e) => setPerson(e.target.value)}
           >
             {profiles.map((p) => (
@@ -139,9 +145,9 @@ export default function UebersichtPage() {
             ))}
           </select>
           <Board
-            tasks={tasks.filter((t) => t.assigneeId === person)}
+            tasks={tasks.filter((t) => t.assigneeId === personId)}
             onOpen={setDetail}
-            onDropTask={(id, status) => dropInto(id, person, status)}
+            onDropTask={(id, status) => dropInto(id, personId, status)}
           />
         </div>
       ) : null}

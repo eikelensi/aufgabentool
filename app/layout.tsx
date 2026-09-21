@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Nur Huelle. Die Navigation und der Demo-Store sitzen in app/(app),
+ * Nur Huelle. Die Navigation und der Datenbestand sitzen in app/(app),
  * damit Anmeldung und Passwortseiten ohne sie auskommen - dort ist noch
  * niemand angemeldet, den eine Navigation etwas anginge.
  */

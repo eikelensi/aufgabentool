@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui";
 import type { Task, TaskStatus } from "@/lib/types";
 
 export default function MeinTagPage() {
-  const { me, visibleTasks, moveTask, claimTask } = useStore();
+  const { bereit, me, visibleTasks, moveTask, claimTask } = useStore();
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [detail, setDetail] = useState<Task | null>(null);
   const [noteFor, setNoteFor] = useState<Task | null>(null);
@@ -33,6 +33,8 @@ export default function MeinTagPage() {
 
   const offen = mine.filter((t) => t.status === "offen").length;
   const hoch = mine.filter((t) => t.priority === "hoch" && t.status !== "erledigt").length;
+
+  if (!bereit) return <p className="muted text-sm">Lade deine Aufgaben…</p>;
 
   return (
     <div>

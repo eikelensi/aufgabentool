@@ -31,7 +31,7 @@ export default function AdminPage() {
     return (
       <p className="muted text-sm">
         Der Adminbereich ist Admins und Vorgesetzten vorbehalten. Wechsle oben rechts den
-        Demo-Benutzer.
+        Vorgesetzten.
       </p>
     );
   }
@@ -354,7 +354,7 @@ export default function AdminPage() {
           <StatusRow label="API-Token / Secret" state="offen" note="von onOffice anzufordern" />
           <StatusRow label="Aufgaben lesen (resourcetype: task)" state="bereit" note="Felder: Aufgabe, Status, Bearbeiter, Prio, Beginnt_am, Deadline" />
           <StatusRow label="Aufgaben schreiben" state="bereit" note="Status-Rückschreibung auf die vier onOffice-Status" />
-          <StatusRow label="Benutzerliste für Maklerkollegen" state="bereit" note={`${brokers.length} Kontakte in der Demo`} />
+          <StatusRow label="Benutzerliste für Maklerkollegen" state="bereit" note={`${brokers.length} Kollegen auswählbar`} />
           <StatusRow label="Objekt-/Adressauflösung" state="bereit" note="Objektnummer → estate-ID, Kundendatensatz → address-ID" />
           <StatusRow label="Mailversand (resourcetype: sendmail)" state="prüfen" note="Freischaltung im Mandanten offen" />
           <StatusRow label="Posteingang → Aufgabe" state="prüfen" note="Marketplace-Webhook oder Polling" />

@@ -27,7 +27,7 @@ const INBOX: Prefill[] = [
 ];
 
 export default function PoolPage() {
-  const { visibleTasks, claimTask, isAdmin } = useStore();
+  const { bereit, visibleTasks, claimTask, isAdmin } = useStore();
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [detail, setDetail] = useState<Task | null>(null);
   const [prefill, setPrefill] = useState<Prefill | null>(null);
@@ -36,6 +36,8 @@ export default function PoolPage() {
     visibleTasks.filter((t) => t.isPool && t.assigneeId === null),
     filter,
   );
+
+  if (!bereit) return <p className="muted text-sm">Lade den Aufgabenpool…</p>;
 
   return (
     <div>
@@ -77,7 +79,7 @@ export default function PoolPage() {
         <header className="mb-2">
           <h2 className="text-[13px] font-semibold">Posteingang der Assistenz (onOffice)</h2>
           <p className="muted text-[11px]">
-            Demo der Mail-zu-Aufgabe-Strecke: Aus einer eingehenden Mail wird eine Aufgabe, das
+            Aus einer eingehenden Mail wird eine Aufgabe, das
             Formular ist mit Betreff, Text und – falls erkennbar – der Objektnummer vorbefüllt.
           </p>
         </header>
