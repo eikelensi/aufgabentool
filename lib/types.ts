@@ -88,6 +88,8 @@ export interface Task {
   isPrivate: boolean;
   visibleFrom: string; // ISO-Datum
   dueDate: string | null;
+  /** Die Aufgabennummer aus onOffice, z.B. 21921. */
+  onofficeTaskId?: string | null;
   onofficeEstateNo?: string;
   onofficeAddressId?: string;
   source: TaskSource;

@@ -47,6 +47,15 @@ export default function TaskCard({
       </div>
 
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        {task.onofficeTaskId ? (
+          <span
+            className="chip"
+            style={{ background: "var(--panel-2)", color: "var(--muted)" }}
+            title="Aufgabennummer in onOffice – danach lässt sich oben suchen"
+          >
+            #{task.onofficeTaskId}
+          </span>
+        ) : null}
         <PriorityChip priority={task.priority} />
         <CategoryChip category={category} />
         {task.isPrivate ? (

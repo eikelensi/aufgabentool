@@ -42,7 +42,7 @@ import type {
 const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
   broker_contact_id, is_pool, is_private, visible_from, due_date,
-  onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
+  onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
   in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
   escalation_7d_sent_at,
   task_status_history ( created_at, from_status, to_status, note, changed_by ),

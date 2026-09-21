@@ -97,6 +97,7 @@ export function zuAufgabe(row: any): Task {
     isPrivate: Boolean(row.is_private),
     visibleFrom: row.visible_from,
     dueDate: row.due_date ?? null,
+    onofficeTaskId: row.onoffice_task_id ?? null,
     onofficeEstateNo: row.onoffice_estate_no ?? row.onoffice_estate_id ?? undefined,
     onofficeAddressId: row.onoffice_address_id ?? undefined,
     source: row.source,

@@ -231,6 +231,12 @@ export default async function HandbuchSeite() {
           Übernommen wird <strong>nur</strong>, was einen Nutzer dieses Tools als
           Bearbeiter oder als Verantwortung hat. Alles andere bleibt im CRM.
         </p>
+        <p>
+          Jede übernommene Aufgabe behält ihre <strong>onOffice-Nummer</strong>.
+          Sie steht auf der Karte und in der Aufgabe selbst – und in der Suchleiste
+          findest du eine Aufgabe, indem du einfach die Nummer eintippst. Eine reine
+          Zahl wird als Nummer verstanden, alles andere als Text.
+        </p>
         {mitOnoffice.length ? (
           <>
             <p>Erkannt werden derzeit:</p>

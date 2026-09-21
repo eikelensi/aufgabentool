@@ -362,6 +362,21 @@ export function TaskDetailDialog({
           </span>
         </Row>
         <Row label="Verantwortlich / Ersteller">{creator?.fullName ?? "–"}</Row>
+        <Row label="Aufgabennummer in onOffice">
+          {task.onofficeTaskId ? (
+            <a
+              className="underline"
+              style={{ color: "var(--color-ci-500)" }}
+              href={`https://smart.onoffice.de/smart/smart.php#task/${task.onofficeTaskId}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              #{task.onofficeTaskId}
+            </a>
+          ) : (
+            <span className="muted">nur hier angelegt</span>
+          )}
+        </Row>
         <Row label="Kollege">{broker ? `${broker.displayName} · ${broker.email}` : "–"}</Row>
         <Row label="Objekt / Kunde">
           {task.onofficeEstateNo ? (

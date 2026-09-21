@@ -28,8 +28,19 @@ export function applyFilters(tasks: Task[], f: FilterState): Task[] {
 
   return tasks.filter((t) => {
     if (f.q) {
-      const hay = `${t.title} ${t.description ?? ""} ${t.onofficeEstateNo ?? ""} ${t.onofficeAddressId ?? ""}`.toLowerCase();
-      if (!hay.includes(f.q.toLowerCase())) return false;
+      const suche = f.q.trim().toLowerCase().replace(/^#/, "");
+
+      // Eine reine Ziffernfolge meint fast immer die Aufgabennummer.
+      // Dann exakt vergleichen statt irgendwo im Text zu suchen - sonst
+      // findet "219" auch jede Aufgabe, in deren Beschreibung 219 steht.
+      if (/^\d+$/.test(suche)) {
+        if (String(t.onofficeTaskId ?? "") !== suche) return false;
+      } else {
+        const hay = `${t.title} ${t.description ?? ""} ${t.onofficeTaskId ?? ""} ${
+          t.onofficeEstateNo ?? ""
+        } ${t.onofficeAddressId ?? ""}`.toLowerCase();
+        if (!hay.includes(suche)) return false;
+      }
     }
     if (f.assignee && t.assigneeId !== f.assignee) return false;
     if (f.category && t.categoryId !== f.category) return false;
@@ -60,8 +71,9 @@ export default function Filters({
     <div className="panel mb-3 flex flex-wrap items-end gap-2 p-2.5">
       <input
         className="field"
-        style={{ width: 200 }}
-        placeholder="Suchen (Titel, Objekt, Kunde)"
+        style={{ width: 220 }}
+        placeholder="Suchen – Nr., Titel, Objekt, Kunde"
+        title="Eine reine Zahl sucht die onOffice-Aufgabennummer, alles andere Titel, Beschreibung, Objekt und Kunde."
         value={value.q}
         onChange={(e) => set({ q: e.target.value })}
       />
