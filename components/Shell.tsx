@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -19,8 +20,7 @@ const NAV = [
   { href: "/pool", label: "Aufgabenpool" },
   { href: "/onoffice", label: "onOffice-Eingang" },
   { href: "/uebersicht", label: "Übersicht", adminOnly: true },
-  { href: "/admin", label: "Adminbereich", adminOnly: true },
-  { href: "/protokoll", label: "Mail-Protokoll", adminOnly: true },
+  { href: "/admin", label: "Verwaltung", adminOnly: true },
 ];
 
 const ROLLE_LABEL: Record<AppRole, string> = {
@@ -84,22 +84,24 @@ export default function Shell({
         style={{ background: "var(--panel)" }}
       >
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3 px-4 py-2.5">
-          <Link href="/" className="flex items-center gap-2">
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-md text-[13px] font-black"
-              style={{ background: "var(--color-ci-400)", color: "#10200a" }}
-            >
-              4
-            </span>
-            <span className="text-sm font-semibold leading-tight">
+          <Link href="/" className="flex items-center gap-2.5" title="Aufgabentool">
+            <Image
+              src="/logo.png"
+              alt="4wändekanzlei"
+              width={736}
+              height={120}
+              priority
+              className="h-6 w-auto"
+            />
+            <span className="line muted border-l pl-2.5 text-[13px] font-medium">
               Aufgabentool
-              <span className="muted ml-1.5 font-normal">4wändekanzlei</span>
             </span>
           </Link>
 
           <nav className="scroll-x flex items-center gap-0.5">
             {nav.map((n) => {
-              const active = pathname === n.href;
+              const active =
+                n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
               return (
                 <Link
                   key={n.href}

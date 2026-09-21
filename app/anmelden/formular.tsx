@@ -7,6 +7,7 @@
  */
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
@@ -77,17 +78,16 @@ export default function AnmeldenFormular() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="panel w-full max-w-[380px] p-6">
-        <div className="mb-5 flex items-center gap-2">
-          <span
-            className="flex h-8 w-8 items-center justify-center rounded-md text-[15px] font-black"
-            style={{ background: "var(--color-ci-400)", color: "#10200a" }}
-          >
-            4
-          </span>
-          <div className="leading-tight">
-            <div className="text-sm font-semibold">Aufgabentool</div>
-            <div className="muted text-[11px]">4waendekanzlei</div>
-          </div>
+        <div className="mb-5">
+          <Image
+            src="/logo.png"
+            alt="4wändekanzlei"
+            width={736}
+            height={120}
+            priority
+            className="h-8 w-auto"
+          />
+          <div className="muted mt-2 text-[11px]">Aufgabentool</div>
         </div>
 
         <h1 className="mb-1 text-base font-semibold">
