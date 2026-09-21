@@ -2,7 +2,7 @@
 
 /**
  * Serveraktionen der Mitarbeiterverwaltung - die Liste der zuordenbaren
- * Maklerkollegen.
+ * Kollegen.
  *
  * Getrennt von der Nutzerverwaltung, aber verknuepfbar: ein Kollege kann
  * auf einen Tool-Nutzer zeigen, damit dieselbe Person nicht zweimal

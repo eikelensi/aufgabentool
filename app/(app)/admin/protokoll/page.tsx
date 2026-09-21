@@ -29,7 +29,7 @@ const FELD_LABEL: Record<string, string> = {
   category_id: "Kategorie",
   assignee_id: "Bearbeiter",
   creator_id: "Verantwortung",
-  broker_contact_id: "Maklerkollege",
+  broker_contact_id: "Kollege",
   is_pool: "Im Pool",
   is_private: "Privat",
   visible_from: "Sichtbar ab",
@@ -55,11 +55,34 @@ const FELD_LABEL: Record<string, string> = {
   bezeichnung: "Bezeichnung",
 };
 
+/**
+ * Interne Werte lesbar machen. In der Datenbank heisst der Status
+ * weiterhin in_bearbeitung - umbenannt wurde nur die Beschriftung, denn
+ * ein Enum-Wert laesst sich nicht folgenlos umbenennen.
+ */
+const WERT_LABEL: Record<string, string> = {
+  offen: "Offen",
+  in_bearbeitung: "Rückfragen offen",
+  erledigt: "Erledigt",
+  normal: "Normal",
+  hoch: "Hoch",
+  superadmin: "Superadmin",
+  admin: "Admin",
+  mitarbeiter: "Mitarbeiter",
+  manuell: "manuell angelegt",
+  onoffice: "aus onOffice",
+  email: "aus einer Mail",
+  qm: "aus dem Qualitätsmanagement",
+};
+
 function wert(v: unknown): string {
   if (v === null || v === undefined) return "–";
   if (typeof v === "boolean") return v ? "ja" : "nein";
   const s = String(v);
   if (!s.trim()) return "–";
+  if (WERT_LABEL[s]) return WERT_LABEL[s];
+  // Kennungen helfen niemandem beim Lesen.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(s)) return "…" + s.slice(-6);
   return s.length > 60 ? s.slice(0, 60) + "…" : s;
 }
 

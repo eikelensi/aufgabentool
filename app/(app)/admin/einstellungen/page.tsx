@@ -354,7 +354,7 @@ export default function AdminPage() {
           <StatusRow label="API-Token / Secret" state="offen" note="von onOffice anzufordern" />
           <StatusRow label="Aufgaben lesen (resourcetype: task)" state="bereit" note="Felder: Aufgabe, Status, Bearbeiter, Prio, Beginnt_am, Deadline" />
           <StatusRow label="Aufgaben schreiben" state="bereit" note="Status-Rückschreibung auf die vier onOffice-Status" />
-          <StatusRow label="Benutzerliste für Maklerkollegen" state="bereit" note={`${brokers.length} Kollegen auswählbar`} />
+          <StatusRow label="Benutzerliste für Kollegen" state="bereit" note={`${brokers.length} Kollegen auswählbar`} />
           <StatusRow label="Objekt-/Adressauflösung" state="bereit" note="Objektnummer → estate-ID, Kundendatensatz → address-ID" />
           <StatusRow label="Mailversand (resourcetype: sendmail)" state="prüfen" note="Freischaltung im Mandanten offen" />
           <StatusRow label="Posteingang → Aufgabe" state="prüfen" note="Marketplace-Webhook oder Polling" />
@@ -374,9 +374,11 @@ export default function AdminPage() {
         <div className="line mt-3 rounded-lg border p-2 text-[11px]" style={{ background: "var(--panel-2)" }}>
           <p className="mb-1 font-semibold">Statusabbildung onOffice ↔ Aufgabentool</p>
           <p className="muted">
-            Nicht begonnen → <strong>Offen</strong> · In Bearbeitung → <strong>In Bearbeitung</strong> ·
-            Erledigt → <strong>Erledigt</strong> · Zurückgestellt → <strong>Offen</strong> (der Begriff
-            entfällt intern, die Aufgabe bleibt sichtbar).
+            Links der Wert aus onOffice, rechts unserer: „Nicht begonnen“ →{" "}
+            <strong>Offen</strong> · „In Bearbeitung“ → <strong>Rückfragen offen</strong> ·
+            „Erledigt“ → <strong>Erledigt</strong> · „Zurückgestellt“ →{" "}
+            <strong>Offen</strong> (der Begriff entfällt bei uns, die Aufgabe bleibt
+            sichtbar).
           </p>
         </div>
       </section>

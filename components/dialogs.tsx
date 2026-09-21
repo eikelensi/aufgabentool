@@ -9,7 +9,7 @@ import { Avatar, CategoryChip, Field, Modal, PriorityChip, StatusChip, formatDat
 import { AttachmentSection, FileDrop, PendingFiles } from "./Attachments";
 
 /* ------------------------------------------------------------------ */
-/* Pflichtnotiz beim Wechsel auf „In Bearbeitung“                      */
+/* Pflichtnotiz beim Wechsel auf „Rückfragen offen“                      */
 /* ------------------------------------------------------------------ */
 export function NoteDialog({
   task,
@@ -40,7 +40,7 @@ export function NoteDialog({
   };
 
   return (
-    <Modal title="Status „In Bearbeitung“ – Notiz erforderlich" onClose={onClose}>
+    <Modal title="Status „Rückfragen offen“ – Notiz erforderlich" onClose={onClose}>
       <p className="muted mb-3 text-xs leading-relaxed">
         Ohne Notiz lässt sich dieser Status nicht speichern. Die Notiz geht an{" "}
         <strong>{creator?.fullName ?? "den Verantwortlichen"}</strong>
@@ -209,7 +209,7 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
           </select>
         </Field>
 
-        <Field label="Zugeordneter Maklerkollege" hint="Erhält bei Erledigung automatisch eine E-Mail.">
+        <Field label="Zugeordneter Kollege" hint="Erhält bei Erledigung automatisch eine E-Mail.">
           <select
             className="field"
             value={brokerContactId}
@@ -362,7 +362,7 @@ export function TaskDetailDialog({
           </span>
         </Row>
         <Row label="Verantwortlich / Ersteller">{creator?.fullName ?? "–"}</Row>
-        <Row label="Maklerkollege">{broker ? `${broker.displayName} · ${broker.email}` : "–"}</Row>
+        <Row label="Kollege">{broker ? `${broker.displayName} · ${broker.email}` : "–"}</Row>
         <Row label="Objekt / Kunde">
           {task.onofficeEstateNo ? (
             <a
@@ -399,7 +399,7 @@ export function TaskDetailDialog({
           className="mb-4 rounded-lg border px-3 py-2 text-xs"
           style={{ background: "#fffbeb", borderColor: "#fcd34d", color: "#92400e" }}
         >
-          <strong>Notiz zu „In Bearbeitung“:</strong> {task.inProgressNote}
+          <strong>Notiz zu „Rückfragen offen“:</strong> {task.inProgressNote}
         </div>
       ) : null}
 
@@ -457,7 +457,7 @@ export function TaskDetailDialog({
         ) : null}
         {task.status !== "in_bearbeitung" ? (
           <button className="btn" onClick={() => setStatus("in_bearbeitung")}>
-            In Bearbeitung
+            Rückfragen offen
           </button>
         ) : null}
         {task.status !== "erledigt" ? (

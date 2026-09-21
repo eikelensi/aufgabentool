@@ -203,7 +203,7 @@ export function StoreProvider({
         if (!text) {
           return {
             ok: false,
-            error: "Für „In Bearbeitung“ ist eine Notiz erforderlich.",
+            error: "Für „Rückfragen offen“ ist eine Notiz erforderlich.",
           };
         }
         zeile.in_progress_note = text;
@@ -224,7 +224,7 @@ export function StoreProvider({
         return {
           ok: false,
           error: /tasks_in_bearbeitung_braucht_notiz/.test(error.message)
-            ? "Die Datenbank verlangt für „In Bearbeitung“ eine Notiz."
+            ? "Die Datenbank verlangt für „Rückfragen offen“ eine Notiz."
             : error.message,
         };
       }

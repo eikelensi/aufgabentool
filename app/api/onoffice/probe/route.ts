@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // 2) Benutzerliste – Quelle für die Maklerkollegen.
+    // 2) Benutzerliste – Quelle für die Kollegen.
     try {
       const { users, resourceUsed } = await readUsers();
       steps.push({

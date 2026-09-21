@@ -1,9 +1,9 @@
 /**
  * Mails zu einem Statuswechsel.
  *
- * "In Bearbeitung": die Pflichtnotiz geht an den Verantwortlichen und an
- * den zugeordneten Maklerkollegen.
- * "Erledigt": der Maklerkollege wird informiert.
+ * "Rückfragen offen": die Pflichtnotiz geht an den Verantwortlichen und an
+ * den zugeordneten Kollegen.
+ * "Erledigt": der Kollege wird informiert.
  *
  * Private Aufgaben loesen nichts aus - sie sind nur fuer den Ersteller da.
  */

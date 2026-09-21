@@ -127,10 +127,10 @@ export default async function HandbuchSeite() {
           und das ist Absicht.
         </p>
         <p>
-          Beim Wechsel auf <strong>In Bearbeitung</strong> ist eine Notiz
+          Beim Wechsel auf <strong>Rückfragen offen</strong> ist eine Notiz
           Pflicht. Ohne Notiz lässt sich dieser Status nicht speichern – die
           Datenbank weist ihn ab. Die Notiz geht an die Verantwortung und an den
-          zugeordneten Maklerkollegen.
+          zugeordneten Kollegen.
         </p>
         <p>
           Erledigte Aufgaben verschwinden nach{" "}
@@ -262,10 +262,10 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={9} titel="Maklerkollegen">
+      <Abschnitt nummer={9} titel="Kollegen">
         <p>
           Einer Aufgabe lässt sich ein Kollege zuordnen. Der bekommt die Mail,
-          wenn die Aufgabe auf In Bearbeitung geht oder erledigt wird – einen
+          wenn die Aufgabe auf Rückfragen offen geht oder erledigt wird – einen
           Zugang zum Tool braucht er dafür nicht.
         </p>
         <p className="muted">

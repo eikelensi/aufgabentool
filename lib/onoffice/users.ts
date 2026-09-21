@@ -1,5 +1,5 @@
 /**
- * onOffice-Benutzer lesen – Quelle für die Auswahlliste der Maklerkollegen.
+ * onOffice-Benutzer lesen – Quelle für die Auswahlliste der Kollegen.
  *
  * Die Benutzerliste liegt im Settings-Bereich der API. Je nach Mandant und
  * Version heißt die Ressource "user" oder "users"; wir probieren beide, damit

@@ -1,5 +1,5 @@
 /**
- * Benutzerliste aus onOffice – Quelle für die Auswahl des Maklerkollegen.
+ * Benutzerliste aus onOffice – Quelle für die Auswahl des Kollegen.
  * Später schreibt dieselbe Route das Ergebnis nach broker_contacts.
  */
 

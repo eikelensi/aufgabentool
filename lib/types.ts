@@ -137,13 +137,13 @@ export interface AppSettings {
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   offen: "Offen",
-  in_bearbeitung: "In Bearbeitung",
+  in_bearbeitung: "Rückfragen offen",
   erledigt: "Erledigt",
 };
 
 export const NOTIFY_LABEL: Record<NotifyKind, string> = {
-  aufgabe_erledigt_makler: "Erledigt-Info an Maklerkollegen",
-  in_bearbeitung_notiz: "Rückmeldung „In Bearbeitung“",
+  aufgabe_erledigt_makler: "Erledigt-Info an Kollegen",
+  in_bearbeitung_notiz: "Rückmeldung „Rückfragen offen“",
   erinnerung_3t: "Erinnerung nach 3 Tagen",
   eskalation_7t: "Eskalation nach 7 Tagen",
 };

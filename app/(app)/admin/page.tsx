@@ -111,7 +111,7 @@ export default async function AdminUebersicht() {
           href="/admin/kollegen"
           titel="Mitarbeiterverwaltung"
           zahl={String(kollegen)}
-          text="Die zuordenbaren Maklerkollegen mit Telefon, Durchwahl und Standort. Kein Zugang nötig."
+          text="Die zuordenbaren Kollegen mit Telefon, Durchwahl und Standort. Kein Zugang nötig."
           warnung={
             fehlendeTelefone
               ? `${fehlendeTelefone} ohne Telefonnummer.`

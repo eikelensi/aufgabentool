@@ -103,7 +103,7 @@ export default function Filters({
       >
         <option value="">Jeder Status</option>
         <option value="offen">Offen</option>
-        <option value="in_bearbeitung">In Bearbeitung</option>
+        <option value="in_bearbeitung">Rückfragen offen</option>
         <option value="erledigt">Erledigt</option>
       </select>
       <select

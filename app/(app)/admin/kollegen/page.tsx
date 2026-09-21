@@ -1,5 +1,5 @@
 /**
- * Mitarbeiterverwaltung - die zuordenbaren Maklerkollegen.
+ * Mitarbeiterverwaltung - die zuordenbaren Kollegen.
  *
  * Getrennt von der Nutzerverwaltung: hier stehen Menschen, die einer
  * Aufgabe zugeordnet und bei Erledigung benachrichtigt werden. Einen
@@ -114,7 +114,7 @@ export default async function KollegenSeite() {
       </div>
 
       <p className="muted mb-4 max-w-[75ch] text-xs leading-relaxed">
-        Diese Liste speist die Auswahl „zugeordneter Maklerkollege“ an einer
+        Diese Liste speist die Auswahl „zugeordneter Kollege“ an einer
         Aufgabe. Wer hier steht, bekommt die Mail, wenn eine Aufgabe auf „In
         Bearbeitung“ geht oder erledigt wird – ein Zugang zum Tool ist dafür
         nicht nötig. Zugänge verwaltest du nebenan.

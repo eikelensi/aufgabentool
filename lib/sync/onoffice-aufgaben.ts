@@ -13,7 +13,7 @@
  * umgekehrt nur der Name.
  *
  * Richtung: onOffice fuehrt bei Titel, Beschreibung, Status, Prioritaet und
- * Fristen. Rein lokale Felder - Kategorie, Pflichtnotiz, Maklerkollege,
+ * Fristen. Rein lokale Felder - Kategorie, Pflichtnotiz, Kollege,
  * Anhaenge - werden nie ueberschrieben.
  */
 
@@ -192,7 +192,8 @@ export async function synchronisiereAufgaben(
     const creatorId = verantwortungId ?? bearbeiterId!;
     const vorhandene = bekannt.get(aufgabe.id);
 
-    // Die Datenbank verlangt bei "In Bearbeitung" eine Notiz. Aus onOffice
+    // Die Datenbank verlangt bei "Rückfragen offen" eine Notiz (in onOffice
+    // heisst dieser Status "In Bearbeitung"). Aus onOffice
     // kommt keine - das Feld Kommentar existiert in diesem Mandanten nicht.
     // Also ein ehrlicher Platzhalter, aber nur wenn noch keine Notiz da ist.
     let notiz = vorhandene?.in_progress_note ?? null;
