@@ -43,7 +43,7 @@ const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
   broker_contact_id, is_pool, is_private, visible_from, due_date,
   onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
-  in_progress_note, created_at, completed_at, reminder_3d_sent_at,
+  in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
   escalation_7d_sent_at,
   task_status_history ( created_at, from_status, to_status, note, changed_by ),
   task_attachments ( id, file_name, mime_type, size_bytes, origin, uploaded_by,
@@ -78,6 +78,7 @@ interface StoreValue {
   createTask: (input: Partial<Task> & { title: string }) => Promise<string | null>;
   updateTask: (taskId: string, patch: Partial<Task>) => Promise<Ergebnis>;
   deleteTask: (taskId: string) => Promise<Ergebnis>;
+  verschiebe: (taskId: string, richtung: -1 | 1, inListe: Task[]) => Promise<Ergebnis>;
 
   addAttachments: (taskId: string, files: File[]) => Promise<{ added: number; rejected: string[] }>;
   removeAttachment: (taskId: string, attachmentId: string) => Promise<Ergebnis>;
@@ -128,7 +129,11 @@ export function StoreProvider({
     setFehler(null);
 
     const [a, p, k, ka, v, e, n] = await Promise.all([
-      sb.from("tasks").select(AUFGABE_SPALTEN).order("created_at", { ascending: false }),
+      sb
+        .from("tasks")
+        .select(AUFGABE_SPALTEN)
+        .order("position", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false }),
       sb.from("profiles").select("id, email, full_name, role, onoffice_display_name, onoffice_username, color, is_active").order("full_name"),
       sb.from("broker_contacts").select("id, display_name, short_code, email, is_active").eq("is_active", true).order("display_name"),
       sb.from("categories").select("id, name, color, sort_order, is_active").order("sort_order"),
@@ -247,8 +252,31 @@ export function StoreProvider({
         .from("tasks")
         .update({ assignee_id: profil.id, is_pool: false, updated_by: profil.id })
         .eq("id", taskId);
+
+      if (error) {
+        await neuLaden();
+        return { ok: false, error: error.message };
+      }
+
+      // Wer sich eine Aufgabe zieht, steht auch in onOffice als Bearbeiter.
+      // Bewusst danach und ohne Abwarten des Ergebnisses: eine hakende
+      // Schnittstelle darf niemanden daran hindern, seine Arbeit zu
+      // uebernehmen. Was dabei passiert ist, steht im Protokoll.
+      let hinweis: string | undefined;
+      try {
+        const res = await fetch("/api/onoffice/bearbeiter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (json?.uebertragen === false && json?.meldung) hinweis = json.meldung;
+      } catch {
+        hinweis = "Die Übernahme steht, onOffice war aber gerade nicht erreichbar.";
+      }
+
       await neuLaden();
-      return error ? { ok: false, error: error.message } : { ok: true };
+      return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }
 
     async function createTask(input: Partial<Task> & { title: string }): Promise<string | null> {
@@ -288,14 +316,54 @@ export function StoreProvider({
       return error ? { ok: false, error: error.message } : { ok: true };
     }
 
+    /**
+     * Eine Karte in ihrer Liste nach oben oder unten schieben.
+     *
+     * Getauscht werden die Positionswerte der beiden Nachbarn. Weil das
+     * Gleitkommazahlen sind, muss dabei nichts neu durchnummeriert werden.
+     * "inListe" ist die Liste, die der Mensch gerade vor sich sieht - nur
+     * darin ergibt oben und unten einen Sinn.
+     */
+    async function verschiebe(taskId: string, richtung: -1 | 1, inListe: Task[]): Promise<Ergebnis> {
+      const i = inListe.findIndex((t) => t.id === taskId);
+      const j = i + richtung;
+      if (i < 0 || j < 0 || j >= inListe.length) return { ok: true };
+
+      const a = inListe[i];
+      const b = inListe[j];
+
+      // Wer noch nie sortiert wurde, hat keine Position - dann vergeben wir
+      // eine aus der aktuellen Reihenfolge, sonst tauscht man gegen NULL.
+      const posA = a.position ?? (i + 1) * 100;
+      const posB = b.position ?? (j + 1) * 100;
+
+      setTasks((alt2) =>
+        alt2.map((t) =>
+          t.id === a.id ? { ...t, position: posB } : t.id === b.id ? { ...t, position: posA } : t,
+        ),
+      );
+
+      const [e1, e2] = await Promise.all([
+        sb.from("tasks").update({ position: posB }).eq("id", a.id),
+        sb.from("tasks").update({ position: posA }).eq("id", b.id),
+      ]);
+      await neuLaden();
+
+      const fehler2 = e1.error ?? e2.error;
+      return fehler2 ? { ok: false, error: fehler2.message } : { ok: true };
+    }
+
     async function addAttachments(taskId: string, files: File[]) {
       const rejected: string[] = [];
       let added = 0;
       const maxBytes = settings.attachmentMaxMb * 1024 * 1024;
 
       for (const file of files) {
-        const endung = "." + (file.name.split(".").pop() ?? "").toLowerCase();
-        if (!ALLOWED_EXTENSIONS.includes(endung)) {
+        // ALLOWED_EXTENSIONS steht ohne fuehrenden Punkt. Der Vergleich lief
+        // vorher mit Punkt und war damit immer falsch - jede Datei waere
+        // abgelehnt worden.
+        const endung = (file.name.split(".").pop() ?? "").toLowerCase();
+        if (!endung || !ALLOWED_EXTENSIONS.includes(endung)) {
           rejected.push(`${file.name} – Dateityp nicht erlaubt`);
           continue;
         }
@@ -304,7 +372,7 @@ export function StoreProvider({
           continue;
         }
 
-        const pfad = `${taskId}/${crypto.randomUUID()}${endung}`;
+        const pfad = `${taskId}/${crypto.randomUUID()}.${endung}`;
         const { error: ladeFehler } = await sb.storage
           .from("task-attachments")
           .upload(pfad, file, { contentType: file.type || undefined, upsert: false });
@@ -475,6 +543,7 @@ export function StoreProvider({
       createTask,
       updateTask,
       deleteTask,
+      verschiebe,
       addAttachments,
       removeAttachment,
       attachmentUrl,

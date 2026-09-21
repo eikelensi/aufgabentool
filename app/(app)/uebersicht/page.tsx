@@ -15,7 +15,8 @@ type Tab = "tag" | "person" | "kategorie";
 const STATUSES: TaskStatus[] = ["offen", "in_bearbeitung", "erledigt"];
 
 export default function UebersichtPage() {
-  const { bereit, isAdmin, visibleTasks, profiles, categories, moveTask, updateTask } = useStore();
+  const { bereit, isAdmin, visibleTasks, profiles, categories, moveTask, updateTask, verschiebe } =
+    useStore();
   const [tab, setTab] = useState<Tab>("tag");
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   // Kein profiles[0].id: beim ersten Rendern ist die Liste noch leer.
@@ -106,6 +107,7 @@ export default function UebersichtPage() {
               setOver={setOver}
               onDrop={dropInto}
               onOpen={setDetail}
+              onVerschiebe={verschiebe}
             />
 
             {profiles.map((p) => (
@@ -120,12 +122,14 @@ export default function UebersichtPage() {
                 setOver={setOver}
                 onDrop={dropInto}
                 onOpen={setDetail}
+                onVerschiebe={verschiebe}
               />
             ))}
           </div>
           <p className="muted mt-2 text-[11px]">
             Karten lassen sich zwischen Status <em>und</em> zwischen Mitarbeitenden ziehen – so wird bei
-            Krankheit oder Ausfall in einem Zug neu verteilt.
+            Krankheit oder Ausfall in einem Zug neu verteilt. Mit den Pfeilen bringst du sie
+            innerhalb einer Spalte in deine eigene Reihenfolge; die bleibt erhalten.
           </p>
         </div>
       ) : null}
@@ -199,6 +203,7 @@ function Lane({
   setOver,
   onDrop,
   onOpen,
+  onVerschiebe,
 }: {
   label: string;
   sub: string;
@@ -209,6 +214,7 @@ function Lane({
   setOver: (v: string | null) => void;
   onDrop: (taskId: string, assigneeId: string | null, status: TaskStatus) => void;
   onOpen: (t: Task) => void;
+  onVerschiebe: (taskId: string, richtung: -1 | 1, inListe: Task[]) => Promise<unknown>;
 }) {
   const key = assigneeId ?? "pool";
   return (
@@ -242,8 +248,44 @@ function Lane({
             className={`panel min-h-[64px] space-y-1.5 p-1.5 ${over === cellKey ? "dropzone-active" : ""}`}
             style={{ background: "var(--panel-2)" }}
           >
-            {items.map((t) => (
-              <TaskCard key={t.id} task={t} onOpen={onOpen} onDragStart={() => undefined} compact />
+            {items.map((t, i) => (
+              <div key={t.id} className="flex items-stretch gap-1">
+                <div className="min-w-0 flex-1">
+                  <TaskCard task={t} onOpen={onOpen} onDragStart={() => undefined} compact />
+                </div>
+                {/* Eigene Reihenfolge: Ziehen verschiebt zwischen Status und
+                    Mitarbeitenden, die Pfeile ordnen innerhalb der Spalte. */}
+                <div className="flex flex-col justify-center gap-0.5">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ padding: "0 0.25rem", fontSize: 10, lineHeight: 1.2 }}
+                    disabled={i === 0}
+                    title="Nach oben"
+                    aria-label={`„${t.title}“ nach oben`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void onVerschiebe(t.id, -1, items);
+                    }}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ padding: "0 0.25rem", fontSize: 10, lineHeight: 1.2 }}
+                    disabled={i === items.length - 1}
+                    title="Nach unten"
+                    aria-label={`„${t.title}“ nach unten`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void onVerschiebe(t.id, 1, items);
+                    }}
+                  >
+                    ▼
+                  </button>
+                </div>
+              </div>
             ))}
             {items.length === 0 ? <div className="muted p-1 text-[11px]">–</div> : null}
           </div>

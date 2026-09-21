@@ -94,6 +94,8 @@ export interface Task {
   inProgressNote?: string;
   createdAt: string;
   completedAt: string | null;
+  /** Selbst gewaehlte Reihenfolge; null = noch nie sortiert. */
+  position: number | null;
   history: StatusHistoryEntry[];
   attachments: Attachment[];
   reminder3dSentAt?: string | null;

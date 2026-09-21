@@ -103,6 +103,7 @@ export function zuAufgabe(row: any): Task {
     inProgressNote: row.in_progress_note ?? undefined,
     createdAt: row.created_at,
     completedAt: row.completed_at ?? null,
+    position: row.position ?? null,
     history: (row.task_status_history ?? [])
       .map((h: any) => ({
         at: h.created_at,

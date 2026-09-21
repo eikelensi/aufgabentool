@@ -208,9 +208,12 @@ export async function synchronisiereAufgaben(
       priority: aufgabe.priority,
       assignee_id: bearbeiterId ?? null,
       creator_id: creatorId,
-      // Kein bekannter Bearbeiter, aber bekannte Verantwortung: die Aufgabe
-      // gehoert in den Pool, damit sich jemand daraus zieht.
-      is_pool: !bearbeiterId,
+      // Im Pool landet nur, was in onOffice UEBERHAUPT KEINEN Bearbeiter
+      // hat. Steht dort jemand drin, den das Tool nicht kennt, ist die
+      // Aufgabe nicht herrenlos - sie gehoert nur jemandem ausserhalb.
+      // Sie in den Pool zu legen wuerde einen Kollegen einladen, sich
+      // etwas zu ziehen, das laengst vergeben ist.
+      is_pool: !aufgabe.processor?.trim(),
       is_private: aufgabe.isPrivate,
       visible_from: aufgabe.startDate ?? new Date().toISOString().slice(0, 10),
       due_date: aufgabe.deadline,
