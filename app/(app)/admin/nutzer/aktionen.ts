@@ -15,7 +15,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sendeZugangsMail } from "@/lib/mail/zugang";
 import { verlangeAdmin } from "@/lib/supabase/profil";
 import { synchronisiereAufgaben } from "@/lib/sync/onoffice-aufgaben";
 import type { AppRole } from "@/lib/types";
@@ -23,6 +23,8 @@ import type { AppRole } from "@/lib/types";
 export interface Ergebnis {
   ok: boolean;
   meldung: string;
+  /** Falls die Mail nicht wegging: der Link zum persoenlichen Weitergeben. */
+  linkZumWeitergeben?: string;
 }
 
 const ROLLEN: AppRole[] = ["superadmin", "admin", "mitarbeiter"];
@@ -57,42 +59,23 @@ export async function nutzerEinladen(formData: FormData): Promise<Ergebnis> {
   if (!email || !email.includes("@")) return { ok: false, meldung: "Bitte eine Mailadresse angeben." };
   if (!fullName) return { ok: false, meldung: "Bitte den Namen angeben." };
   if (!ROLLEN.includes(rolle)) return { ok: false, meldung: "Unbekannte Rolle." };
-  // Nur ein Superadmin darf einen weiteren Superadmin machen.
   if (rolle === "superadmin" && admin.role !== "superadmin") {
     return { ok: false, meldung: "Nur ein Superadmin kann einen Superadmin anlegen." };
   }
 
-  const sb = supabaseAdmin();
   const basis = await basisAdresse();
 
-  const { data, error } = await sb.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${basis}/auth/bestaetigen?next=/passwort-setzen`,
-  });
+  // Erzeugt den Zugang und den Token, verschickt aber ueber UNSEREN
+  // Postausgang - siehe lib/mail/zugang.ts.
+  const mail = await sendeZugangsMail({ email, name: fullName, art: "invite", basisAdresse: basis });
 
-  if (error || !data.user) {
-    const m = error?.message ?? "Unbekannter Fehler";
-    if (/already been registered|already exists/i.test(m)) {
-      return {
-        ok: false,
-        meldung:
-          "Zu dieser Adresse gibt es schon einen Zugang. Falls er nur nicht in der Liste steht, " +
-          "sag es mir - dann muss das Profil nachgetragen werden, nicht neu eingeladen.",
-      };
-    }
-    if (/rate limit|too many/i.test(m)) {
-      return {
-        ok: false,
-        meldung:
-          "Supabase hat den Mailversand vorerst gebremst. Das passiert mit dem eingebauten " +
-          "Postausgang nach wenigen Mails. Dauerhaft hilft nur ein eigener SMTP-Zugang in den " +
-          "Supabase-Einstellungen unter Authentication.",
-      };
-    }
-    return { ok: false, meldung: `Einladung fehlgeschlagen: ${m}` };
+  if (!mail.benutzerId) {
+    return { ok: false, meldung: mail.meldung, linkZumWeitergeben: mail.linkZumWeitergeben };
   }
 
+  const sb = supabaseAdmin();
   const { error: profilFehler } = await sb.from("profiles").insert({
-    id: data.user.id,
+    id: mail.benutzerId,
     email,
     full_name: fullName,
     role: rolle,
@@ -105,15 +88,21 @@ export async function nutzerEinladen(formData: FormData): Promise<Ergebnis> {
   if (profilFehler) {
     // Auth-Konto steht, Profil nicht - das waere ein Zugang ohne Rolle.
     // Lieber zurueckdrehen als halb dastehen lassen.
-    await sb.auth.admin.deleteUser(data.user.id);
+    await sb.auth.admin.deleteUser(mail.benutzerId);
     return {
       ok: false,
-      meldung: `Profil konnte nicht angelegt werden, die Einladung wurde zurueckgenommen: ${profilFehler.message}`,
+      meldung: `Profil konnte nicht angelegt werden, der Zugang wurde zurueckgenommen: ${profilFehler.message}`,
     };
   }
 
   revalidatePath("/admin/nutzer");
-  return { ok: true, meldung: `Einladung an ${email} ist unterwegs.` };
+  return {
+    ok: mail.ok,
+    meldung: mail.ok
+      ? `${fullName} wurde angelegt. ${mail.meldung}`
+      : `${fullName} wurde angelegt, aber: ${mail.meldung}`,
+    linkZumWeitergeben: mail.linkZumWeitergeben,
+  };
 }
 
 export async function rolleAendern(id: string, rolle: AppRole): Promise<Ergebnis> {
@@ -205,17 +194,11 @@ export async function passwortZuruecksetzen(email: string): Promise<Ergebnis> {
     return { ok: false, meldung: (err as Error).message };
   }
 
-  // Bewusst der normale Weg und nicht ein selbst gesetztes Passwort: der
-  // Mensch setzt es selbst, und niemand - auch kein Admin - kennt es.
-  const supabase = await supabaseServer();
+  // Bewusst kein vom Admin gesetztes Passwort: der Mensch setzt es selbst,
+  // und niemand - auch kein Admin - kennt es.
   const basis = await basisAdresse();
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${basis}/auth/bestaetigen?next=/passwort-setzen`,
-  });
-
-  if (error) return { ok: false, meldung: error.message };
-  return { ok: true, meldung: `Eine Mail zum Zuruecksetzen ist an ${email} unterwegs.` };
+  const mail = await sendeZugangsMail({ email, art: "recovery", basisAdresse: basis });
+  return { ok: mail.ok, meldung: mail.meldung, linkZumWeitergeben: mail.linkZumWeitergeben };
 }
 
 export async function einladungErneutSenden(email: string): Promise<Ergebnis> {

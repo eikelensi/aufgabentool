@@ -47,6 +47,18 @@ function Meldung({ ergebnis }: { ergebnis: Ergebnis | null }) {
       role={ergebnis.ok ? "status" : "alert"}
     >
       {ergebnis.meldung}
+      {ergebnis.linkZumWeitergeben ? (
+        <>
+          <br />
+          <span className="mt-1 block break-all font-mono text-[10px]">
+            {ergebnis.linkZumWeitergeben}
+          </span>
+          <span className="mt-1 block text-[10px]">
+            Diesen Link persönlich weitergeben – über Telefon oder Chat, nicht
+            per Mail. Er gilt einmal.
+          </span>
+        </>
+      ) : null}
     </p>
   );
 }
