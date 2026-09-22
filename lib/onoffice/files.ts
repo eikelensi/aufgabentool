@@ -10,15 +10,18 @@
  * Löschen: action "delete" / resourcetype "fileRelation" mit
  *   { relationtype: "task", parentid, fileId }.
  *
- * Lesen: für Aufgaben NICHT dokumentiert. Für Objekte lautet das Muster
- * action "get" / resourcetype "file" / resourceid "estate" mit { estateid }.
- * readTaskFilesExperimental() probiert dasselbe Muster mit "task" aus – wenn
- * der Mandant antwortet, haben wir den Rückweg; wenn nicht, bleibt es bei der
- * einseitigen Spiegelung. Die Probe-Route berichtet das Ergebnis.
+ * Lesen (22.09.2026 gefunden, zweistufig):
+ *   1. action "get" / resourcetype "idsfromrelation" mit relationtype
+ *      task:file:attachment -> die Datei-IDs der Aufgabe.
+ *   2. action "get" / resourcetype "file" mit { fileid } -> Name, Typ und
+ *      der Inhalt als base64.
+ * Der frühere Fehlschlag (Code 24) lag nicht daran, dass Aufgaben-Dateien
+ * gesperrt wären, sondern daran, dass wir "file" nach einer taskid gefragt
+ * haben. "file" kennt nur fileids.
  */
 
 import { call, elements, tryCall, type OnOfficeRecord } from "./client";
-import { resolveTaskRelations } from "./relations";
+import { resolveTaskRelations, taskFileIds } from "./relations";
 
 export type FileModule = "estate" | "address" | "agentsLog" | "task";
 
@@ -178,7 +181,7 @@ export interface RelatedFileGroup {
  * Dateien im Umfeld einer Aufgabe.
  *
  * WICHTIG für die Oberfläche: Das sind NICHT die Anhänge der Aufgabe – die
- * gibt die API nicht heraus. Es ist der Dateibestand des verknüpften Objekts
+ * holt readTaskAttachments(). Es ist der Dateibestand des verknüpften Objekts
  * bzw. Kundendatensatzes, also bei einer Immobilie auch alle Objektfotos.
  * Entsprechend beschriften: "Dateien am verknüpften Objekt", nicht "Anhänge".
  * Aufgaben ohne Verknüpfung liefern eine leere Liste.
@@ -212,45 +215,93 @@ export async function readFilesAroundTask(taskId: string | number): Promise<{
     total: groups.reduce((sum, g) => sum + g.files.length, 0),
     hinweis:
       "Dateien der verknüpften Datensätze, nicht die Anhänge der Aufgabe. " +
-      "Aufgaben-Dateien gibt die onOffice-API nicht heraus.",
+      "Die Anhänge der Aufgabe selbst stehen in readTaskAttachments().",
   };
 }
 
 /**
- * Versuch, die Dateien einer Aufgabe zu lesen. NICHT dokumentiert.
- * Wir probieren mehrere plausible Parameterformen und melden, was passiert –
- * wirft nicht, damit die Probe-Route sauber berichten kann.
+ * Eine einzelne Datei samt Inhalt holen.
+ *
+ * Welche resourceid der Mandant für Aufgaben-Dateien erwartet, ist nicht
+ * dokumentiert. Wir probieren der Reihe nach und merken uns, was geklappt
+ * hat – danach kostet jede weitere Datei nur noch einen Aufruf.
  */
-export async function readTaskFilesExperimental(taskId: string | number): Promise<{
-  worked: boolean;
-  variant?: string;
-  files: OnofficeFile[];
-  attempts: { variant: string; error: string }[];
-}> {
-  const variants: { name: string; parameters: Record<string, unknown> }[] = [
-    { name: "resourceid=task, taskid", parameters: { taskid: Number(taskId) } },
-    { name: "resourceid=task, recordid", parameters: { recordid: Number(taskId) } },
-    { name: "resourceid=task, parentid", parameters: { parentid: Number(taskId) } },
-  ];
+const WEGE = ["task", "estate", "address"] as const;
+let gemerkterWeg: (typeof WEGE)[number] | null = null;
 
-  const attempts: { variant: string; error: string }[] = [];
+export interface DateiMitInhalt {
+  datei: OnofficeFile;
+  inhalt: Buffer;
+  weg: string;
+}
 
-  for (const variant of variants) {
+export async function ladeDatei(fileId: string | number): Promise<DateiMitInhalt | null> {
+  const reihenfolge = gemerkterWeg
+    ? [gemerkterWeg, ...WEGE.filter((w) => w !== gemerkterWeg)]
+    : [...WEGE];
+
+  let letzterFehler = "";
+
+  for (const weg of reihenfolge) {
     const res = await tryCall({
       action: "get",
       resourceType: "file",
-      resourceId: "task",
-      parameters: variant.parameters,
+      resourceId: weg,
+      parameters: { fileid: Number(fileId), includeImageUrl: "original" },
     });
 
-    if (res.ok) {
-      const files = (res.result.records as OnOfficeRecord[]).map(toFile);
-      return { worked: true, variant: variant.name, files, attempts };
+    if (!res.ok) {
+      letzterFehler = res.error.message;
+      continue;
     }
-    attempts.push({ variant: variant.name, error: res.error.message });
+
+    const record = (res.result.records as OnOfficeRecord[])[0];
+    if (!record) {
+      letzterFehler = "keine Antwortdaten";
+      continue;
+    }
+
+    gemerkterWeg = weg;
+    const datei = toFile(record);
+
+    // Bevorzugt der mitgelieferte base64-Inhalt. Fehlt er, laden wir über
+    // die Adresse nach - bei Bildern liefert onOffice nur diese.
+    if (datei.content) {
+      return { datei, inhalt: Buffer.from(datei.content, "base64"), weg };
+    }
+
+    if (datei.url) {
+      const antwort = await fetch(datei.url);
+      if (!antwort.ok) {
+        throw new Error(`Datei ${fileId}: Download fehlgeschlagen (${antwort.status}).`);
+      }
+      return { datei, inhalt: Buffer.from(await antwort.arrayBuffer()), weg };
+    }
+
+    throw new Error(`Datei ${fileId}: onOffice liefert weder Inhalt noch Adresse.`);
   }
 
-  return { worked: false, files: [], attempts };
+  throw new Error(`Datei ${fileId} nicht lesbar: ${letzterFehler || "unbekannter Grund"}`);
+}
+
+/** Die Anhänge EINER Aufgabe, nur die Beschreibung, ohne Inhalt. */
+export async function readTaskAttachments(taskId: string | number): Promise<OnofficeFile[]> {
+  const proAufgabe = await taskFileIds([taskId]);
+  const ids = proAufgabe.get(String(taskId)) ?? [];
+
+  const dateien: OnofficeFile[] = [];
+  for (const id of ids) {
+    const res = await tryCall({
+      action: "get",
+      resourceType: "file",
+      resourceId: gemerkterWeg ?? "task",
+      parameters: { fileid: Number(id) },
+    });
+    const record = res.ok ? (res.result.records as OnOfficeRecord[])[0] : undefined;
+    dateien.push(record ? toFile(record) : { fileId: id, fileName: `Datei ${id}` });
+  }
+
+  return dateien;
 }
 
 function toFile(record: OnOfficeRecord): OnofficeFile {

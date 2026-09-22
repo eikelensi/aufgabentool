@@ -1,9 +1,8 @@
 /**
  * Dateien an onOffice-Aufgaben.
  *
- * GET    ?taskId=123        – Versuch, die Dateien einer Aufgabe zu lesen
- *                             (undokumentiert, siehe Konzept). Meldet ehrlich,
- *                             ob es geht.
+ * GET    ?taskId=123        – die Dateien, die in onOffice an der Aufgabe
+ *                             haengen (ueber die Relation task:file:attachment)
  * POST   { taskId, fileName, contentBase64 }
  *                           – Datei an die onOffice-Aufgabe hängen
  * DELETE ?taskId=123&fileId=456
@@ -12,7 +11,7 @@
 
 import { NextResponse } from "next/server";
 import { fail, guard } from "@/lib/api-guard";
-import { deleteTaskFile, pushFileToTask, readTaskFilesExperimental } from "@/lib/onoffice/files";
+import { deleteTaskFile, pushFileToTask, readTaskAttachments } from "@/lib/onoffice/files";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,15 +27,17 @@ export async function GET(request: Request) {
   if (!taskId) return fail("taskId ist erforderlich.", 400);
 
   try {
-    const probe = await readTaskFilesExperimental(taskId);
+    const dateien = await readTaskAttachments(taskId);
     return NextResponse.json({
-      ok: probe.worked,
-      variant: probe.variant,
-      files: probe.files,
-      attempts: probe.worked ? undefined : probe.attempts,
-      hinweis: probe.worked
-        ? "Der Lesecall funktioniert in diesem Mandanten."
-        : "Kein Lesecall für Aufgaben-Dateien verfügbar – Dateien aus onOffice bleiben dort.",
+      ok: true,
+      taskId,
+      anzahl: dateien.length,
+      files: dateien.map((f) => ({
+        fileId: f.fileId,
+        name: f.originalName ?? f.fileName,
+        typ: f.type,
+        bytes: f.sizeBytes,
+      })),
     });
   } catch (err) {
     return fail(err);

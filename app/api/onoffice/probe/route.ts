@@ -19,7 +19,7 @@ import { fail, guard } from "@/lib/api-guard";
 import { onofficeConfigured, tryCall } from "@/lib/onoffice/client";
 import { readTasks } from "@/lib/onoffice/tasks";
 import { readUsers } from "@/lib/onoffice/users";
-import { readTaskFilesExperimental } from "@/lib/onoffice/files";
+import { readTaskAttachments } from "@/lib/onoffice/files";
 import { onofficeMailConfigured } from "@/lib/mail/onoffice";
 import { smtpConfigured, verifySmtp } from "@/lib/mail/smtp";
 
@@ -122,20 +122,28 @@ export async function GET(request: Request) {
 
     // 4) Der entscheidende Test: Dateien einer Aufgabe lesen.
     if (firstTaskId) {
-      const filesProbe = await readTaskFilesExperimental(firstTaskId);
-      steps.push({
-        name: "Aufgaben-Dateien lesen (undokumentiert)",
-        ok: filesProbe.worked,
-        detail: filesProbe.worked
-          ? `Funktioniert über "${filesProbe.variant}" – ${filesProbe.files.length} Datei(en) an Aufgabe ${firstTaskId}. Damit ist der Rückweg von onOffice möglich.`
-          : "Kein Erfolg. Damit bleibt es bei der einseitigen Spiegelung ins CRM.",
-        data: filesProbe.worked
-          ? filesProbe.files.map((f) => ({ fileId: f.fileId, name: f.fileName, bytes: f.sizeBytes }))
-          : filesProbe.attempts,
-      });
+      try {
+        const dateien = await readTaskAttachments(firstTaskId);
+        steps.push({
+          name: "Aufgaben-Dateien lesen (Relation task:file:attachment)",
+          ok: true,
+          detail: `${dateien.length} Datei(en) an Aufgabe ${firstTaskId}.`,
+          data: dateien.map((f) => ({
+            fileId: f.fileId,
+            name: f.originalName ?? f.fileName,
+            bytes: f.sizeBytes,
+          })),
+        });
+      } catch (err) {
+        steps.push({
+          name: "Aufgaben-Dateien lesen (Relation task:file:attachment)",
+          ok: false,
+          detail: (err as Error).message,
+        });
+      }
     } else {
       steps.push({
-        name: "Aufgaben-Dateien lesen (undokumentiert)",
+        name: "Aufgaben-Dateien lesen (Relation task:file:attachment)",
         ok: false,
         detail:
           "Keine Aufgaben-ID vorhanden. Bitte einmal mit ?taskId=<Nr einer Aufgabe mit Anhang> aufrufen.",

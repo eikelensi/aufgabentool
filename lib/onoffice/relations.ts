@@ -2,13 +2,15 @@
  * Verknüpfungen einer Aufgabe auflösen.
  *
  * Gegen den Mandanten geprüft (16.09.2026): "idsfromrelation" beantwortet
- * die Frage "welche Objekte/Adressen hängen an dieser Aufgabe". Die
- * Ressource "relation" existiert dort nicht (Code 25).
+ * die Frage "welche Datensätze hängen an dieser Aufgabe". Die Ressource
+ * "relation" existiert dort nicht (Code 25).
  *
- * Das ist der einzige Weg, über den wir an Dateien im Umfeld einer Aufgabe
- * kommen: die Aufgaben-Dateien selbst sind über die API nicht lesbar
- * (file + task -> "missing configuration", Code 24), die Dateien eines
- * Objekts oder einer Adresse dagegen schon.
+ * Nachtrag 22.09.2026: Es gibt auch einen Relationstyp für die Anhänge
+ * selbst – task:file:attachment. Damit ist der Rückweg offen, den wir
+ * vorher für verschlossen gehalten haben: erst die Datei-IDs über die
+ * Relation, dann jede Datei einzeln über "file" mit fileid. Der frühere
+ * Fehlschlag (Code 24) lag daran, dass wir "file" nach einer taskid
+ * gefragt haben statt nach einer fileid.
  */
 
 import { call, elements, type OnOfficeRecord } from "./client";
@@ -16,6 +18,7 @@ import { call, elements, type OnOfficeRecord } from "./client";
 const REL = {
   estate: "urn:onoffice-de-ns:smart:2.5:relationTypes:task:estate",
   address: "urn:onoffice-de-ns:smart:2.5:relationTypes:task:address",
+  file: "urn:onoffice-de-ns:smart:2.5:relationTypes:task:file:attachment",
 } as const;
 
 export type RelationKind = keyof typeof REL;
@@ -23,6 +26,16 @@ export type RelationKind = keyof typeof REL;
 export interface TaskRelations {
   estateIds: string[];
   addressIds: string[];
+}
+
+/** Numerische IDs aus einer Liste ziehen, ohne die Eltern-ID selbst. */
+function nurIds(wert: unknown, elternId: string): string[] {
+  const ids: string[] = [];
+  for (const eintrag of ([] as unknown[]).concat(wert ?? [])) {
+    const id = String(eintrag).trim();
+    if (/^\d+$/.test(id) && id !== elternId) ids.push(id);
+  }
+  return ids;
 }
 
 /**
@@ -34,10 +47,7 @@ function extractIds(records: OnOfficeRecord[], parentId: string): string[] {
 
   for (const record of records) {
     for (const value of Object.values(elements(record))) {
-      for (const entry of ([] as unknown[]).concat(value ?? [])) {
-        const id = String(entry).trim();
-        if (/^\d+$/.test(id) && id !== parentId) ids.add(id);
-      }
+      for (const id of nurIds(value, parentId)) ids.add(id);
     }
   }
 
@@ -61,4 +71,39 @@ export async function resolveTaskRelations(taskId: string | number): Promise<Tas
   ]);
 
   return { estateIds, addressIds };
+}
+
+/**
+ * Die Datei-IDs mehrerer Aufgaben in EINEM Aufruf.
+ *
+ * Das ist der Grund, warum der Abgleich die Anhänge überhaupt mitnehmen
+ * kann: 50 Aufgaben kosten eine Anfrage, nicht fünfzig. Der Schlüssel der
+ * Antwort ist die Aufgabennummer – so bleibt die Zuordnung erhalten, die
+ * resolveTaskRelations wegwirft.
+ *
+ * Aufgaben ohne Anhang fehlen in der Antwort; sie stehen dann auch nicht
+ * in der Map.
+ */
+export async function taskFileIds(
+  taskIds: (string | number)[],
+): Promise<Map<string, string[]>> {
+  const ergebnis = new Map<string, string[]>();
+  const parentids = [...new Set(taskIds.map(String))].filter(Boolean);
+  if (parentids.length === 0) return ergebnis;
+
+  const res = await call({
+    action: "get",
+    resourceType: "idsfromrelation",
+    parameters: { relationtype: REL.file, parentids },
+  });
+
+  for (const record of res.records as OnOfficeRecord[]) {
+    for (const [aufgabenId, wert] of Object.entries(elements(record))) {
+      const ids = nurIds(wert, aufgabenId);
+      if (ids.length === 0) continue;
+      ergebnis.set(aufgabenId, [...new Set([...(ergebnis.get(aufgabenId) ?? []), ...ids])]);
+    }
+  }
+
+  return ergebnis;
 }

@@ -623,6 +623,17 @@ export function StoreProvider({
       }
 
       await neuLaden();
+
+      // Nicht auf den Zeitplan warten. Wer eine Datei anhaengt, will sie
+      // gleich drueben haben - und sieht sonst minutenlang "wartet", ohne
+      // zu wissen, ob etwas kaputt ist. Der Anstoss laeuft nebenher; geht
+      // er daneben, holt der Zeitplan es nach.
+      if (added > 0 && settings.attachmentPushOnoffice) {
+        void fetch("/api/sync/anhaenge", { method: "POST" })
+          .then(() => neuLaden())
+          .catch(() => undefined);
+      }
+
       return { added, rejected };
     }
 

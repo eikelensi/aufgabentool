@@ -19,6 +19,7 @@
 
 import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
 import { istAbgeschlossen } from "@/lib/onoffice/mapping";
+import { erfasseAnhangIds } from "@/lib/sync/anhaenge";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export interface NameMitAnzahl {
@@ -48,6 +49,8 @@ export interface SyncErgebnis {
   gefundeneNamen: NameMitAnzahl[];
   /** Es war noch kein Nutzer zugeordnet: gelesen, aber nichts uebernommen. */
   erkundung: boolean;
+  /** Neu entdeckte Dateien an den geholten Aufgaben (Inhalte folgen). */
+  anhaengeErfasst: number;
   fehler: string[];
   hinweise: string[];
   seit: string;
@@ -149,6 +152,7 @@ export async function synchronisiereAufgaben(
     // sie nicht sieht, tippt sie ab, vertippt sich, und der Abgleich
     // meldet danach stumm null Aufgaben.
     erkundung: verzeichnis.anzahl === 0,
+    anhaengeErfasst: 0,
     fehler: [],
     hinweise: [],
     seit,
@@ -207,6 +211,8 @@ export async function synchronisiereAufgaben(
     if (sauber) zaehler.set(sauber, (zaehler.get(sauber) ?? 0) + 1);
   };
   let maxModified: string | null = null;
+  /** Welche Aufgaben dieser Lauf angefasst hat - fuer die Dateien. */
+  const angefasst: { onofficeTaskId: string; taskId: string }[] = [];
 
   for (const aufgabe of crmAufgaben) {
     const modified = zuZeitstempel(aufgabe.modifiedAt);
@@ -291,16 +297,34 @@ export async function synchronisiereAufgaben(
       if (vorhandene) {
         const { error } = await sb.from("tasks").update(zeile).eq("id", vorhandene.id);
         if (error) throw new Error(error.message);
+        angefasst.push({ onofficeTaskId: aufgabe.id, taskId: vorhandene.id });
         ergebnis.aktualisiert++;
       } else {
-        const { error } = await sb.from("tasks").insert(zeile);
+        const { data: angelegt, error } = await sb
+          .from("tasks")
+          .insert(zeile)
+          .select("id")
+          .single();
         if (error) throw new Error(error.message);
+        if (angelegt?.id) angefasst.push({ onofficeTaskId: aufgabe.id, taskId: angelegt.id });
         ergebnis.neu++;
       }
       ergebnis.uebernommen++;
     } catch (err) {
       ergebnis.fehler.push(`Aufgabe ${aufgabe.id}: ${(err as Error).message}`);
     }
+  }
+
+  // Dateien: nur die Nummern, ein Aufruf fuer alle Aufgaben des Laufs.
+  // Die Inhalte holt der Dateijob nach. Ein Fehler hier darf den
+  // Aufgabenabgleich nicht kippen - deshalb nur ein Hinweis, kein Fehler:
+  // sonst bliebe der Merker stehen und derselbe Zeitraum kaeme ewig wieder.
+  try {
+    const { erfasst, fehler } = await erfasseAnhangIds(angefasst);
+    ergebnis.anhaengeErfasst = erfasst;
+    for (const f of fehler) ergebnis.hinweise.push(f);
+  } catch (err) {
+    ergebnis.hinweise.push(`Dateien nicht erfasst: ${(err as Error).message}`);
   }
 
   ergebnis.unbekannteNamen = [...unbekannt].sort();
@@ -333,7 +357,8 @@ export async function synchronisiereAufgaben(
       : `${ergebnis.gelesen} gelesen, ${ergebnis.uebernommen} uebernommen ` +
         `(${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert), ` +
         `${ergebnis.uebersprungen} uebersprungen, ` +
-        `${ergebnis.altlasten} abgeschlossene nicht geholt`,
+        `${ergebnis.altlasten} abgeschlossene nicht geholt, ` +
+        `${ergebnis.anhaengeErfasst} neue Dateien entdeckt`,
     payload: {
       unbekannteNamen: ergebnis.unbekannteNamen.slice(0, 50),
       fehler: ergebnis.fehler.slice(0, 20),

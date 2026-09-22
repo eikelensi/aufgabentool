@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/sync/anhaenge",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/5 * * * *"
     }
   ]
 }
