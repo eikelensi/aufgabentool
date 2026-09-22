@@ -125,6 +125,11 @@ export default async function AdminUebersicht() {
           text="Kategorien und Farben, Fristen für Erinnerung und Eskalation, Mailweg und Mailvorlagen."
         />
         <Kachel
+          href="/admin/darstellung"
+          titel="Darstellung"
+          text="Die Farben des dunklen Modus – gelten für alle, mit Prüfung auf Lesbarkeit."
+        />
+        <Kachel
           href="/admin/protokoll"
           titel="Protokolle"
           zahl={String(eintraege)}

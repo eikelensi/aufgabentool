@@ -8,6 +8,7 @@ const PUNKTE = [
   { href: "/admin/nutzer", label: "Nutzerverwaltung" },
   { href: "/admin/kollegen", label: "Mitarbeiterverwaltung" },
   { href: "/admin/einstellungen", label: "Einstellungen" },
+  { href: "/admin/darstellung", label: "Darstellung" },
   { href: "/admin/protokoll", label: "Protokolle" },
   { href: "/admin/handbuch", label: "Handbuch" },
 ];

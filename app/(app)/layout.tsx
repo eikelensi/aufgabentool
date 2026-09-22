@@ -10,11 +10,19 @@ import { redirect } from "next/navigation";
 import { StoreProvider } from "@/lib/store";
 import Shell from "@/components/Shell";
 import { aktuellesProfil } from "@/lib/supabase/profil";
+import { supabaseServer } from "@/lib/supabase/server";
+import { dunkelCss, istVoreinstellung, sichereFarben } from "@/lib/design/farben";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profil = await aktuellesProfil();
 
   if (!profil) redirect("/anmelden");
+
+  // Eigene Farben fuer den dunklen Modus, falls eingestellt. sichereFarben
+  // laesst nur Hexwerte durch - der Text landet in einem style-Block.
+  const supabase = await supabaseServer();
+  const { data: einst } = await supabase.from("app_settings").select("theme_dark").maybeSingle();
+  const farben = sichereFarben(einst?.theme_dark);
 
   if (!profil.isActive) {
     return (
@@ -37,6 +45,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <StoreProvider profil={profil}>
+      {istVoreinstellung(farben) ? null : (
+        <style dangerouslySetInnerHTML={{ __html: dunkelCss(farben) }} />
+      )}
       <Shell profil={profil}>{children}</Shell>
     </StoreProvider>
   );
