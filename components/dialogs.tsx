@@ -364,7 +364,46 @@ export function TaskDetailDialog({
         ) : null}
       </div>
 
-      {task.description ? <p className="mb-4 text-sm leading-relaxed">{task.description}</p> : null}
+      {/* Betreff und Beschreibung standen vorher beide ohne
+          Kennzeichnung da: der Betreff oben in der Fensterleiste, der
+          Text darunter als nackter Absatz. Man sah nicht, was wovon
+          ist - bei Aufgabe 31789 las sich "Dublette: Daten wurden
+          uebertragen" wie eine Statusmeldung statt wie der Auftrag.
+          Jetzt zwei beschriftete Bloecke untereinander, beide so
+          benannt, wie die Felder in onOffice heissen. Den Betreff noch
+          einmal gross zu wiederholen waere doppelt gewesen - die
+          Beschriftung allein macht schon klar, was man liest. */}
+      <div className="mb-4 space-y-3">
+        <div>
+          <h3 className="muted mb-1 text-[11px] font-semibold tracking-wide uppercase">
+            Betreff
+          </h3>
+          <p className="text-base leading-snug font-semibold">{task.title}</p>
+        </div>
+
+        <div>
+          <h3 className="muted mb-1 text-[11px] font-semibold tracking-wide uppercase">
+            Aufgabenbeschreibung
+          </h3>
+          {task.description ? (
+            <p
+              className="line rounded-md border px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap"
+              style={{ background: "var(--panel-2)" }}
+            >
+              {task.description}
+            </p>
+          ) : (
+            <p
+              className="muted line rounded-md border border-dashed px-3 py-2 text-xs"
+              style={{ background: "var(--panel-2)" }}
+            >
+              {task.onofficeTaskId
+                ? "In onOffice ist zu dieser Aufgabe kein Text hinterlegt."
+                : "Keine Beschreibung hinterlegt."}
+            </p>
+          )}
+        </div>
+      </div>
 
       <dl className="mb-4 grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
         <Row label="Bearbeiter">
