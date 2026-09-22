@@ -141,7 +141,7 @@ export default async function AdminUebersicht() {
           text="Die Anleitung zum Tool – erzeugt aus den Einstellungen, die gerade wirklich gelten."
         />
         <Kachel
-          href="/onoffice"
+          href="/admin/onoffice"
           titel="onOffice"
           zahl={String(aufgaben)}
           text={

@@ -15,13 +15,24 @@ export interface ShellProfil {
   role: AppRole;
 }
 
+/**
+ * Das Hauptmenue.
+ *
+ * Nur, was im Tagesgeschaeft gebraucht wird. Der onOffice-Eingang ist
+ * ein Werkzeug zum Nachsehen, kein Arbeitsplatz - er steht jetzt in der
+ * Verwaltung. Oben Platz zu lassen ist mehr wert, als alles erreichbar
+ * zu haben.
+ *
+ * Die Zeichen sind bewusst schlicht und stehen VOR dem Wort, nicht
+ * statt seiner: ein Menuepunkt, den man nur am Symbol erkennt, ist
+ * geraten, nicht gelesen.
+ */
 const NAV = [
-  { href: "/", label: "Mein Tag" },
-  { href: "/pool", label: "Aufgabenpool" },
-  { href: "/verteilt", label: "Verteilt" },
-  { href: "/onoffice", label: "onOffice-Eingang" },
-  { href: "/uebersicht", label: "Übersicht", adminOnly: true },
-  { href: "/admin", label: "Verwaltung", adminOnly: true },
+  { href: "/", label: "Mein Tag", icon: "☀️" },
+  { href: "/pool", label: "Aufgabenpool", icon: "📥" },
+  { href: "/verteilt", label: "Verteilt", icon: "↗️" },
+  { href: "/uebersicht", label: "Übersicht", icon: "📊", adminOnly: true },
+  { href: "/admin", label: "Verwaltung", icon: "⚙️", adminOnly: true },
 ];
 
 const ROLLE_LABEL: Record<AppRole, string> = {
@@ -103,7 +114,7 @@ export default function Shell({
             </span>
           </Link>
 
-          <nav className="scroll-x flex items-center gap-0.5">
+          <nav className="scroll-x flex items-center gap-1">
             {nav.map((n) => {
               const active =
                 n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
@@ -111,14 +122,27 @@ export default function Shell({
                 <Link
                   key={n.href}
                   href={n.href}
-                  className="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition"
+                  className="btn"
+                  aria-current={active ? "page" : undefined}
+                  title={n.label}
                   style={
                     active
-                      ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" }
-                      : { color: "var(--muted)" }
+                      ? {
+                          background: "var(--color-ci-400)",
+                          borderColor: "var(--color-ci-400)",
+                          color: "var(--auf-akzent)",
+                          fontWeight: 600,
+                        }
+                      : { background: "transparent", borderColor: "transparent" }
                   }
                 >
-                  {n.label}
+                  <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>
+                    {n.icon}
+                  </span>
+                  {/* Auf schmalen Bildschirmen bleibt nur das Zeichen -
+                      da zaehlt jeder Millimeter. Am Knopf haengt der
+                      Name als Hinweis, damit niemand raten muss. */}
+                  <span className="hidden sm:inline">{n.label}</span>
                 </Link>
               );
             })}

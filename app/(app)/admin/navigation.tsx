@@ -4,13 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const PUNKTE = [
-  { href: "/admin", label: "Übersicht", exakt: true },
-  { href: "/admin/nutzer", label: "Nutzerverwaltung" },
-  { href: "/admin/kollegen", label: "Mitarbeiterverwaltung" },
-  { href: "/admin/einstellungen", label: "Einstellungen" },
-  { href: "/admin/darstellung", label: "Darstellung" },
-  { href: "/admin/protokoll", label: "Protokolle" },
-  { href: "/admin/handbuch", label: "Handbuch" },
+  { href: "/admin", label: "Übersicht", icon: "⚙️", exakt: true },
+  { href: "/admin/nutzer", label: "Nutzerverwaltung", icon: "👤" },
+  { href: "/admin/kollegen", label: "Mitarbeiterverwaltung", icon: "👥" },
+  { href: "/admin/einstellungen", label: "Einstellungen", icon: "🎛️" },
+  { href: "/admin/darstellung", label: "Darstellung", icon: "🎨" },
+  { href: "/admin/protokoll", label: "Protokolle", icon: "📋" },
+  // Nachschlagewerkzeug, kein Arbeitsplatz: was in onOffice wirklich
+  // steht, sieht man hier - aber nicht im Tagesmenue.
+  { href: "/admin/onoffice", label: "onOffice-Eingang", icon: "🔌" },
+  { href: "/admin/handbuch", label: "Handbuch", icon: "📖" },
 ];
 
 export default function AdminNavigation({ istSuperadmin }: { istSuperadmin: boolean }) {
@@ -24,21 +27,31 @@ export default function AdminNavigation({ istSuperadmin }: { istSuperadmin: bool
           {istSuperadmin ? "Superadmin" : "Admin"}
         </span>
       </div>
-      <nav className="scroll-x flex items-center gap-0.5">
+      <nav className="scroll-x flex items-center gap-1">
         {PUNKTE.map((p) => {
           const aktiv = p.exakt ? pfad === p.href : pfad.startsWith(p.href);
           return (
             <Link
               key={p.href}
               href={p.href}
-              className="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition"
+              className="btn"
+              aria-current={aktiv ? "page" : undefined}
+              title={p.label}
               style={
                 aktiv
-                  ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" }
-                  : { color: "var(--muted)" }
+                  ? {
+                      background: "var(--color-ci-400)",
+                      borderColor: "var(--color-ci-400)",
+                      color: "var(--auf-akzent)",
+                      fontWeight: 600,
+                    }
+                  : { background: "transparent", borderColor: "transparent" }
               }
             >
-              {p.label}
+              <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>
+                {p.icon}
+              </span>
+              <span className="hidden sm:inline">{p.label}</span>
             </Link>
           );
         })}
