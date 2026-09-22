@@ -175,6 +175,50 @@ export function StoreProvider({
     void neuLaden();
   }, [neuLaden]);
 
+  /**
+   * Von allein nachladen.
+   *
+   * Der Abgleich mit onOffice laeuft alle fuenf Minuten auf dem Server.
+   * Der Browser hat davon nichts gemerkt: geladen wurde beim Oeffnen der
+   * Seite und danach nur noch nach eigenen Aenderungen. Wer das Tool
+   * morgens aufmacht und offen liegen laesst - also der Normalfall -
+   * sah den ganzen Tag den Stand von morgens. Eine Aufgabe, die drueben
+   * wieder aufgemacht wurde, kam an, war in der Datenbank richtig und
+   * blieb auf dem Bildschirm trotzdem erledigt.
+   *
+   * Zwei Ausloeser, weil beide etwas anderes abdecken:
+   *
+   *  - beim Zurueckkommen zum Tab. Das ist der haeufigste Fall und der
+   *    einzige, der sich sofort richtig anfuehlt: wer hinsieht, sieht
+   *    den aktuellen Stand.
+   *  - alle sechzig Sekunden, solange der Tab sichtbar ist. Fuer den
+   *    zweiten Bildschirm, auf dem das Board einfach liegt.
+   *
+   * Im Hintergrund wird nicht geladen. Ein Tab, den seit Stunden
+   * niemand ansieht, braucht keine Daten - er holt sie sich, sobald
+   * jemand hinschaut.
+   */
+  useEffect(() => {
+    const sichtbar = () => document.visibilityState === "visible";
+
+    const beiRueckkehr = () => {
+      if (sichtbar()) void neuLaden();
+    };
+
+    document.addEventListener("visibilitychange", beiRueckkehr);
+    window.addEventListener("focus", beiRueckkehr);
+
+    const takt = setInterval(() => {
+      if (sichtbar()) void neuLaden();
+    }, 60_000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", beiRueckkehr);
+      window.removeEventListener("focus", beiRueckkehr);
+      clearInterval(takt);
+    };
+  }, [neuLaden]);
+
   const value = useMemo<StoreValue>(() => {
     const sb = supabaseBrowser();
 
