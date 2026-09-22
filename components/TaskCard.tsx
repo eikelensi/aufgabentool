@@ -114,7 +114,9 @@ export default function TaskCard({
             📅 {formatDate(task.dueDate)}
           </span>
         ) : null}
-        {broker ? <span>🤝 {broker.shortCode}</span> : null}
+        {broker ? (
+          <span title={`Auftrag von ${broker.displayName}`}>🤝 {broker.displayName}</span>
+        ) : null}
         {task.status === "offen" && !task.isPrivate && age >= settings.escalationDays ? (
           <span style={{ color: "var(--err-fg)", fontWeight: 600 }}>⚠︎ {age} Tage offen</span>
         ) : task.status === "offen" && !task.isPrivate && age >= settings.reminderDays ? (

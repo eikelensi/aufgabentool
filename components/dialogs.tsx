@@ -47,7 +47,7 @@ export function NoteDialog({
         {broker ? (
           <>
             {" "}
-            und an <strong>{broker.displayName}</strong>
+            und an <strong>{broker.displayName}</strong> (Auftraggeber)
           </>
         ) : null}
         .
@@ -221,7 +221,7 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
           </select>
         </Field>
 
-        <Field label="Bei Erledigung informieren" hint="Bekommt eine E-Mail, sobald die Aufgabe erledigt ist. Bleibt im Tool.">
+        <Field label="Auftrag von (Makler)" hint="Welcher Maklerkollege die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Hat mit onOffice nichts zu tun.">
           <select
             className="field"
             value={brokerContactId}
@@ -389,7 +389,9 @@ export function TaskDetailDialog({
             <span className="muted">nur hier angelegt</span>
           )}
         </Row>
-        <Row label="Kollege">{broker ? `${broker.displayName} · ${broker.email}` : "–"}</Row>
+        <Row label="Auftrag von">
+          {broker ? `${broker.displayName} · ${broker.email}` : "– niemand hinterlegt –"}
+        </Row>
         <Row label="Objekt / Kunde">
           {task.onofficeEstateNo ? (
             <a
@@ -507,16 +509,18 @@ export function TaskDetailDialog({
             </p>
           ) : null}
 
-          {/* Etwas ANDERES als der Bearbeiter, auch wenn beide aus
-              derselben Liste kommen: hier steht, wer Bescheid bekommt,
-              wenn die Aufgabe fertig ist. Das geht nie nach onOffice.
-              Die beiden in ein Feld zu stecken war mein Fehler - man
-              sah zwei Zeilen, die sich gegenseitig ueberschrieben. */}
+          {/* Etwas ganz ANDERES als der Bearbeiter, auch wenn beide aus
+              derselben Liste kommen: hier steht, wer die Aufgabe in
+              Auftrag gegeben hat. Das beantwortet beim Lesen einer
+              Kachel die erste Frage - fuer wen mache ich das
+              eigentlich - und entscheidet, wer bei Erledigung Bescheid
+              bekommt.
+
+              Makler arbeiten nicht im Tool und stehen auch nicht in
+              onOffice als Bearbeiter. Dieses Feld geht nie nach
+              drueben. Beides in eine Spalte zu legen war mein Fehler. */}
           <div className="mt-3">
-            <Field
-              label="Bei Erledigung informieren"
-              hint="Bekommt eine E-Mail, sobald die Aufgabe erledigt ist. Bleibt im Tool."
-            >
+            <Field label="Auftrag von (Makler)" hint="Welcher Maklerkollege die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Hat mit onOffice nichts zu tun.">
               <select
                 className="field"
                 value={task.brokerContactId ?? ""}

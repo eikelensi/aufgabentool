@@ -268,11 +268,21 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={9} titel="Kollegen">
+      <Abschnitt nummer={9} titel="Makler und Kollegen">
         <p>
-          Einer Aufgabe lässt sich ein Kollege zuordnen. Der bekommt die Mail,
-          wenn die Aufgabe auf Rückfragen offen geht oder erledigt wird – einen
-          Zugang zum Tool braucht er dafür nicht.
+          Jede Aufgabe kann festhalten, <strong>wer sie in Auftrag gegeben
+          hat</strong> – das Feld „Auftrag von (Makler)“. Es beantwortet beim
+          Lesen einer Kachel die erste Frage: für wen mache ich das
+          eigentlich. Derselbe Mensch bekommt die Mail, wenn die Aufgabe auf
+          Rückfragen offen geht oder erledigt wird. Einen Zugang zum Tool
+          braucht er dafür nicht, und in onOffice landet davon nichts.
+        </p>
+        <p>
+          Dieselbe Liste dient noch einem zweiten Zweck: als{" "}
+          <strong>Bearbeiter</strong>. Wer dort gewählt wird, wird in onOffice
+          als Bearbeiter eingetragen und die Aufgabe steht danach unter
+          „Verteilt“. Zwei Felder, zwei Bedeutungen – auftraggeben und
+          bearbeiten ist nicht dasselbe.
         </p>
         <p className="muted">
           Derzeit {aktiveKollegen.length}{" "}
