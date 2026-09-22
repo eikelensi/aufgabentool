@@ -373,7 +373,25 @@ export function TaskDetailDialog({
             {assignee?.fullName ?? "unbesetzt (Pool)"}
           </span>
         </Row>
-        <Row label="Verantwortlich / Ersteller">{creator?.fullName ?? "–"}</Row>
+        {/* Bei Aufgaben aus onOffice steht die Verantwortung DORT, und
+            nur dort ist sie wahr. creator_id kann das nicht abbilden:
+            die Spalte darf nicht leer sein, also faellt der Abgleich auf
+            den Bearbeiter zurueck, wenn die verantwortliche Person
+            keinen Zugang zum Tool hat. Dann behauptete diese Zeile, der
+            Bearbeiter sei verantwortlich - bei Aufgabe 31789 stand hier
+            "Kim Dann", waehrend onOffice "Fries, Jessica (JFR)" fuehrt.
+            Also zeigen wir den Rohwert, wenn es einen gibt. */}
+        <Row label="Verantwortlich">
+          {task.onofficeResponsible ? (
+            <>
+              {kollegeNachKuerzel(task.onofficeResponsible)?.displayName ??
+                task.onofficeResponsible}
+              <span className="muted ml-1.5 text-[11px]">laut onOffice</span>
+            </>
+          ) : (
+            (creator?.fullName ?? "–")
+          )}
+        </Row>
         <Row label="Aufgabennummer in onOffice">
           {task.onofficeTaskId ? (
             <a
@@ -509,36 +527,41 @@ export function TaskDetailDialog({
             </p>
           ) : null}
 
-          {/* Etwas ganz ANDERES als der Bearbeiter, auch wenn beide aus
-              derselben Liste kommen: hier steht, wer die Aufgabe in
-              Auftrag gegeben hat. Das beantwortet beim Lesen einer
-              Kachel die erste Frage - fuer wen mache ich das
-              eigentlich - und entscheidet, wer bei Erledigung Bescheid
-              bekommt.
-
-              Makler arbeiten nicht im Tool und stehen auch nicht in
-              onOffice als Bearbeiter. Dieses Feld geht nie nach
-              drueben. Beides in eine Spalte zu legen war mein Fehler. */}
-          <div className="mt-3">
-            <Field label="Auftrag von (Makler)" hint="Welcher Maklerkollege die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Hat mit onOffice nichts zu tun.">
-              <select
-                className="field"
-                value={task.brokerContactId ?? ""}
-                onChange={(e) =>
-                  updateTask(task.id, { brokerContactId: e.target.value || null })
-                }
-              >
-                <option value="">– niemanden –</option>
-                {brokers.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.displayName}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
         </div>
       ) : null}
+
+      {/* Etwas ganz ANDERES als der Bearbeiter, auch wenn beide aus
+          derselben Liste kommen: hier steht, wer die Aufgabe in Auftrag
+          gegeben hat. Das beantwortet beim Lesen einer Kachel die erste
+          Frage - fuer wen mache ich das eigentlich - und entscheidet,
+          wer bei Erledigung Bescheid bekommt.
+
+          Makler arbeiten nicht im Tool und stehen auch nicht in onOffice
+          als Bearbeiter. Dieses Feld geht nie nach drueben. Beides in
+          eine Spalte zu legen war mein Fehler.
+
+          Bewusst NICHT auf Admins begrenzt: wer an einer Aufgabe
+          arbeitet, weiss am besten, fuer wen - und muss das eintragen
+          koennen, ohne zu fragen. */}
+      <div className="mb-4">
+        <Field
+          label="Auftrag von (Makler)"
+          hint="Wer die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Geht nicht nach onOffice – Makler arbeiten nicht im Tool."
+        >
+          <select
+            className="field"
+            value={task.brokerContactId ?? ""}
+            onChange={(e) => updateTask(task.id, { brokerContactId: e.target.value || null })}
+          >
+            <option value="">– nicht hinterlegt –</option>
+            {brokers.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.displayName}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
 
       <div className="mb-4">
         <AttachmentSection task={task} />
