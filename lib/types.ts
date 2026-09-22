@@ -7,7 +7,8 @@ export type NotifyKind =
   | "aufgabe_erledigt_makler"
   | "in_bearbeitung_notiz"
   | "erinnerung_3t"
-  | "eskalation_7t";
+  | "eskalation_7t"
+  | "aufgabe_in_pool";
 
 export interface Profile {
   id: string;
@@ -114,6 +115,14 @@ export interface Task {
   position: number | null;
   history: StatusHistoryEntry[];
   attachments: Attachment[];
+  /**
+   * Warum die Aufgabe zurueck in den Pool ging, und von wem. Bleibt
+   * stehen, bis sie sich jemand zieht - wer sie uebernimmt, soll wissen,
+   * woran die vorige Person haengengeblieben ist.
+   */
+  poolGrund?: string | null;
+  poolZurueckAm?: string | null;
+  poolZurueckVon?: string | null;
   reminder3dSentAt?: string | null;
   escalation7dSentAt?: string | null;
 }
@@ -145,6 +154,8 @@ export interface AppSettings {
   reminderDays: number;
   escalationDays: number;
   mailProvider: "onoffice" | "smtp" | "log";
+  /** Wohin die Meldung geht, wenn eine Aufgabe in den Pool zurueckgeht. */
+  poolNotifyEmail: string;
   onofficeEmailIdentity: string;
   smtpFrom: string;
   doneHideAfterHours: number;
@@ -181,4 +192,5 @@ export const NOTIFY_LABEL: Record<NotifyKind, string> = {
   in_bearbeitung_notiz: "Rückmeldung „Rückfragen offen“",
   erinnerung_3t: "Erinnerung nach 3 Tagen",
   eskalation_7t: "Eskalation nach 7 Tagen",
+  aufgabe_in_pool: "Aufgabe in den Pool zurückgelegt",
 };

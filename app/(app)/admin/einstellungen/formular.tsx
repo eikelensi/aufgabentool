@@ -249,6 +249,21 @@ export default function EinstellungenFormular({ anbindung }: { anbindung: Anbind
           </Field>
         </div>
 
+        <div className="mt-3">
+          <Field
+            label="Meldung bei Rückgabe in den Pool"
+            hint="Wer erfährt, wenn jemand eine Aufgabe mit Begründung zurücklegt. Leer lassen schaltet die Meldung ab."
+          >
+            <input
+              className="field"
+              type="email"
+              value={settings.poolNotifyEmail}
+              onChange={(e) => updateSettings({ poolNotifyEmail: e.target.value })}
+              placeholder="hilfe@4-wk.de"
+            />
+          </Field>
+        </div>
+
         <label className="mt-3 flex items-start gap-2 text-xs">
           <input
             type="checkbox"

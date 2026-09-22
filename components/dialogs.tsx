@@ -83,6 +83,93 @@ export function NoteDialog({
 }
 
 /* ------------------------------------------------------------------ */
+/* Begruendung beim Zuruecklegen in den Pool                            */
+/* ------------------------------------------------------------------ */
+export function PoolDialog({ task, onClose }: { task: Task; onClose: () => void }) {
+  const { inDenPool, brokerById, settings } = useStore();
+  const [grund, setGrund] = useState("");
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [laeuft, setLaeuft] = useState(false);
+
+  const makler = brokerById(task.brokerContactId);
+
+  const submit = async () => {
+    setFehler(null);
+    setLaeuft(true);
+    const res = await inDenPool(task.id, grund);
+    setLaeuft(false);
+    if (!res.ok) {
+      setFehler(res.error ?? "Zurücklegen nicht möglich.");
+      return;
+    }
+    onClose();
+  };
+
+  return (
+    <Modal title="Zurück in den Aufgabenpool – kurz begründen" onClose={onClose}>
+      <p className="muted mb-3 text-xs leading-relaxed">
+        Wer sich die Aufgabe als Nächstes zieht, soll wissen, woran du
+        hängengeblieben bist. Eine Zeile reicht.
+      </p>
+
+      <div
+        className="line mb-3 rounded-md border px-3 py-2 text-xs leading-relaxed"
+        style={{ background: "var(--panel-2)" }}
+      >
+        <div>
+          <span className="muted">Aufgabe: </span>
+          {task.onofficeTaskId ? <strong>#{task.onofficeTaskId} </strong> : null}
+          {task.title}
+        </div>
+        <div>
+          <span className="muted">Auftrag von: </span>
+          {makler?.displayName ?? "nicht hinterlegt"}
+        </div>
+      </div>
+
+      <Field label="Warum geht die Aufgabe zurück? *">
+        <textarea
+          className="field"
+          rows={4}
+          autoFocus
+          value={grund}
+          onChange={(e) => {
+            setGrund(e.target.value);
+            setFehler(null);
+          }}
+          placeholder="z. B. Unterlagen fehlen und der Eigentümer ist bis nächste Woche im Urlaub"
+        />
+      </Field>
+
+      <p className="muted mt-2 text-[11px] leading-relaxed">
+        Geht als Meldung an <strong>{settings.poolNotifyEmail}</strong> – mit
+        Aufgabennummer, Titel, deinem Namen, dem Auftraggeber und dieser
+        Begründung.
+      </p>
+
+      {fehler ? (
+        <p className="mt-2 text-xs font-medium" style={{ color: "var(--err-fg)" }}>
+          {fehler}
+        </p>
+      ) : null}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button className="btn" onClick={onClose} disabled={laeuft}>
+          Abbrechen
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={submit}
+          disabled={laeuft || !grund.trim()}
+        >
+          {laeuft ? "Lege zurück…" : "Zurücklegen und melden"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Aufgabe anlegen (auch „aus E-Mail“)                                 */
 /* ------------------------------------------------------------------ */
 export interface Prefill {
@@ -320,6 +407,7 @@ export function TaskDetailDialog({
   const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, isAdmin,
     updateTask, profiles, brokers, tasks } = useStore();
   const [noteFor, setNoteFor] = useState(false);
+  const [poolFor, setPoolFor] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
 
@@ -359,23 +447,9 @@ export function TaskDetailDialog({
     onClose();
   };
 
-  /** Abgeben: dasselbe Muster, und danach ist die Karte hier weg. */
-  const inDenPool = async () => {
-    setLaeuft(true);
-    const res = await updateTask(task.id, {
-      assigneeId: null,
-      onofficeBearbeiterId: null,
-      isPool: true,
-    });
-    setLaeuft(false);
-    if (!res.ok) {
-      setFehler(res.error ?? "Die Aufgabe ließ sich nicht zurücklegen.");
-      return;
-    }
-    onClose();
-  };
 
   if (noteFor) return <NoteDialog task={task} onClose={onClose} />;
+  if (poolFor) return <PoolDialog task={task} onClose={onClose} />;
 
   return (
     <Modal title={task.title} onClose={onClose} wide>
@@ -684,7 +758,7 @@ export function TaskDetailDialog({
                 : "Legt die Aufgabe zurück in den Pool."
             }
             disabled={laeuft}
-            onClick={inDenPool}
+            onClick={() => setPoolFor(true)}
           >
             ↩︎ Zurück in den Aufgabenpool
           </button>

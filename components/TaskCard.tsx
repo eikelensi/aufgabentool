@@ -104,6 +104,18 @@ export default function TaskCard({
         ) : null}
       </div>
 
+      {/* Warum die Aufgabe zurueckkam - genau dort, wo jemand
+          ueberlegt, ob er sie sich zieht. */}
+      {task.isPool && task.poolGrund ? (
+        <p
+          className="mt-1.5 line-clamp-2 text-[11px] leading-relaxed"
+          style={{ color: "var(--warn-fg)" }}
+          title={task.poolGrund}
+        >
+          ↩︎ zurückgelegt: {task.poolGrund}
+        </p>
+      ) : null}
+
       {task.inProgressNote && task.status === "in_bearbeitung" ? (
         <p className="muted mt-1.5 line-clamp-2 text-[11px] italic">„{task.inProgressNote}“</p>
       ) : null}

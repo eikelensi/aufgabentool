@@ -118,6 +118,9 @@ export function zuAufgabe(row: any): Task {
       }))
       .sort((a: any, b: any) => (a.at < b.at ? 1 : -1)),
     attachments: (row.task_attachments ?? []).map(zuAnhang),
+    poolGrund: row.pool_grund ?? null,
+    poolZurueckAm: row.pool_zurueck_am ?? null,
+    poolZurueckVon: row.pool_zurueck_von ?? null,
     reminder3dSentAt: row.reminder_3d_sent_at ?? null,
     escalation7dSentAt: row.escalation_7d_sent_at ?? null,
   };
@@ -138,6 +141,7 @@ export function zuEinstellungen(row: any): AppSettings {
     reminderDays: row?.reminder_days ?? 3,
     escalationDays: row?.escalation_days ?? 7,
     mailProvider: row?.mail_provider ?? "onoffice",
+  poolNotifyEmail: row?.pool_notify_email ?? "hilfe@4-wk.de",
     onofficeEmailIdentity: row?.onoffice_email_identity ?? "",
     smtpFrom: row?.smtp_from ?? "",
     doneHideAfterHours: row?.done_hide_after_hours ?? 24,
@@ -152,6 +156,7 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
   if (patch.reminderDays !== undefined) z.reminder_days = patch.reminderDays;
   if (patch.escalationDays !== undefined) z.escalation_days = patch.escalationDays;
   if (patch.mailProvider !== undefined) z.mail_provider = patch.mailProvider;
+  if (patch.poolNotifyEmail !== undefined) z.pool_notify_email = patch.poolNotifyEmail;
   if (patch.onofficeEmailIdentity !== undefined) z.onoffice_email_identity = patch.onofficeEmailIdentity;
   if (patch.smtpFrom !== undefined) z.smtp_from = patch.smtpFrom;
   if (patch.doneHideAfterHours !== undefined) z.done_hide_after_hours = patch.doneHideAfterHours;

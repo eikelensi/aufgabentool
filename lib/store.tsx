@@ -45,6 +45,7 @@ const AUFGABE_SPALTEN = `
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
   onoffice_assignee, onoffice_responsible,
   in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
+  pool_grund, pool_zurueck_am, pool_zurueck_von,
   escalation_7d_sent_at,
   task_status_history ( created_at, from_status, to_status, note, changed_by ),
   task_attachments ( id, file_name, mime_type, size_bytes, origin, uploaded_by,
@@ -76,6 +77,12 @@ interface StoreValue {
 
   moveTask: (taskId: string, status: TaskStatus, note?: string) => Promise<Ergebnis>;
   claimTask: (taskId: string) => Promise<Ergebnis>;
+  /**
+   * Aufgabe zurueck in den Pool, mit Begruendung. Der Grund ist Pflicht:
+   * wer sie als naechstes zieht, soll wissen, woran die vorige Person
+   * haengengeblieben ist.
+   */
+  inDenPool: (taskId: string, grund: string) => Promise<Ergebnis>;
   createTask: (input: Partial<Task> & { title: string }) => Promise<string | null>;
   updateTask: (taskId: string, patch: Partial<Task>) => Promise<Ergebnis>;
   deleteTask: (taskId: string) => Promise<Ergebnis>;
@@ -352,7 +359,18 @@ export function StoreProvider({
     async function claimTask(taskId: string): Promise<Ergebnis> {
       const { error } = await sb
         .from("tasks")
-        .update({ assignee_id: profil.id, is_pool: false, updated_by: profil.id })
+        .update({
+          assignee_id: profil.id,
+          is_pool: false,
+          updated_by: profil.id,
+          // Die Begruendung der vorigen Runde ist erledigt, sobald
+          // jemand uebernimmt. Sie stehen zu lassen hiesse, dass eine
+          // Aufgabe fuer immer den Vermerk traegt, warum sie vor drei
+          // Wochen einmal zurueckkam.
+          pool_grund: null,
+          pool_zurueck_am: null,
+          pool_zurueck_von: null,
+        })
         .eq("id", taskId);
 
       if (error) {
@@ -379,6 +397,69 @@ export function StoreProvider({
 
       await neuLaden();
       return hinweis ? { ok: true, error: hinweis } : { ok: true };
+    }
+
+    async function inDenPool(taskId: string, grund: string): Promise<Ergebnis> {
+      const text = grund.trim();
+      if (!text) return { ok: false, error: "Bitte kurz begründen, warum die Aufgabe zurückgeht." };
+
+      const aufgabe = tasks.find((t) => t.id === taskId);
+
+      const { error } = await sb
+        .from("tasks")
+        .update({
+          assignee_id: null,
+          onoffice_bearbeiter_id: null,
+          is_pool: true,
+          pool_grund: text,
+          pool_zurueck_am: new Date().toISOString(),
+          pool_zurueck_von: profil.id,
+          updated_by: profil.id,
+        })
+        .eq("id", taskId);
+
+      if (error) {
+        await neuLaden();
+        return { ok: false, error: error.message };
+      }
+
+      // Erst den Bearbeiter drueben leeren, dann melden. Beides
+      // fail-soft: die Aufgabe liegt im Pool, auch wenn eines davon
+      // hakt - aber was gehakt hat, sagen wir.
+      const hinweise: string[] = [];
+
+      if (aufgabe?.onofficeTaskId) {
+        try {
+          const res = await fetch("/api/onoffice/bearbeiter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.status === 207 && json?.meldung) hinweise.push(json.meldung);
+        } catch {
+          hinweise.push("onOffice war nicht erreichbar, der Bearbeiter steht dort noch.");
+        }
+      }
+
+      try {
+        const res = await fetch("/api/mail/pool", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          hinweise.push(`Die Meldung ging nicht raus: ${json?.fehler ?? `Fehler ${res.status}`}`);
+        } else if (Array.isArray(json?.fehler) && json.fehler.length) {
+          hinweise.push(`Die Meldung ging nicht raus: ${json.fehler[0]}`);
+        }
+      } catch {
+        hinweise.push("Die Meldung an die Hilfe konnte nicht ausgelöst werden.");
+      }
+
+      await neuLaden();
+      return hinweise.length ? { ok: true, error: hinweise.join(" ") } : { ok: true };
     }
 
     async function createTask(input: Partial<Task> & { title: string }): Promise<string | null> {
@@ -677,6 +758,7 @@ export function StoreProvider({
       neuLaden,
       moveTask,
       claimTask,
+      inDenPool,
       createTask,
       updateTask,
       deleteTask,
