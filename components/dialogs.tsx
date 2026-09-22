@@ -514,7 +514,28 @@ export function TaskDetailDialog({
         </ul>
       )}
 
-      <div className="mt-5 flex flex-wrap justify-end gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        {/* Abgeben braucht kein Adminrecht: wer eine Aufgabe hat und
+            sie nicht schafft, soll sie loslassen koennen, ohne jemanden
+            zu fragen. Steht links, weil es nichts mit dem Status zu tun
+            hat - und weit weg von "Erledigt". */}
+        {!task.isPool && (task.assigneeId || task.brokerContactId) ? (
+          <button
+            className="btn"
+            title={
+              task.onofficeTaskId
+                ? "Legt die Aufgabe zurück in den Pool und leert den Bearbeiter in onOffice."
+                : "Legt die Aufgabe zurück in den Pool."
+            }
+            onClick={() =>
+              updateTask(task.id, { assigneeId: null, brokerContactId: null, isPool: true })
+            }
+          >
+            ↩︎ Zurück in den Aufgabenpool
+          </button>
+        ) : null}
+
+        <div className="ml-auto flex flex-wrap justify-end gap-2">
         {task.status !== "offen" ? (
           <button className="btn" onClick={() => setStatus("offen")}>
             Auf „Offen“ setzen
@@ -530,6 +551,7 @@ export function TaskDetailDialog({
             Erledigt
           </button>
         ) : null}
+        </div>
       </div>
     </Modal>
   );
