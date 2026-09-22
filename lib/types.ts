@@ -49,7 +49,7 @@ export type AttachmentSync =
   | "lokal"        // nur im Aufgabentool
   | "wartet"       // in der Warteschlange für onOffice
   | "synchron"     // in beiden Systemen
-  | "nur_onoffice" // hängt in onOffice, Inhalt liegt uns nicht vor
+  | "nur_onoffice" // in onOffice gefunden, Inhalt noch nicht geholt
   | "fehler";
 
 export interface Attachment {
@@ -71,7 +71,10 @@ export const SYNC_LABEL: Record<AttachmentSync, string> = {
   lokal: "nur hier",
   wartet: "wird übertragen",
   synchron: "in onOffice",
-  nur_onoffice: "nur in onOffice",
+  // Frueher hiess das "nur in onOffice" - eine Sackgasse. Seit der
+  // Rueckweg offen ist, ist es nur noch eine Durchgangsstation: die
+  // Datei ist entdeckt, der Inhalt kommt mit dem naechsten Abgleich.
+  nur_onoffice: "wird geholt",
   fehler: "Fehler",
 };
 

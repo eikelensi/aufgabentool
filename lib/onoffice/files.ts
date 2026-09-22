@@ -21,7 +21,7 @@
  */
 
 import { call, elements, tryCall, type OnOfficeRecord } from "./client";
-import { resolveTaskRelations, taskFileIds } from "./relations";
+import { elternVonDatei, resolveTaskRelations, taskFileIds } from "./relations";
 
 export type FileModule = "estate" | "address" | "agentsLog" | "task";
 
@@ -222,12 +222,25 @@ export async function readFilesAroundTask(taskId: string | number): Promise<{
 /**
  * Eine einzelne Datei samt Inhalt holen.
  *
- * Welche resourceid der Mandant für Aufgaben-Dateien erwartet, ist nicht
- * dokumentiert. Wir probieren der Reihe nach und merken uns, was geklappt
- * hat – danach kostet jede weitere Datei nur noch einen Aufruf.
+ * "file" gibt eine Datei nicht auf die blosse Datei-Nummer hin heraus: es
+ * will wissen, an welchem Datensatz sie haengt ("Missing address record
+ * id"). Welche Form dieser Mandant akzeptiert, ist nicht dokumentiert -
+ * also probieren wir der Reihe nach und merken uns, was getragen hat.
+ * Danach kostet jede weitere Datei nur noch einen Aufruf.
+ *
+ * Die teuren Wege stehen hinten: estate und address muessen erst die
+ * Relation rueckwaerts lesen, um den Datensatz zu finden.
  */
-const WEGE = ["task", "estate", "address"] as const;
-let gemerkterWeg: (typeof WEGE)[number] | null = null;
+type Weg = "task" | "ohne" | "selbst" | "estate" | "address";
+
+const ALLE_WEGE: Weg[] = ["task", "ohne", "selbst", "estate", "address"];
+
+let gemerkterWeg: Weg | null = null;
+
+/** Ist der Weg zu den Dateien gefunden? Steuert, wie viel ein Lauf probiert. */
+export function dateiWegBekannt(): boolean {
+  return gemerkterWeg !== null;
+}
 
 export interface DateiMitInhalt {
   datei: OnofficeFile;
@@ -235,36 +248,94 @@ export interface DateiMitInhalt {
   weg: string;
 }
 
-export async function ladeDatei(fileId: string | number): Promise<DateiMitInhalt | null> {
-  const reihenfolge = gemerkterWeg
-    ? [gemerkterWeg, ...WEGE.filter((w) => w !== gemerkterWeg)]
-    : [...WEGE];
+interface Kontext {
+  taskId?: string | number;
+  estateId?: string;
+  addressId?: string;
+}
 
-  let letzterFehler = "";
+function bitte(weg: Weg, fileId: string, k: Kontext) {
+  const fileid = Number(fileId);
+  switch (weg) {
+    case "task":
+      return {
+        resourceId: "task",
+        parameters: k.taskId
+          ? { fileid, taskid: Number(k.taskId) }
+          : { fileid },
+      };
+    case "ohne":
+      return { resourceId: undefined, parameters: { fileid } };
+    case "selbst":
+      return { resourceId: fileId, parameters: {} as Record<string, unknown> };
+    case "estate":
+      return k.estateId
+        ? { resourceId: "estate", parameters: { estateid: Number(k.estateId), fileid } }
+        : null;
+    case "address":
+      return k.addressId
+        ? { resourceId: "address", parameters: { addressid: Number(k.addressId), fileid } }
+        : null;
+  }
+}
+
+export async function ladeDatei(
+  fileId: string | number,
+  taskId?: string | number,
+): Promise<DateiMitInhalt | null> {
+  const nummer = String(fileId);
+  const kontext: Kontext = { taskId };
+  const fehler: string[] = [];
+
+  const reihenfolge = gemerkterWeg
+    ? [gemerkterWeg, ...ALLE_WEGE.filter((w) => w !== gemerkterWeg)]
+    : [...ALLE_WEGE];
+
+  let elternGeholt = false;
 
   for (const weg of reihenfolge) {
+    // Objekt und Adresse brauchen erst den Datensatz, an dem die Datei
+    // haengt. Einmal nachsehen genuegt fuer beide.
+    if ((weg === "estate" || weg === "address") && !elternGeholt) {
+      elternGeholt = true;
+      try {
+        const eltern = await elternVonDatei(nummer);
+        kontext.estateId = eltern.estateIds[0];
+        kontext.addressId = eltern.addressIds[0];
+        if (!kontext.taskId) kontext.taskId = eltern.taskIds[0];
+      } catch (err) {
+        fehler.push(`Eltern: ${(err as Error).message}`);
+      }
+    }
+
+    const anfrage = bitte(weg, nummer, kontext);
+    if (!anfrage) {
+      fehler.push(`${weg}: kein Datensatz gefunden`);
+      continue;
+    }
+
     const res = await tryCall({
       action: "get",
       resourceType: "file",
-      resourceId: weg,
-      parameters: { fileid: Number(fileId), includeImageUrl: "original" },
+      resourceId: anfrage.resourceId,
+      parameters: { ...anfrage.parameters, includeImageUrl: "original" },
     });
 
     if (!res.ok) {
-      letzterFehler = res.error.message;
+      fehler.push(`${weg}: ${res.error.message}`);
       continue;
     }
 
     const record = (res.result.records as OnOfficeRecord[])[0];
     if (!record) {
-      letzterFehler = "keine Antwortdaten";
+      fehler.push(`${weg}: leere Antwort`);
       continue;
     }
 
     gemerkterWeg = weg;
     const datei = toFile(record);
 
-    // Bevorzugt der mitgelieferte base64-Inhalt. Fehlt er, laden wir über
+    // Bevorzugt der mitgelieferte base64-Inhalt. Fehlt er, laden wir ueber
     // die Adresse nach - bei Bildern liefert onOffice nur diese.
     if (datei.content) {
       return { datei, inhalt: Buffer.from(datei.content, "base64"), weg };
@@ -273,15 +344,17 @@ export async function ladeDatei(fileId: string | number): Promise<DateiMitInhalt
     if (datei.url) {
       const antwort = await fetch(datei.url);
       if (!antwort.ok) {
-        throw new Error(`Datei ${fileId}: Download fehlgeschlagen (${antwort.status}).`);
+        throw new Error(`Datei ${nummer}: Download fehlgeschlagen (${antwort.status}).`);
       }
       return { datei, inhalt: Buffer.from(await antwort.arrayBuffer()), weg };
     }
 
-    throw new Error(`Datei ${fileId}: onOffice liefert weder Inhalt noch Adresse.`);
+    // Beschreibung ja, Inhalt nein - dieser Weg taugt nicht, also weiter.
+    gemerkterWeg = null;
+    fehler.push(`${weg}: weder Inhalt noch Adresse`);
   }
 
-  throw new Error(`Datei ${fileId} nicht lesbar: ${letzterFehler || "unbekannter Grund"}`);
+  throw new Error(`Datei ${nummer} nicht lesbar – ${fehler.join(" | ")}`);
 }
 
 /** Die Anhänge EINER Aufgabe, nur die Beschreibung, ohne Inhalt. */

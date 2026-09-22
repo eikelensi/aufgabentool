@@ -150,15 +150,23 @@ function Row({ task, attachment }: { task: Task; attachment: Attachment }) {
           {holt ? "…" : "Öffnen"}
         </button>
       ) : (
+        // Ohne Inhalt gibt es nichts zu oeffnen. Der Text sagt, warum -
+        // und vor allem, ob man warten soll oder nicht. "kein Inhalt"
+        // allein liest sich wie ein Defekt.
         <span
           className="muted text-[11px]"
           title={
-            attachment.syncState === "nur_onoffice"
-              ? "Diese Datei hängt in onOffice an der Aufgabe. Ein Download über die API ist nicht dokumentiert."
-              : "Zu diesem Eintrag liegt keine Datei im Speicher."
+            attachment.syncError ??
+            (attachment.syncState === "nur_onoffice"
+              ? "Die Datei hängt in onOffice an der Aufgabe. Der Inhalt wird beim nächsten Abgleich geholt – das dauert höchstens ein paar Minuten."
+              : "Zu diesem Eintrag liegt keine Datei im Speicher.")
           }
         >
-          {attachment.syncState === "nur_onoffice" ? "in onOffice" : "kein Inhalt"}
+          {attachment.syncError
+            ? "⚠︎ nicht geholt"
+            : attachment.syncState === "nur_onoffice"
+              ? "wird geholt…"
+              : "kein Inhalt"}
         </span>
       )}
 
@@ -194,7 +202,8 @@ export function AttachmentSection({ task }: { task: Task }) {
         <span className="muted text-[11px]">{task.attachments.length} Anhänge</span>
         {settings.attachmentPushOnoffice ? (
           <span className="muted text-[11px]">
-            · neue Dateien werden nach onOffice an die Aufgabe gespiegelt
+            · Dateien gehen in beide Richtungen: was hier liegt, hängt kurz darauf auch an der
+            Aufgabe in onOffice – und umgekehrt
           </span>
         ) : (
           <span className="muted text-[11px]">· Spiegelung nach onOffice ist ausgeschaltet</span>

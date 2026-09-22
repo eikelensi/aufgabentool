@@ -21,6 +21,13 @@ const REL = {
   file: "urn:onoffice-de-ns:smart:2.5:relationTypes:task:file:attachment",
 } as const;
 
+/** Relationen, die von einer Datei zu ihrem Datensatz zurueckfuehren. */
+const DATEI_ELTERN = {
+  estate: "urn:onoffice-de-ns:smart:2.5:relationTypes:estate:allFiles",
+  address: "urn:onoffice-de-ns:smart:2.5:relationTypes:address:file:attachment",
+  task: "urn:onoffice-de-ns:smart:2.5:relationTypes:task:file:attachment",
+} as const;
+
 export type RelationKind = keyof typeof REL;
 
 export interface TaskRelations {
@@ -106,4 +113,41 @@ export async function taskFileIds(
   }
 
   return ergebnis;
+}
+
+/**
+ * Zu welchem Datensatz gehoert eine Datei?
+ *
+ * "file" will beim Lesen nicht nur die Datei-Nummer, sondern auch den
+ * Datensatz, an dem sie haengt - daher "Missing address record id".
+ * Ueber childids laesst sich die Relation rueckwaerts lesen: von der
+ * Datei zum Objekt, zur Adresse oder zur Aufgabe.
+ */
+export async function elternVonDatei(fileId: string | number): Promise<{
+  estateIds: string[];
+  addressIds: string[];
+  taskIds: string[];
+}> {
+  const kind = String(fileId);
+
+  const hole = async (urn: string): Promise<string[]> => {
+    try {
+      const res = await call({
+        action: "get",
+        resourceType: "idsfromrelation",
+        parameters: { relationtype: urn, childids: [kind] },
+      });
+      return extractIds(res.records as OnOfficeRecord[], kind);
+    } catch {
+      return [];
+    }
+  };
+
+  const [estateIds, addressIds, taskIds] = await Promise.all([
+    hole(DATEI_ELTERN.estate),
+    hole(DATEI_ELTERN.address),
+    hole(DATEI_ELTERN.task),
+  ]);
+
+  return { estateIds, addressIds, taskIds };
 }

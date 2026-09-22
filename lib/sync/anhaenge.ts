@@ -20,7 +20,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
-import { ladeDatei, pushFileToTask } from "@/lib/onoffice/files";
+import { dateiWegBekannt, ladeDatei, pushFileToTask } from "@/lib/onoffice/files";
 import { taskFileIds } from "@/lib/onoffice/relations";
 
 /** Wie viele Dateien ein Lauf hoechstens hoch- bzw. herunterlaedt. */
@@ -217,7 +217,7 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
   const [{ data: offen, error }, { data: einst }] = await Promise.all([
     sb
       .from("task_attachments")
-      .select("id, task_id, onoffice_file_id")
+      .select("id, task_id, onoffice_file_id, tasks ( onoffice_task_id )")
       .eq("sync_state", "nur_onoffice")
       .is("storage_path", null)
       .not("onoffice_file_id", "is", null)
@@ -234,8 +234,11 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
   const maxBytes = Math.max(1, einst?.attachment_max_mb ?? 25) * 1024 * 1024;
 
   for (const a of offen ?? []) {
+    const onofficeTaskId = (a.tasks as unknown as { onoffice_task_id: string | null } | null)
+      ?.onoffice_task_id;
+
     try {
-      const geholt = await ladeDatei(a.onoffice_file_id as string);
+      const geholt = await ladeDatei(a.onoffice_file_id as string, onofficeTaskId ?? undefined);
       if (!geholt) throw new Error("onOffice liefert diese Datei nicht.");
 
       if (geholt.inhalt.byteLength > maxBytes) {
@@ -286,6 +289,11 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
       const meldung = (err as Error).message;
       ergebnis.fehler.push(`Datei ${a.onoffice_file_id}: ${meldung}`);
       await sb.from("task_attachments").update({ sync_error: meldung }).eq("id", a.id);
+
+      // Solange der Weg zur Datei nicht gefunden ist, probiert ein Lauf
+      // ihn an genau einer Datei durch. Acht Dateien mal fuenf Varianten
+      // waeren vierzig Anfragen fuer denselben Irrtum.
+      if (!dateiWegBekannt()) break;
     }
   }
 }
