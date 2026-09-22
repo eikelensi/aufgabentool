@@ -20,6 +20,11 @@
 import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
+export interface NameMitAnzahl {
+  name: string;
+  anzahl: number;
+}
+
 export interface SyncErgebnis {
   gelesen: number;
   uebernommen: number;
@@ -27,6 +32,15 @@ export interface SyncErgebnis {
   aktualisiert: number;
   uebersprungen: number;
   unbekannteNamen: string[];
+  /**
+   * Jeder Name, der in den geholten Aufgaben als Bearbeiter oder
+   * Verantwortung stand, mit der Zahl seiner Aufgaben - auch die bereits
+   * zugeordneten. Das ist die Liste, aus der die Zuordnung gewaehlt
+   * wird, statt den Namen abzutippen.
+   */
+  gefundeneNamen: NameMitAnzahl[];
+  /** Es war noch kein Nutzer zugeordnet: gelesen, aber nichts uebernommen. */
+  erkundung: boolean;
   fehler: string[];
   hinweise: string[];
   seit: string;
@@ -120,18 +134,25 @@ export async function synchronisiereAufgaben(
     aktualisiert: 0,
     uebersprungen: 0,
     unbekannteNamen: [],
+    gefundeneNamen: [],
+    // Ohne eine einzige Zuordnung wird gelesen, aber nichts uebernommen.
+    // Frueher brach der Lauf hier ab - und genau dann brauchte man ihn:
+    // die Namen, die man zuordnen soll, stehen ja in den Aufgaben. Wer
+    // sie nicht sieht, tippt sie ab, vertippt sich, und der Abgleich
+    // meldet danach stumm null Aufgaben.
+    erkundung: verzeichnis.anzahl === 0,
     fehler: [],
     hinweise: [],
     seit,
     bisModified: null,
   };
 
-  if (verzeichnis.anzahl === 0) {
-    ergebnis.fehler.push(
-      "Kein Nutzer hat einen onOffice-Anzeigenamen hinterlegt. Ohne den kann nicht " +
-        "entschieden werden, welche Aufgaben hierher gehoeren. Adminbereich, Nutzerverwaltung.",
+  if (ergebnis.erkundung) {
+    ergebnis.hinweise.push(
+      "Noch ist kein Nutzer einem onOffice-Namen zugeordnet. Dieser Lauf hat " +
+        "deshalb nur nachgesehen, welche Namen dort vorkommen, und nichts " +
+        "uebernommen. Ordne unten zu und hol dann noch einmal.",
     );
-    return ergebnis;
   }
 
   let crmAufgaben: OnofficeTask[] = [];
@@ -171,11 +192,22 @@ export async function synchronisiereAufgaben(
   }
 
   const unbekannt = new Set<string>();
+  /** Jeder vorkommende Name mit der Zahl seiner Aufgaben. */
+  const zaehler = new Map<string, number>();
+  const zaehle = (name: string | null | undefined) => {
+    const sauber = String(name ?? "").trim().replace(/\s+/g, " ");
+    if (sauber) zaehler.set(sauber, (zaehler.get(sauber) ?? 0) + 1);
+  };
   let maxModified: string | null = null;
 
   for (const aufgabe of crmAufgaben) {
     const modified = zuZeitstempel(aufgabe.modifiedAt);
     if (modified && (!maxModified || modified > maxModified)) maxModified = modified;
+
+    zaehle(aufgabe.processor);
+    if (normalisiere(aufgabe.responsibility) !== normalisiere(aufgabe.processor)) {
+      zaehle(aufgabe.responsibility);
+    }
 
     const bearbeiterId = verzeichnis.nachName.get(normalisiere(aufgabe.processor));
     const verantwortungId = verzeichnis.nachName.get(normalisiere(aufgabe.responsibility));
@@ -255,11 +287,16 @@ export async function synchronisiereAufgaben(
   }
 
   ergebnis.unbekannteNamen = [...unbekannt].sort();
+  ergebnis.gefundeneNamen = [...zaehler.entries()]
+    .map(([name, anzahl]) => ({ name, anzahl }))
+    .sort((a, b) => b.anzahl - a.anzahl || a.name.localeCompare(b.name, "de"));
   ergebnis.bisModified = maxModified;
 
   // Merker nur fortschreiben, wenn nichts schiefging - sonst wuerde ein
-  // Fehler dauerhaft Aufgaben verschlucken.
-  if (!ergebnis.fehler.length && maxModified) {
+  // Fehler dauerhaft Aufgaben verschlucken. Bei einem Erkundungslauf
+  // erst recht nicht: er hat nichts uebernommen, und ein vorgerueckter
+  // Merker wuerde genau die Aufgaben ueberspringen, um die es geht.
+  if (!ergebnis.fehler.length && !ergebnis.erkundung && maxModified) {
     await sb.from("onoffice_sync_cursor").upsert({
       resource: "task",
       last_modified_seen: maxModified,
@@ -273,10 +310,12 @@ export async function synchronisiereAufgaben(
     resource: "task",
     reference: `seit ${seit}`,
     ok: ergebnis.fehler.length === 0,
-    message:
-      `${ergebnis.gelesen} gelesen, ${ergebnis.uebernommen} uebernommen ` +
-      `(${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert), ` +
-      `${ergebnis.uebersprungen} uebersprungen`,
+    message: ergebnis.erkundung
+      ? `Erkundung: ${ergebnis.gelesen} gelesen, nichts uebernommen ` +
+        `(noch keine Zuordnung), ${ergebnis.gefundeneNamen.length} Namen gefunden`
+      : `${ergebnis.gelesen} gelesen, ${ergebnis.uebernommen} uebernommen ` +
+        `(${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert), ` +
+        `${ergebnis.uebersprungen} uebersprungen`,
     payload: {
       unbekannteNamen: ergebnis.unbekannteNamen.slice(0, 50),
       fehler: ergebnis.fehler.slice(0, 20),

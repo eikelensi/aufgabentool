@@ -12,6 +12,7 @@ import {
   passwortZuruecksetzen,
   rolleAendern,
   type Ergebnis,
+  type SyncMeldung,
 } from "./aktionen";
 import type { AppRole } from "@/lib/types";
 
@@ -335,13 +336,39 @@ function OnofficeNameFeld({
 }
 
 /**
- * Aufgaben aus onOffice holen und zeigen, welche Namen dabei durchgefallen
- * sind. Die Liste ist das Werkzeug fuer die Zuordnung oben: was hier steht,
- * gehoert entweder zu einem Nutzer oder bewusst nicht ins Tool.
+ * Aufgaben aus onOffice holen und zeigen, welche Namen dabei vorkamen.
+ *
+ * Diese Liste ist das Werkzeug fuer die Zuordnung: jeder Name, der in
+ * einer geholten Aufgabe als Bearbeiter oder Verantwortung stand, laesst
+ * sich hier mit einem Griff einem Nutzer zuweisen. Abtippen waere die
+ * eine Stelle, an der ein Tippfehler den ganzen Abgleich still
+ * lahmlegt - der Name muss auf das Zeichen genau stimmen.
+ *
+ * Laeuft der Abgleich, bevor ueberhaupt jemand zugeordnet ist, holt er
+ * trotzdem und uebernimmt nur nichts. Sonst haette man die Namen, die
+ * man braucht, nirgends stehen.
  */
-export function SyncBereich({ unbekannteNamen }: { unbekannteNamen: { name: string; aufgaben: number }[] }) {
-  const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
+export function SyncBereich({
+  unbekannteNamen,
+  nutzer,
+}: {
+  unbekannteNamen: { name: string; aufgaben: number }[];
+  nutzer: { id: string; fullName: string; onofficeDisplayName: string | null }[];
+}) {
+  const [ergebnis, setErgebnis] = useState<SyncMeldung | null>(null);
   const [laeuft, starte] = useTransition();
+
+  // Was der letzte Lauf gefunden hat, sonst der Bestand aus der Ansicht.
+  const gefunden =
+    ergebnis?.gefundeneNamen?.length
+      ? ergebnis.gefundeneNamen
+      : unbekannteNamen.map((u) => ({ name: u.name, anzahl: u.aufgaben }));
+
+  const zugeordnet = new Map(
+    nutzer
+      .filter((n) => n.onofficeDisplayName)
+      .map((n) => [n.onofficeDisplayName!.trim().toLowerCase(), n.fullName]),
+  );
 
   return (
     <div className="panel mb-4 p-3">
@@ -366,9 +393,11 @@ export function SyncBereich({ unbekannteNamen }: { unbekannteNamen: { name: stri
         <p
           className="mt-3 rounded-md px-2.5 py-2 text-[11px] leading-relaxed"
           style={
-            ergebnis.ok
-              ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
-              : { background: "var(--warn-bg)", color: "var(--warn-fg)" }
+            !ergebnis.ok
+              ? { background: "var(--err-bg)", color: "var(--err-fg)" }
+              : ergebnis.erkundung
+                ? { background: "var(--info-bg)", color: "var(--info-fg)" }
+                : { background: "var(--ok-bg)", color: "var(--ok-fg)" }
           }
           role="status"
         >
@@ -376,30 +405,87 @@ export function SyncBereich({ unbekannteNamen }: { unbekannteNamen: { name: stri
         </p>
       ) : null}
 
-      {unbekannteNamen.length ? (
+      {gefunden.length ? (
         <div className="line mt-3 border-t pt-3">
           <h3 className="mb-1.5 text-xs font-medium">
-            Namen aus onOffice ohne Zuordnung ({unbekannteNamen.length})
+            Namen aus onOffice ({gefunden.length})
           </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {unbekannteNamen.map((u) => (
-              <span
-                key={u.name}
-                className="chip"
-                style={{ background: "var(--panel-2)", color: "var(--muted)" }}
-                title={`${u.aufgaben} Aufgaben`}
-              >
-                {u.name} <strong>{u.aufgaben}</strong>
-              </span>
+          <div className="space-y-1">
+            {gefunden.map((g) => (
+              <NamensZeile
+                key={g.name}
+                name={g.name}
+                anzahl={g.anzahl}
+                gehoertZu={zugeordnet.get(g.name.trim().toLowerCase()) ?? null}
+                nutzer={nutzer}
+                gesperrt={laeuft}
+                onFertig={(e) => setErgebnis({ ...e })}
+              />
             ))}
           </div>
           <p className="muted mt-2 text-[11px] leading-relaxed">
-            Diese Namen stehen in geholten Aufgaben, gehören aber zu keinem Nutzer.
-            Trage den Namen oben bei der passenden Person ein – oder lass ihn stehen,
-            wenn die Person nicht ins Tool soll.
+            So schreibt onOffice die Namen – auf das Zeichen genau. Wähle rechts
+            die Person, zu der ein Name gehört; wer nicht ins Tool soll, bleibt
+            einfach ohne Zuordnung. Danach noch einmal abgleichen.
           </p>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Ein onOffice-Name mit der Person, der er gehört. */
+function NamensZeile({
+  name,
+  anzahl,
+  gehoertZu,
+  nutzer,
+  gesperrt,
+  onFertig,
+}: {
+  name: string;
+  anzahl: number;
+  gehoertZu: string | null;
+  nutzer: { id: string; fullName: string; onofficeDisplayName: string | null }[];
+  gesperrt: boolean;
+  onFertig: (e: Ergebnis) => void;
+}) {
+  const [laeuft, starte] = useTransition();
+
+  return (
+    <div className="line flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5">
+      <code className="text-[12px]">{name}</code>
+      <span className="muted text-[11px]">
+        {anzahl} {anzahl === 1 ? "Aufgabe" : "Aufgaben"}
+      </span>
+      <div className="ml-auto flex items-center gap-1.5">
+        {gehoertZu ? (
+          <span className="chip" style={{ background: "var(--ok-bg)", color: "var(--ok-fg)" }}>
+            ✓ {gehoertZu}
+          </span>
+        ) : (
+          <select
+            className="field"
+            style={{ width: "auto", padding: "0.2rem 0.4rem", fontSize: "0.72rem" }}
+            defaultValue=""
+            disabled={gesperrt || laeuft}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (!id) return;
+              starte(async () => onFertig(await onofficeNameSetzen(id, name)));
+            }}
+          >
+            <option value="">zuordnen zu …</option>
+            {nutzer
+              .filter((n) => !n.onofficeDisplayName)
+              .map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.fullName}
+                </option>
+              ))}
+          </select>
+        )}
+      </div>
     </div>
   );
 }

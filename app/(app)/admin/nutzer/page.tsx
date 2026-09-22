@@ -123,7 +123,14 @@ export default async function NutzerSeite() {
         </p>
       ) : null}
 
-      <SyncBereich unbekannteNamen={unbekannteNamen} />
+      <SyncBereich
+        unbekannteNamen={unbekannteNamen}
+        nutzer={nutzer.map((n) => ({
+          id: n.id,
+          fullName: n.fullName,
+          onofficeDisplayName: n.onofficeDisplayName,
+        }))}
+      />
 
       <EinladenFormular darfSuperadmin={profil!.role === "superadmin"} />
 
