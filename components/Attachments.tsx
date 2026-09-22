@@ -5,6 +5,7 @@ import { useStore } from "@/lib/store";
 import { ALLOWED_EXTENSIONS } from "@/lib/data";
 import type { Attachment, AttachmentSync, Task } from "@/lib/types";
 import { SYNC_LABEL } from "@/lib/types";
+import { taskLink } from "@/lib/onoffice/links";
 import { formatDateTime } from "./ui";
 
 export function formatBytes(n: number): string {
@@ -169,6 +170,21 @@ function Row({ task, attachment }: { task: Task; attachment: Attachment }) {
               : "kein Inhalt"}
         </span>
       )}
+
+      {/* Was wir nicht herunterladen koennen, soll wenigstens einen Klick
+          entfernt sein: die Aufgabe in onOffice, wo die Datei haengt. */}
+      {!attachment.hasContent && task.onofficeTaskId ? (
+        <a
+          className="btn"
+          href={taskLink(task.onofficeTaskId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          title={`Aufgabe ${task.onofficeTaskId} in onOffice öffnen`}
+        >
+          In onOffice ↗
+        </a>
+      ) : null}
 
       {canRemove && attachment.syncState !== "nur_onoffice" ? (
         <button

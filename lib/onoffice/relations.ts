@@ -127,27 +127,34 @@ export async function elternVonDatei(fileId: string | number): Promise<{
   estateIds: string[];
   addressIds: string[];
   taskIds: string[];
+  /** Was beim Rueckwaertslesen schiefging - "nichts gefunden" und
+   *  "darf nicht gefragt werden" sehen sonst gleich aus. */
+  fehler: string[];
 }> {
   const kind = String(fileId);
+  const fehler: string[] = [];
 
-  const hole = async (urn: string): Promise<string[]> => {
+  const hole = async (name: string, urn: string): Promise<string[]> => {
     try {
       const res = await call({
         action: "get",
         resourceType: "idsfromrelation",
         parameters: { relationtype: urn, childids: [kind] },
       });
-      return extractIds(res.records as OnOfficeRecord[], kind);
-    } catch {
+      const ids = extractIds(res.records as OnOfficeRecord[], kind);
+      if (!ids.length) fehler.push(`${name}: keine Verknuepfung`);
+      return ids;
+    } catch (err) {
+      fehler.push(`${name}: ${(err as Error).message}`);
       return [];
     }
   };
 
   const [estateIds, addressIds, taskIds] = await Promise.all([
-    hole(DATEI_ELTERN.estate),
-    hole(DATEI_ELTERN.address),
-    hole(DATEI_ELTERN.task),
+    hole("estate", DATEI_ELTERN.estate),
+    hole("address", DATEI_ELTERN.address),
+    hole("task", DATEI_ELTERN.task),
   ]);
 
-  return { estateIds, addressIds, taskIds };
+  return { estateIds, addressIds, taskIds, fehler };
 }

@@ -303,6 +303,7 @@ export async function ladeDatei(
         kontext.estateId = eltern.estateIds[0];
         kontext.addressId = eltern.addressIds[0];
         if (!kontext.taskId) kontext.taskId = eltern.taskIds[0];
+        for (const f of eltern.fehler) fehler.push(`rueckwaerts ${f}`);
       } catch (err) {
         fehler.push(`Eltern: ${(err as Error).message}`);
       }
