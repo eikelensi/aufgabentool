@@ -20,7 +20,7 @@ export default function TaskCard({
   compact?: boolean;
   action?: React.ReactNode;
 }) {
-  const { categoryById, profileById, brokerById, settings } = useStore();
+  const { categoryById, profileById, brokerById, kollegeNachKuerzel, settings } = useStore();
   const category = categoryById(task.categoryId);
   const assignee = profileById(task.assigneeId);
   const broker = brokerById(task.brokerContactId);
@@ -87,7 +87,10 @@ export default function TaskCard({
             style={{ background: "var(--info-bg)", color: "var(--info-fg)" }}
             title={`In onOffice als Bearbeiter eingetragen: ${task.onofficeAssignee}`}
           >
-            → {task.onofficeAssignee}
+            {/* Die Schnittstelle liefert nur das Kuerzel. Steht der
+                Kollege in der Mitarbeiterverwaltung, zeigen wir seinen
+                Namen - "BaufiErcan" sagt niemandem etwas. */}
+            → {kollegeNachKuerzel(task.onofficeAssignee)?.displayName ?? task.onofficeAssignee}
           </span>
         ) : null}
         {task.attachments.length > 0 ? (

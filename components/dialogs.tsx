@@ -305,8 +305,8 @@ export function TaskDetailDialog({
   task: Task;
   onClose: () => void;
 }) {
-  const { profileById, categoryById, brokerById, moveTask, isAdmin, updateTask, profiles, tasks } =
-    useStore();
+  const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, isAdmin,
+    updateTask, profiles, brokers, tasks } = useStore();
   const [noteFor, setNoteFor] = useState(false);
 
   // Immer den aktuellen Stand aus dem Store zeigen, damit neu hochgeladene
@@ -420,47 +420,75 @@ export function TaskDetailDialog({
 
       {isAdmin ? (
         <div className="mb-4">
-          {/* In onOffice sitzt jemand daran, den das Tool nicht kennt.
-              Von hier aus umzuzuordnen hiesse, ihm die Arbeit
-              wegzunehmen - womoeglich mittendrin. Das gehoert in
-              onOffice entschieden, nicht hier. */}
-          {istVerteilt(task) ? (
-            <div
-              className="rounded-md border px-2.5 py-2 text-xs leading-relaxed"
-              style={{ background: "var(--info-bg)", borderColor: "var(--info-fg)", color: "var(--info-fg)" }}
-            >
-              <strong>In onOffice vergeben an {task.onofficeAssignee}.</strong> Diese
-              Person hat keinen Zugang zum Tool, deshalb lässt sich die Aufgabe hier
-              nicht zuordnen. Wer sie übernehmen soll, wird in onOffice als Bearbeiter
-              eingetragen – beim nächsten Abgleich steht sie dann hier.
-            </div>
-          ) : (
-            <Field label="Neu zuordnen (z. B. bei Krankheit)">
-              <select
-                className="field"
-                value={task.assigneeId ?? "__pool"}
-                onChange={(e) =>
+          <Field
+            label="Bearbeiter"
+            hint={
+              task.onofficeTaskId
+                ? "Wird in onOffice als „Bearbeiter“ eingetragen. „Aufgabenpool“ leert das Feld dort."
+                : "Diese Aufgabe wurde nur hier angelegt – es gibt in onOffice nichts, wohin das geschrieben werden könnte."
+            }
+          >
+            <select
+              className="field"
+              value={
+                task.assigneeId
+                  ? `p:${task.assigneeId}`
+                  : task.brokerContactId && !task.isPool
+                    ? `k:${task.brokerContactId}`
+                    : "__pool"
+              }
+              onChange={(e) => {
+                const wert = e.target.value;
+                if (wert === "__pool") {
+                  updateTask(task.id, { assigneeId: null, brokerContactId: null, isPool: true });
+                } else if (wert.startsWith("p:")) {
+                  // Ein Nutzer des Tools: er arbeitet hier, die Aufgabe
+                  // erscheint bei ihm in "Mein Tag".
                   updateTask(task.id, {
-                    assigneeId: e.target.value === "__pool" ? null : e.target.value,
-                    isPool: e.target.value === "__pool",
-                  })
+                    assigneeId: wert.slice(2),
+                    isPool: false,
+                  });
+                } else {
+                  // Ein Kollege ohne Zugang: im Tool gibt es niemanden,
+                  // dem die Aufgabe gehoeren koennte - in onOffice schon.
+                  // Sie steht danach unter "Verteilt".
+                  updateTask(task.id, {
+                    assigneeId: null,
+                    brokerContactId: wert.slice(2),
+                    isPool: false,
+                  });
                 }
-              >
-                <option value="__pool">Zurück in den Aufgabenpool</option>
+              }}
+            >
+              <option value="__pool">Niemand – zurück in den Aufgabenpool</option>
+              <optgroup label="Nutzer des Aufgabentools">
                 {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={`p:${p.id}`}>
                     {p.fullName}
                   </option>
                 ))}
-              </select>
-              {task.onofficeTaskId ? (
-                <p className="muted mt-1 text-[11px] leading-relaxed">
-                  Wird auch in onOffice eingetragen. „Zurück in den Aufgabenpool“
-                  leert das Feld „Bearbeiter“ dort.
-                </p>
-              ) : null}
-            </Field>
-          )}
+              </optgroup>
+              <optgroup label="Kollegen in onOffice (ohne Zugang zum Tool)">
+                {brokers
+                  .filter((b) => b.shortCode)
+                  .map((b) => (
+                    <option key={b.id} value={`k:${b.id}`}>
+                      {b.displayName}
+                    </option>
+                  ))}
+              </optgroup>
+            </select>
+          </Field>
+
+          {/* Steht in onOffice ein Bearbeiter, den wir keinem Kollegen
+              zuordnen koennen, sagen wir das - und nennen das Kuerzel,
+              damit man in onOffice danach suchen kann. */}
+          {istVerteilt(task) && !kollegeNachKuerzel(task.onofficeAssignee) ? (
+            <p className="muted mt-1.5 text-[11px] leading-relaxed">
+              In onOffice steht derzeit <code>{task.onofficeAssignee}</code> – dieses
+              Kürzel gehört zu keinem Kollegen in der Mitarbeiterverwaltung.
+            </p>
+          ) : null}
         </div>
       ) : null}
 

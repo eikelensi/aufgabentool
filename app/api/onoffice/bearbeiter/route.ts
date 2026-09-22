@@ -40,7 +40,9 @@ export async function POST(request: Request) {
 
   const { data: aufgabe } = await sb
     .from("tasks")
-    .select("id, onoffice_task_id, assignee_id, creator_id, is_pool, onoffice_assignee, title")
+    .select(
+      "id, onoffice_task_id, assignee_id, creator_id, is_pool, broker_contact_id, onoffice_assignee, title",
+    )
     .eq("id", taskId)
     .maybeSingle();
 
@@ -76,10 +78,19 @@ export async function POST(request: Request) {
   // Abgleich holt sie prompt wieder aus dem Pool heraus, weil onOffice
   // bei diesem Feld fuehrt. Abgeben muss in beiden Systemen dasselbe
   // heissen.
+  // Wer soll drueben stehen? Zwei Faelle, und der zweite ist der, den
+  // das Tool lange nicht konnte:
+  //
+  //  - ein NUTZER des Tools: sein onoffice_display_name,
+  //  - ein KOLLEGE ohne Zugang: sein Kuerzel aus der
+  //    Mitarbeiterverwaltung.
+  //
+  // Beides ist derselbe Wert, den die Schnittstelle beim Lesen liefert:
+  // das Kuerzel des onOffice-Logins ("BaufiErcan"), nicht der schoene
+  // Name, den die Oberflaeche von onOffice anzeigt. Wer sich daran
+  // orientiert, schreibt etwas hinein, das dort niemand kennt.
   let name = "";
   if (aufgabe.assignee_id) {
-    // Der Bearbeiter, den das Tool eintraegt, ist der Name, unter dem die
-    // Person in onOffice gefuehrt wird - nicht ihr Name bei uns.
     const { data: wer } = await sb
       .from("profiles")
       .select("onoffice_display_name, full_name")
@@ -93,6 +104,22 @@ export async function POST(request: Request) {
         meldung:
           `Für ${wer?.full_name ?? "diese Person"} ist kein onOffice-Name hinterlegt. ` +
           "Ohne den weiß onOffice nicht, wer gemeint ist – nachzutragen in der Nutzerverwaltung.",
+      });
+    }
+  } else if (aufgabe.broker_contact_id && !aufgabe.is_pool) {
+    const { data: kollege } = await sb
+      .from("broker_contacts")
+      .select("short_code, display_name")
+      .eq("id", aufgabe.broker_contact_id)
+      .maybeSingle();
+
+    name = kollege?.short_code?.trim() ?? "";
+    if (!name) {
+      return NextResponse.json({
+        uebertragen: false,
+        meldung:
+          `Für ${kollege?.display_name ?? "diesen Kollegen"} ist kein onOffice-Kürzel ` +
+          "hinterlegt. Ohne das weiß onOffice nicht, wer gemeint ist.",
       });
     }
   }

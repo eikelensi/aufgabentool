@@ -96,6 +96,15 @@ interface StoreValue {
   profileById: (id: string | null) => Profile | undefined;
   categoryById: (id: string | null) => Category | undefined;
   brokerById: (id: string | null) => BrokerContact | undefined;
+  /**
+   * Kollege zu einem onOffice-Kuerzel.
+   *
+   * Die Schnittstelle liefert den Bearbeiter einer Aufgabe als blosses
+   * Kuerzel - "BaufiErcan", nicht "Ercan, Dilara". Die Oberflaeche von
+   * onOffice zeigt das schoener an, die API nicht. Damit auf einer
+   * Kachel ein Name steht und kein Login, wird hier nachgeschlagen.
+   */
+  kollegeNachKuerzel: (kuerzel: string | null | undefined) => BrokerContact | undefined;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -185,6 +194,11 @@ export function StoreProvider({
     const profileById = (id: string | null) => profiles.find((p) => p.id === id);
     const categoryById = (id: string | null) => categories.find((c) => c.id === id);
     const brokerById = (id: string | null) => brokers.find((b) => b.id === id);
+    const kollegeNachKuerzel = (kuerzel: string | null | undefined) => {
+      const k = String(kuerzel ?? "").trim().toLowerCase();
+      if (!k) return undefined;
+      return brokers.find((b) => b.shortCode.trim().toLowerCase() === k);
+    };
 
     const heute = new Date().toISOString().slice(0, 10);
     const grenze = Date.now() - settings.doneHideAfterHours * 3600_000;
@@ -343,8 +357,13 @@ export function StoreProvider({
       // bekommt sie beim naechsten Abgleich zurueckgedreht - onOffice
       // fuehrt bei diesem Feld. Also derselbe Weg wie beim Ziehen aus
       // dem Pool, mitsamt Leeren beim Zuruecklegen.
+      // Zuweisung heisst: Nutzer, Kollege oder Pool - alle drei landen
+      // im selben Feld drueben.
       const zuweisungGeaendert =
-        patch.assigneeId !== undefined && patch.assigneeId !== (vorher?.assigneeId ?? null);
+        (patch.assigneeId !== undefined && patch.assigneeId !== (vorher?.assigneeId ?? null)) ||
+        (patch.brokerContactId !== undefined &&
+          patch.brokerContactId !== (vorher?.brokerContactId ?? null)) ||
+        (patch.isPool !== undefined && patch.isPool !== (vorher?.isPool ?? false));
 
       let hinweis: string | undefined;
       if (zuweisungGeaendert && vorher?.onofficeTaskId) {
@@ -612,6 +631,7 @@ export function StoreProvider({
       profileById,
       categoryById,
       brokerById,
+      kollegeNachKuerzel,
     };
   }, [
     bereit,

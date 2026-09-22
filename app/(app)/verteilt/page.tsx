@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/ui";
 import { istVerteilt, type Task } from "@/lib/types";
 
 export default function VerteiltPage() {
-  const { bereit, visibleTasks, me, isAdmin } = useStore();
+  const { bereit, visibleTasks, me, isAdmin, kollegeNachKuerzel } = useStore();
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [detail, setDetail] = useState<Task | null>(null);
 
@@ -42,7 +42,12 @@ export default function VerteiltPage() {
   // liegt, statt eine lange Reihe gleich aussehender Kacheln.
   const nachPerson = new Map<string, Task[]>();
   for (const t of liste) {
-    const name = t.onofficeAssignee ?? "(ohne Namen)";
+    // Die Schnittstelle gibt nur das Kuerzel her ("BaufiErcan"). Wer in
+    // der Mitarbeiterverwaltung steht, bekommt hier seinen Namen.
+    const name =
+      kollegeNachKuerzel(t.onofficeAssignee)?.displayName ??
+      t.onofficeAssignee ??
+      "(ohne Namen)";
     nachPerson.set(name, [...(nachPerson.get(name) ?? []), t]);
   }
   const gruppen = [...nachPerson.entries()].sort(
