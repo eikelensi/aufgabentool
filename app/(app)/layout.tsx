@@ -11,18 +11,34 @@ import { StoreProvider } from "@/lib/store";
 import Shell from "@/components/Shell";
 import { aktuellesProfil } from "@/lib/supabase/profil";
 import { supabaseServer } from "@/lib/supabase/server";
-import { dunkelCss, istVoreinstellung, sichereFarben } from "@/lib/design/farben";
+import { istVoreinstellung, sicherePalette, themaCss } from "@/lib/design/farben";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profil = await aktuellesProfil();
 
   if (!profil) redirect("/anmelden");
 
-  // Eigene Farben fuer den dunklen Modus, falls eingestellt. sichereFarben
-  // laesst nur Hexwerte durch - der Text landet in einem style-Block.
+  // Eigene Farben, falls eingestellt - je Modus getrennt. sicherePalette
+  // laesst nur Hexwerte durch; der Text landet in einem style-Block.
+  //
+  // Ausgeliefert wird nichts: steht ein Modus auf der Voreinstellung,
+  // gilt schlicht, was in globals.css steht. So faellt eine spaetere
+  // Verbesserung der Voreinstellung auch bei allen an, die nie etwas
+  // eingestellt haben.
   const supabase = await supabaseServer();
-  const { data: einst } = await supabase.from("app_settings").select("theme_dark").maybeSingle();
-  const farben = sichereFarben(einst?.theme_dark);
+  const { data: einst } = await supabase
+    .from("app_settings")
+    .select("theme_light, theme_dark")
+    .maybeSingle();
+  const hell = sicherePalette("hell", einst?.theme_light);
+  const dunkel = sicherePalette("dunkel", einst?.theme_dark);
+
+  const eigeneFarben = [
+    istVoreinstellung("hell", hell) ? "" : themaCss("hell", hell),
+    istVoreinstellung("dunkel", dunkel) ? "" : themaCss("dunkel", dunkel),
+  ]
+    .filter(Boolean)
+    .join("");
 
   if (!profil.isActive) {
     return (
@@ -45,9 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <StoreProvider profil={profil}>
-      {istVoreinstellung(farben) ? null : (
-        <style dangerouslySetInnerHTML={{ __html: dunkelCss(farben) }} />
-      )}
+      {eigeneFarben ? <style dangerouslySetInnerHTML={{ __html: eigeneFarben }} /> : null}
       <Shell profil={profil}>{children}</Shell>
     </StoreProvider>
   );

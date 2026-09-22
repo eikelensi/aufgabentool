@@ -51,17 +51,21 @@ export default function Shell({
 
   const isAdmin = profil.role === "admin" || profil.role === "superadmin";
 
+  // Gesetzt hat den Modus schon das Skript im Kopf, bevor das erste Bild
+  // stand. Hier wird er nur noch abgelesen, damit der Knopf das richtige
+  // Zeichen zeigt - nicht noch einmal entschieden.
+  //
+  // Beobachtet wird er ausserdem: die Farbeinstellung im Adminbereich
+  // schaltet die Seite um, damit man sieht, was man einstellt. Ohne das
+  // zeigte der Knopf danach die Sonne, waehrend es dunkel ist, und der
+  // naechste Druck ginge in die falsche Richtung.
   useEffect(() => {
-    let gespeichert: string | null = null;
-    try {
-      gespeichert = window.localStorage.getItem("aufgabentool-theme");
-    } catch {
-      /* Privatmodus oder gesperrte Speicherung - dann eben die Systemwahl */
-    }
-    const prefers = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = gespeichert ? gespeichert === "dark" : prefers;
-    setDark(isDark);
-    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    const wurzel = document.documentElement;
+    const lies = () => setDark(wurzel.dataset.theme === "dark");
+    lies();
+    const beobachter = new MutationObserver(lies);
+    beobachter.observe(wurzel, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => beobachter.disconnect();
   }, []);
 
   const toggleTheme = () => {

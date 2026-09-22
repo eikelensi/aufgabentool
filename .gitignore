@@ -10,3 +10,5 @@ out
 next-env.d.ts
 tsconfig.tsbuildinfo
 scripts/.felder.json
+scripts/.muster-fertig.html
+scripts/muster-*.png

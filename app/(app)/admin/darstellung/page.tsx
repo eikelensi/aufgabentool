@@ -1,8 +1,8 @@
 /**
- * Farben des dunklen Modus einstellen.
+ * Farben beider Modi einstellen.
  */
 import { supabaseAdmin, serviceRoleVorhanden } from "@/lib/supabase/admin";
-import { sichereFarben } from "@/lib/design/farben";
+import { sicherePalette } from "@/lib/design/farben";
 import FarbFormular from "./formular";
 
 export const runtime = "nodejs";
@@ -19,17 +19,26 @@ export default async function DarstellungSeite() {
   }
 
   const sb = supabaseAdmin();
-  const { data } = await sb.from("app_settings").select("theme_dark").maybeSingle();
+  const { data } = await sb
+    .from("app_settings")
+    .select("theme_light, theme_dark")
+    .maybeSingle();
 
   return (
     <div>
       <p className="muted mb-4 max-w-[70ch] text-xs leading-relaxed">
-        Diese Farben gelten für den dunklen Modus – für alle, nicht nur für dich.
-        Der helle Modus bleibt unverändert. Während du einstellst, ändert sich die
-        Seite unter dir mit; gespeichert wird erst auf Knopfdruck.
+        Diese Farben gelten für alle, nicht nur für dich. Heller und dunkler
+        Modus werden getrennt gepflegt – oben wählst du, welchen du gerade
+        bearbeitest. Während du einstellst, ändert sich die Seite unter dir
+        mit; gespeichert wird erst auf Knopfdruck.
       </p>
 
-      <FarbFormular gespeichert={sichereFarben(data?.theme_dark)} />
+      <FarbFormular
+        gespeichert={{
+          hell: sicherePalette("hell", data?.theme_light),
+          dunkel: sicherePalette("dunkel", data?.theme_dark),
+        }}
+      />
     </div>
   );
 }

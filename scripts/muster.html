@@ -1,0 +1,112 @@
+<!doctype html>
+<!--
+  Musterseite fuer den Blick von aussen.
+
+  Baut die wiederkehrenden Bausteine der Anwendung mit den echten
+  Klassen aus globals.css nach - Kopfzeile, Aufgabenkarte, Kennzeichen,
+  Eingabefeld, Knoepfe, Meldungen. Damit laesst sich ein Farbentwurf
+  ansehen, ohne die Anwendung mit Datenbank und Anmeldung zu starten.
+
+  Wird von scripts/bild.mjs geladen; die Stylesheet-Adresse setzt das
+  Skript ein.
+-->
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Muster</title>
+    <link rel="stylesheet" href="STYLESHEET" />
+    <style>
+      body { padding: 20px; }
+      .spalte { max-width: 340px; }
+      .kopf {
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+        border-radius: var(--r-karte) var(--r-karte) 0 0;
+        padding: 10px 14px;
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: 14px;
+      }
+      .marke { font-weight: 700; font-size: 14px; }
+      .menue { display: flex; gap: 4px; margin-left: auto; }
+      .menue a {
+        padding: 4px 10px; border-radius: var(--r-feld);
+        font-size: 12px; font-weight: 500;
+      }
+      .menue a.aktiv { background: var(--color-ci-400); color: var(--auf-akzent); font-weight: 600; }
+      h3 { font-size: 12px; font-weight: 600; margin: 0 0 8px; letter-spacing: .03em; text-transform: uppercase; }
+      .karte { padding: 10px; margin-bottom: 8px; }
+      .titel { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+      .zeile { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+      .reihe { display: flex; gap: 20px; align-items: flex-start; }
+      .meldung { border-radius: var(--r-feld); padding: 7px 10px; font-size: 12px; margin-bottom: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="kopf">
+      <span class="marke">Aufgabentool</span>
+      <nav class="menue">
+        <a class="aktiv">Mein Tag</a>
+        <a class="muted">Aufgabenpool</a>
+        <a class="muted">onOffice-Eingang</a>
+        <a class="muted">Verwaltung</a>
+      </nav>
+    </div>
+
+    <div class="reihe">
+      <div class="spalte">
+        <h3 class="muted">Offen</h3>
+
+        <div class="panel karte card-hoch">
+          <div class="titel">Exposé Musterstraße 12 prüfen</div>
+          <div class="muted" style="font-size: 11px">Nr. 4812 · fällig morgen</div>
+          <div class="zeile">
+            <span class="chip" style="background: var(--err-bg); color: var(--err-fg)">Hoch</span>
+            <span class="chip" style="background: var(--neutral-bg); color: var(--neutral-fg)">Vermarktung</span>
+            <span class="chip" style="background: var(--privat-bg); color: var(--privat-fg)">🔒 Privat</span>
+          </div>
+        </div>
+
+        <div class="panel karte">
+          <div class="titel">Rückfrage Eigentümer Weis</div>
+          <div class="muted" style="font-size: 11px">Nr. 4790 · seit 3 Tagen</div>
+          <div class="zeile">
+            <span class="chip" style="background: var(--warn-bg); color: var(--warn-fg)">Rückfragen offen</span>
+            <span class="chip" style="background: var(--info-bg); color: var(--info-fg)">nur in onOffice</span>
+          </div>
+        </div>
+
+        <div class="panel karte">
+          <div class="titel" style="text-decoration: line-through; opacity: .7">Termin Notar bestätigen</div>
+          <div class="zeile">
+            <span class="chip" style="background: var(--ok-bg); color: var(--ok-fg)">✓ Erledigt</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="spalte">
+        <h3 class="muted">Bedienelemente</h3>
+        <div class="panel" style="padding: 12px">
+          <input class="field" style="margin-bottom: 8px" placeholder="Nach Aufgabennummer suchen …" />
+          <input class="field" style="margin-bottom: 10px" value="Lensinger, Eike (EL)" />
+          <div style="display: flex; gap: 6px; flex-wrap: wrap">
+            <button class="btn btn-primary">Speichern</button>
+            <button class="btn">Abbrechen</button>
+            <button class="btn btn-ghost">Verwerfen</button>
+            <button class="btn" disabled>Gesperrt</button>
+          </div>
+          <p class="muted" style="font-size: 11px; margin-top: 10px; line-height: 1.6">
+            Nebensächlicher Text, wie er unter Feldern und Überschriften steht.
+            Ein <a href="#" style="color: var(--color-ci-500); font-weight: 600">Link</a>
+            mitten im Satz.
+          </p>
+        </div>
+
+        <h3 class="muted" style="margin-top: 16px">Meldungen</h3>
+        <div class="meldung" style="background: var(--ok-bg); color: var(--ok-fg)">Gespeichert.</div>
+        <div class="meldung" style="background: var(--warn-bg); color: var(--warn-fg)">Es fehlt eine Notiz zum Statuswechsel.</div>
+        <div class="meldung" style="background: var(--err-bg); color: var(--err-fg)">Die Datenbank hat den Wert abgelehnt.</div>
+        <div class="meldung" style="background: var(--info-bg); color: var(--info-fg)">Diese Aufgabe liegt nur in onOffice.</div>
+      </div>
+    </div>
+  </body>
+</html>
