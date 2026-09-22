@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   const { data: aufgabe } = await sb
     .from("tasks")
     .select(
-      "id, onoffice_task_id, assignee_id, creator_id, is_pool, broker_contact_id, onoffice_assignee, title",
+      "id, onoffice_task_id, assignee_id, creator_id, is_pool, onoffice_bearbeiter_id, onoffice_assignee, title",
     )
     .eq("id", taskId)
     .maybeSingle();
@@ -106,11 +106,11 @@ export async function POST(request: Request) {
           "Ohne den weiß onOffice nicht, wer gemeint ist – nachzutragen in der Nutzerverwaltung.",
       });
     }
-  } else if (aufgabe.broker_contact_id && !aufgabe.is_pool) {
+  } else if (aufgabe.onoffice_bearbeiter_id && !aufgabe.is_pool) {
     const { data: kollege } = await sb
       .from("broker_contacts")
       .select("short_code, display_name")
-      .eq("id", aufgabe.broker_contact_id)
+      .eq("id", aufgabe.onoffice_bearbeiter_id)
       .maybeSingle();
 
     name = kollege?.short_code?.trim() ?? "";

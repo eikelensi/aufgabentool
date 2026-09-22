@@ -99,7 +99,7 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   const [description, setDescription] = useState(prefill?.description ?? "");
   const [categoryId, setCategoryId] = useState<string>(categories[0]?.id ?? "");
   const [priority, setPriority] = useState<TaskPriority>("normal");
-  const [assignee, setAssignee] = useState<string>(isAdmin ? "__pool" : me.id);
+  const [assignee, setAssignee] = useState<string>(isAdmin ? "__pool" : `p:${me.id}`);
   const [brokerContactId, setBroker] = useState<string>("");
   const [visibleFrom, setVisibleFrom] = useState(isoDate(0));
   const [dueDate, setDueDate] = useState("");
@@ -116,7 +116,8 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
       categoryId: categoryId || null,
       priority,
       isPool: assignee === "__pool",
-      assigneeId: assignee === "__pool" ? null : assignee,
+      assigneeId: assignee.startsWith("p:") ? assignee.slice(2) : null,
+      onofficeBearbeiterId: assignee.startsWith("k:") ? assignee.slice(2) : null,
       brokerContactId: brokerContactId || null,
       visibleFrom,
       dueDate: dueDate || null,
@@ -192,7 +193,7 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
 
         <Field
           label="Bearbeiter"
-          hint={isAdmin ? "Als Admin kannst du direkt zuweisen oder in den Pool legen." : "Mitarbeitende legen Aufgaben für sich selbst an."}
+          hint={isAdmin ? "Nutzer des Tools oder ein Kollege, der nur in onOffice arbeitet." : "Mitarbeitende legen Aufgaben für sich selbst an."}
         >
           <select
             className="field"
@@ -201,15 +202,26 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
             disabled={!isAdmin || isPrivate}
           >
             <option value="__pool">In den Aufgabenpool</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.fullName}
-              </option>
-            ))}
+            <optgroup label="Nutzer des Aufgabentools">
+              {profiles.map((p) => (
+                <option key={p.id} value={`p:${p.id}`}>
+                  {p.fullName}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Kollegen in onOffice (ohne Zugang zum Tool)">
+              {brokers
+                .filter((b) => b.shortCode)
+                .map((b) => (
+                  <option key={b.id} value={`k:${b.id}`}>
+                    {b.displayName}
+                  </option>
+                ))}
+            </optgroup>
           </select>
         </Field>
 
-        <Field label="Zugeordneter Kollege" hint="Erhält bei Erledigung automatisch eine E-Mail.">
+        <Field label="Bei Erledigung informieren" hint="Bekommt eine E-Mail, sobald die Aufgabe erledigt ist. Bleibt im Tool.">
           <select
             className="field"
             value={brokerContactId}
@@ -433,19 +445,24 @@ export function TaskDetailDialog({
               value={
                 task.assigneeId
                   ? `p:${task.assigneeId}`
-                  : task.brokerContactId && !task.isPool
-                    ? `k:${task.brokerContactId}`
+                  : task.onofficeBearbeiterId && !task.isPool
+                    ? `k:${task.onofficeBearbeiterId}`
                     : "__pool"
               }
               onChange={(e) => {
                 const wert = e.target.value;
                 if (wert === "__pool") {
-                  updateTask(task.id, { assigneeId: null, brokerContactId: null, isPool: true });
+                  updateTask(task.id, {
+                    assigneeId: null,
+                    onofficeBearbeiterId: null,
+                    isPool: true,
+                  });
                 } else if (wert.startsWith("p:")) {
                   // Ein Nutzer des Tools: er arbeitet hier, die Aufgabe
                   // erscheint bei ihm in "Mein Tag".
                   updateTask(task.id, {
                     assigneeId: wert.slice(2),
+                    onofficeBearbeiterId: null,
                     isPool: false,
                   });
                 } else {
@@ -454,7 +471,7 @@ export function TaskDetailDialog({
                   // Sie steht danach unter "Verteilt".
                   updateTask(task.id, {
                     assigneeId: null,
-                    brokerContactId: wert.slice(2),
+                    onofficeBearbeiterId: wert.slice(2),
                     isPool: false,
                   });
                 }
@@ -483,12 +500,39 @@ export function TaskDetailDialog({
           {/* Steht in onOffice ein Bearbeiter, den wir keinem Kollegen
               zuordnen koennen, sagen wir das - und nennen das Kuerzel,
               damit man in onOffice danach suchen kann. */}
-          {istVerteilt(task) && !kollegeNachKuerzel(task.onofficeAssignee) ? (
+          {istVerteilt(task) && task.onofficeAssignee && !kollegeNachKuerzel(task.onofficeAssignee) ? (
             <p className="muted mt-1.5 text-[11px] leading-relaxed">
               In onOffice steht derzeit <code>{task.onofficeAssignee}</code> – dieses
               Kürzel gehört zu keinem Kollegen in der Mitarbeiterverwaltung.
             </p>
           ) : null}
+
+          {/* Etwas ANDERES als der Bearbeiter, auch wenn beide aus
+              derselben Liste kommen: hier steht, wer Bescheid bekommt,
+              wenn die Aufgabe fertig ist. Das geht nie nach onOffice.
+              Die beiden in ein Feld zu stecken war mein Fehler - man
+              sah zwei Zeilen, die sich gegenseitig ueberschrieben. */}
+          <div className="mt-3">
+            <Field
+              label="Bei Erledigung informieren"
+              hint="Bekommt eine E-Mail, sobald die Aufgabe erledigt ist. Bleibt im Tool."
+            >
+              <select
+                className="field"
+                value={task.brokerContactId ?? ""}
+                onChange={(e) =>
+                  updateTask(task.id, { brokerContactId: e.target.value || null })
+                }
+              >
+                <option value="">– niemanden –</option>
+                {brokers.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.displayName}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
         </div>
       ) : null}
 
@@ -519,7 +563,7 @@ export function TaskDetailDialog({
             sie nicht schafft, soll sie loslassen koennen, ohne jemanden
             zu fragen. Steht links, weil es nichts mit dem Status zu tun
             hat - und weit weg von "Erledigt". */}
-        {!task.isPool && (task.assigneeId || task.brokerContactId) ? (
+        {!task.isPool && (task.assigneeId || task.onofficeBearbeiterId) ? (
           <button
             className="btn"
             title={
@@ -528,7 +572,7 @@ export function TaskDetailDialog({
                 : "Legt die Aufgabe zurück in den Pool."
             }
             onClick={() =>
-              updateTask(task.id, { assigneeId: null, brokerContactId: null, isPool: true })
+              updateTask(task.id, { assigneeId: null, onofficeBearbeiterId: null, isPool: true })
             }
           >
             ↩︎ Zurück in den Aufgabenpool

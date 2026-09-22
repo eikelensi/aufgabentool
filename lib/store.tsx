@@ -41,7 +41,7 @@ import type {
 
 const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
-  broker_contact_id, is_pool, is_private, visible_from, due_date,
+  broker_contact_id, onoffice_bearbeiter_id, is_pool, is_private, visible_from, due_date,
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
   onoffice_assignee, onoffice_responsible,
   in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
@@ -361,8 +361,8 @@ export function StoreProvider({
       // im selben Feld drueben.
       const zuweisungGeaendert =
         (patch.assigneeId !== undefined && patch.assigneeId !== (vorher?.assigneeId ?? null)) ||
-        (patch.brokerContactId !== undefined &&
-          patch.brokerContactId !== (vorher?.brokerContactId ?? null)) ||
+        (patch.onofficeBearbeiterId !== undefined &&
+          patch.onofficeBearbeiterId !== (vorher?.onofficeBearbeiterId ?? null)) ||
         (patch.isPool !== undefined && patch.isPool !== (vorher?.isPool ?? false));
 
       let hinweis: string | undefined;

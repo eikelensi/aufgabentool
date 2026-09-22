@@ -93,6 +93,7 @@ export function zuAufgabe(row: any): Task {
     creatorId: row.creator_id,
     assigneeId: row.assignee_id ?? null,
     brokerContactId: row.broker_contact_id ?? null,
+    onofficeBearbeiterId: row.onoffice_bearbeiter_id ?? null,
     isPool: Boolean(row.is_pool),
     isPrivate: Boolean(row.is_private),
     visibleFrom: row.visible_from,
@@ -169,6 +170,9 @@ export function aufgabeZurZeile(patch: Partial<Task>): Record<string, unknown> {
   if (patch.categoryId !== undefined) z.category_id = patch.categoryId;
   if (patch.assigneeId !== undefined) z.assignee_id = patch.assigneeId;
   if (patch.brokerContactId !== undefined) z.broker_contact_id = patch.brokerContactId;
+  if (patch.onofficeBearbeiterId !== undefined) {
+    z.onoffice_bearbeiter_id = patch.onofficeBearbeiterId;
+  }
   if (patch.isPool !== undefined) z.is_pool = patch.isPool;
   if (patch.isPrivate !== undefined) z.is_private = patch.isPrivate;
   if (patch.visibleFrom !== undefined) z.visible_from = patch.visibleFrom;

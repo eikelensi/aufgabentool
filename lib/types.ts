@@ -83,7 +83,14 @@ export interface Task {
   categoryId: string | null;
   creatorId: string;
   assigneeId: string | null;
+  /** Wer bei Erledigung eine Mail bekommt. Bleibt im Tool. */
   brokerContactId: string | null;
+  /**
+   * Kollege ohne Zugang zum Tool, der die Aufgabe bearbeitet. Sein
+   * Kuerzel geht als "Bearbeiter" nach onOffice. Nur gesetzt, wenn
+   * assigneeId leer ist - zwei Bearbeiter gibt es nicht.
+   */
+  onofficeBearbeiterId: string | null;
   isPool: boolean;
   isPrivate: boolean;
   visibleFrom: string; // ISO-Datum
@@ -156,7 +163,11 @@ export interface AppSettings {
  * Ansichten - siehe app/(app)/verteilt.
  */
 export function istVerteilt(t: Task): boolean {
-  return Boolean(t.onofficeAssignee) && !t.assigneeId && !t.isPool;
+  return (
+    !t.assigneeId &&
+    !t.isPool &&
+    Boolean(t.onofficeAssignee || t.onofficeBearbeiterId)
+  );
 }
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
