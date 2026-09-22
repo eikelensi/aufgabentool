@@ -320,6 +320,8 @@ export function TaskDetailDialog({
   const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, isAdmin,
     updateTask, profiles, brokers, tasks } = useStore();
   const [noteFor, setNoteFor] = useState(false);
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
 
   // Immer den aktuellen Stand aus dem Store zeigen, damit neu hochgeladene
   // Dateien sofort in der Liste stehen.
@@ -330,12 +332,46 @@ export function TaskDetailDialog({
   const broker = brokerById(task.brokerContactId);
   const category = categoryById(task.categoryId);
 
-  const setStatus = (s: TaskStatus) => {
+  /**
+   * Statuswechsel aus dem Dialog heraus.
+   *
+   * Das Fenster geht zu, sobald die Aenderung steht - wer eine Aufgabe
+   * erledigt, ist mit ihr fertig und will die Liste sehen, nicht noch
+   * einmal dieselbe Karte.
+   *
+   * Es bleibt nur dann offen, wenn die Aenderung NICHT durchging: dann
+   * gehoert die Begruendung dorthin, wo man gerade hinsieht. Frueher
+   * wurde hier nicht abgewartet und blind geschlossen - eine Ablehnung
+   * der Datenbank verschwand mit dem Fenster.
+   */
+  const setStatus = async (s: TaskStatus) => {
     if (s === "in_bearbeitung") {
       setNoteFor(true);
       return;
     }
-    moveTask(task.id, s);
+    setLaeuft(true);
+    const res = await moveTask(task.id, s);
+    setLaeuft(false);
+    if (!res.ok) {
+      setFehler(res.error ?? "Der Status ließ sich nicht ändern.");
+      return;
+    }
+    onClose();
+  };
+
+  /** Abgeben: dasselbe Muster, und danach ist die Karte hier weg. */
+  const inDenPool = async () => {
+    setLaeuft(true);
+    const res = await updateTask(task.id, {
+      assigneeId: null,
+      onofficeBearbeiterId: null,
+      isPool: true,
+    });
+    setLaeuft(false);
+    if (!res.ok) {
+      setFehler(res.error ?? "Die Aufgabe ließ sich nicht zurücklegen.");
+      return;
+    }
     onClose();
   };
 
@@ -624,6 +660,16 @@ export function TaskDetailDialog({
         </ul>
       )}
 
+      {fehler ? (
+        <p
+          className="mt-4 rounded-md px-2.5 py-2 text-xs leading-relaxed"
+          style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}
+          role="alert"
+        >
+          {fehler}
+        </p>
+      ) : null}
+
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {/* Abgeben braucht kein Adminrecht: wer eine Aufgabe hat und
             sie nicht schafft, soll sie loslassen koennen, ohne jemanden
@@ -637,9 +683,8 @@ export function TaskDetailDialog({
                 ? "Legt die Aufgabe zurück in den Pool und leert den Bearbeiter in onOffice."
                 : "Legt die Aufgabe zurück in den Pool."
             }
-            onClick={() =>
-              updateTask(task.id, { assigneeId: null, onofficeBearbeiterId: null, isPool: true })
-            }
+            disabled={laeuft}
+            onClick={inDenPool}
           >
             ↩︎ Zurück in den Aufgabenpool
           </button>
@@ -647,18 +692,18 @@ export function TaskDetailDialog({
 
         <div className="ml-auto flex flex-wrap justify-end gap-2">
         {task.status !== "offen" ? (
-          <button className="btn" onClick={() => setStatus("offen")}>
+          <button className="btn" disabled={laeuft} onClick={() => setStatus("offen")}>
             Auf „Offen“ setzen
           </button>
         ) : null}
         {task.status !== "in_bearbeitung" ? (
-          <button className="btn" onClick={() => setStatus("in_bearbeitung")}>
+          <button className="btn" disabled={laeuft} onClick={() => setStatus("in_bearbeitung")}>
             Rückfragen offen
           </button>
         ) : null}
         {task.status !== "erledigt" ? (
-          <button className="btn btn-primary" onClick={() => setStatus("erledigt")}>
-            Erledigt
+          <button className="btn btn-primary" disabled={laeuft} onClick={() => setStatus("erledigt")}>
+            {laeuft ? "Moment…" : "Erledigt"}
           </button>
         ) : null}
         </div>
