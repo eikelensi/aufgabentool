@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { fail, guard } from "@/lib/api-guard";
 import { createTask, pushStatus, readTasks } from "@/lib/onoffice/tasks";
+import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import type { TaskStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -40,6 +41,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const blocked = guard(request);
   if (blocked) return blocked;
+
+  // Diese Route ist das Werkzeug, mit dem von Hand geschrieben wird -
+  // mit dem Geheimnis im Kopf, nicht aus der Oberflaeche. Der
+  // Hauptschalter gilt auch hier: sonst haette sync_read_only eine
+  // Hintertuer, und ein Schalter mit Hintertuer ist keiner.
+  const sperre = await pruefeSchreibsperre("status");
+  if (!sperre.erlaubt) {
+    return NextResponse.json({ ok: false, fehler: sperre.grund }, { status: 409 });
+  }
 
   try {
     const body = (await request.json()) as {

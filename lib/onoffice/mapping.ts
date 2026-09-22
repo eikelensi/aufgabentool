@@ -12,19 +12,45 @@
 
 import type { TaskPriority, TaskStatus } from "@/lib/types";
 
+/**
+ * Die Statuswerte von onOffice, vollstaendig.
+ *
+ * Quelle: apidoc.onoffice.de, "Modify Tasks" - Status nimmt die Zahlen
+ * 1 bis 8. Das ist wichtiger, als es aussieht: onOffice kennt ACHT
+ * Status, das Tool drei. Vier onOffice-Status landen bei uns auf
+ * "offen". Wer das nicht weiss und beim Zurueckschreiben stumpf
+ * "offen -> 1" setzt, macht aus einer zurueckgestellten, abgebrochenen
+ * oder geprueften Aufgabe eine nicht begonnene - und das merkt niemand,
+ * weil im Tool beides gleich aussieht. Darum schreibt die Route
+ * app/api/onoffice/status nur, wenn sich der Status bei UNS gegenueber
+ * dem zuletzt gelesenen Rohwert wirklich geaendert hat.
+ */
+export const ONOFFICE_STATUS: Record<string, { label: string; unser: TaskStatus }> = {
+  "1": { label: "Nicht begonnen", unser: "offen" },
+  "2": { label: "In Bearbeitung", unser: "in_bearbeitung" },
+  "3": { label: "Erledigt", unser: "erledigt" },
+  "4": { label: "Zurückgestellt", unser: "offen" },
+  "5": { label: "Abgebrochen", unser: "offen" },
+  "6": { label: "Sonstiges", unser: "offen" },
+  "7": { label: "Geprüft", unser: "erledigt" },
+  // In onOffice heisst dieser Status "Klärungsbedarf". Im Tool gibt es
+  // das Wort nicht; der passende der drei Status ist "Rückfragen offen".
+  "8": { label: "Klärungsbedarf", unser: "in_bearbeitung" },
+};
+
 /** Lesen: Beschriftung oder Zahl -> unser Status. */
 const STATUS_FROM_ONOFFICE: Record<string, TaskStatus> = {
-  // Beschriftungen, wie die API sie liefert
-  "nicht begonnen": "offen",
-  "in bearbeitung": "in_bearbeitung",
-  erledigt: "erledigt",
-  "zurueckgestellt": "offen",
-  "zurückgestellt": "offen",
-  // Zahlen, falls ein anderer Mandant sie so liefert
-  "1": "offen",
-  "2": "in_bearbeitung",
-  "3": "erledigt",
-  "4": "offen",
+  // Zahlen und Beschriftungen aus der Tabelle oben, beide Wege.
+  ...Object.fromEntries(
+    Object.entries(ONOFFICE_STATUS).flatMap(([zahl, { label, unser }]) => [
+      [zahl, unser],
+      [label.toLowerCase(), unser],
+    ]),
+  ),
+  // Schreibweisen ohne Umlaut, wie sie je nach Mandant vorkommen.
+  zurueckgestellt: "offen",
+  geprueft: "erledigt",
+  "klaerungsbedarf": "in_bearbeitung",
 };
 
 /** Schreiben: unser Status -> onOffice-Wert. Per Umgebung anpassbar. */
@@ -41,6 +67,11 @@ export function toOurStatus(onofficeStatus: unknown): TaskStatus {
 
 export function toOnofficeStatus(status: TaskStatus): string {
   return STATUS_TO_ONOFFICE[status];
+}
+
+/** Die Beschriftung zu einem geschriebenen Wert - fuer Protokoll und Anzeige. */
+export function onofficeStatusLabel(wert: string): string {
+  return ONOFFICE_STATUS[String(wert).trim()]?.label ?? wert;
 }
 
 /**

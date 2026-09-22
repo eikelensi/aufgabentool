@@ -244,7 +244,31 @@ export function StoreProvider({
         }).catch(() => undefined);
       }
 
-      return { ok: true };
+      // Den Status nach onOffice spiegeln. Wie beim Bearbeiter: danach,
+      // fail-soft, und was dabei passiert ist, steht im Protokoll. Die
+      // Route entscheidet selbst, ob ueberhaupt etwas zu schreiben ist -
+      // sie kennt den zuletzt gelesenen Rohwert aus onOffice und laesst
+      // einen zurueckgestellten Vorgang in Ruhe, der bei uns nur
+      // "offen" heisst.
+      let hinweis: string | undefined;
+      if (aufgabe.onofficeTaskId) {
+        try {
+          const res = await fetch("/api/onoffice/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId }),
+          });
+          const json = await res.json().catch(() => ({}));
+          // Nur echte Fehlschlaege melden. "Es gibt nichts zu
+          // uebertragen" und "ist abgeschaltet" sind keine Nachricht,
+          // die jemanden bei der Arbeit unterbrechen muss.
+          if (res.status === 207 && json?.meldung) hinweis = json.meldung;
+        } catch {
+          hinweis = "Der Status steht im Tool, onOffice war aber gerade nicht erreichbar.";
+        }
+      }
+
+      return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }
 
     async function claimTask(taskId: string): Promise<Ergebnis> {

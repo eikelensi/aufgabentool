@@ -7,7 +7,8 @@
  *
  * Das ist der erste Schreibvorgang des Tools in echte CRM-Daten. Deshalb:
  *  - er laeuft nur fuer die eigene Aufgabe (oder als Admin),
- *  - er laesst sich mit app_settings.sync_push_assignee abschalten,
+ *  - er laesst sich abschalten - mit sync_push_assignee einzeln, mit
+ *    sync_read_only zusammen mit allem anderen (lib/onoffice/schreibsperre),
  *  - er wird in onoffice_sync_log festgehalten, gelungen wie gescheitert,
  *  - und wenn er scheitert, bleibt die Uebernahme im Tool trotzdem
  *    bestehen. Ein Ausfall der Schnittstelle darf niemanden daran
@@ -17,7 +18,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 import { modifyTask } from "@/lib/onoffice/tasks";
-import { onofficeConfigured } from "@/lib/onoffice/client";
+import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,14 +33,11 @@ export async function POST(request: Request) {
 
   const sb = supabaseAdmin();
 
-  const [{ data: einst }, { data: aufgabe }] = await Promise.all([
-    sb.from("app_settings").select("sync_push_assignee").maybeSingle(),
-    sb
-      .from("tasks")
-      .select("id, onoffice_task_id, assignee_id, onoffice_assignee, title")
-      .eq("id", taskId)
-      .maybeSingle(),
-  ]);
+  const { data: aufgabe } = await sb
+    .from("tasks")
+    .select("id, onoffice_task_id, assignee_id, onoffice_assignee, title")
+    .eq("id", taskId)
+    .maybeSingle();
 
   if (!aufgabe) return NextResponse.json({ fehler: "Aufgabe nicht gefunden." }, { status: 404 });
 
@@ -48,20 +46,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
   }
 
-  if (einst?.sync_push_assignee === false) {
-    return NextResponse.json({ uebertragen: false, meldung: "Rückschreiben ist abgeschaltet." });
-  }
   if (!aufgabe.onoffice_task_id) {
     return NextResponse.json({
       uebertragen: false,
       meldung: "Diese Aufgabe hat kein Gegenstück in onOffice.",
     });
   }
-  if (!onofficeConfigured()) {
-    return NextResponse.json({
-      uebertragen: false,
-      meldung: "Die onOffice-Zugangsdaten sind nicht gesetzt.",
-    });
+
+  // Hauptschalter und Einzelschalter, an einer Stelle geprueft.
+  const sperre = await pruefeSchreibsperre("bearbeiter");
+  if (!sperre.erlaubt) {
+    return NextResponse.json({ uebertragen: false, meldung: sperre.grund });
   }
 
   // Der Bearbeiter, den das Tool eintraegt, ist der Name, unter dem die

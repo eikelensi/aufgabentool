@@ -40,7 +40,12 @@ export async function ladeAnbindung(): Promise<Anbindung> {
   const sb = supabaseAdmin();
 
   const [einst, cursor, ausOnoffice, kollegen, mitNamen, letzterFehler] = await Promise.all([
-    sb.from("app_settings").select("sync_read_only, sync_push_assignee, onoffice_email_identity, mail_provider").maybeSingle(),
+    sb
+      .from("app_settings")
+      .select(
+        "sync_read_only, sync_push_assignee, sync_push_status, onoffice_email_identity, mail_provider",
+      )
+      .maybeSingle(),
     sb.from("onoffice_sync_cursor").select("last_run_at").eq("resource", "task").maybeSingle(),
     sb.from("tasks").select("*", { count: "exact", head: true }).not("onoffice_task_id", "is", null),
     sb.from("broker_contacts").select("*", { count: "exact", head: true }).eq("is_active", true),
@@ -76,20 +81,38 @@ export async function ladeAnbindung(): Promise<Anbindung> {
           : `${aufgaben} Aufgaben übernommen, letzter Abgleich: ${datum(cursor.data?.last_run_at)}`,
     },
     {
-      label: "Bearbeiter zurückschreiben",
-      zustand: s?.sync_push_assignee === false ? "offen" : "bereit",
+      label: "Schreiben nach onOffice (Hauptschalter)",
+      zustand: s?.sync_read_only === false ? "bereit" : "offen",
       hinweis:
-        s?.sync_push_assignee === false
-          ? "abgeschaltet"
-          : "wer sich eine Aufgabe aus dem Pool zieht, wird in onOffice eingetragen",
+        s?.sync_read_only === false
+          ? "freigegeben – die beiden Zeilen darunter gelten"
+          : "„nur lesen“ ist an; nach onOffice wird nichts geschrieben",
+    },
+    {
+      label: "Bearbeiter zurückschreiben",
+      zustand:
+        s?.sync_read_only !== false
+          ? "offen"
+          : s?.sync_push_assignee === true
+            ? "bereit"
+            : "offen",
+      hinweis:
+        s?.sync_read_only !== false
+          ? "durch den Hauptschalter gesperrt"
+          : s?.sync_push_assignee === true
+            ? "wer sich eine Aufgabe aus dem Pool zieht, wird in onOffice eingetragen"
+            : "abgeschaltet",
     },
     {
       label: "Status zurückschreiben",
-      zustand: s?.sync_read_only === false ? "bereit" : "prüfen",
+      zustand:
+        s?.sync_read_only !== false ? "offen" : s?.sync_push_status === true ? "bereit" : "offen",
       hinweis:
-        s?.sync_read_only === false
-          ? "aktiv"
-          : "noch aus – ob onOffice beim Schreiben die Beschriftung oder eine Zahl erwartet, ist ungeprüft",
+        s?.sync_read_only !== false
+          ? "durch den Hauptschalter gesperrt"
+          : s?.sync_push_status === true
+            ? "Statuswechsel im Tool setzt den Status auch in onOffice (Zahlen 1/2/3 nach apidoc)"
+            : "abgeschaltet",
     },
     {
       label: "Benutzerliste für Kollegen",

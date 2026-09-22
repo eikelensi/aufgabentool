@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/sync/onoffice",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/mail/eskalation",

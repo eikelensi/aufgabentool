@@ -18,7 +18,8 @@
     "db": "node scripts/db-test.mjs",
     "kollegen": "node scripts/kollegen.mjs",
     "farben": "node scripts/farben.mjs",
-    "bild": "node scripts/bild.mjs"
+    "bild": "node scripts/bild.mjs",
+    "status": "node --experimental-strip-types --no-warnings scripts/status.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -3,9 +3,10 @@
  * Zustand der onOffice-Anbindung wird hier auf dem Server ermittelt und
  * durchgereicht, weil er aus Datenbank und Umgebung stammt.
  */
-import { serviceRoleVorhanden } from "@/lib/supabase/admin";
+import { serviceRoleVorhanden, supabaseAdmin } from "@/lib/supabase/admin";
 import { ladeAnbindung } from "./anbindung";
 import EinstellungenFormular from "./formular";
+import Rueckschreiben from "./rueckschreiben";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,28 @@ export default async function EinstellungenSeite() {
     );
   }
 
-  const anbindung = await ladeAnbindung();
-  return <EinstellungenFormular anbindung={anbindung} />;
+  const sb = supabaseAdmin();
+  const [anbindung, { data: schalter }] = await Promise.all([
+    ladeAnbindung(),
+    sb
+      .from("app_settings")
+      .select("sync_read_only, sync_push_assignee, sync_push_status")
+      .maybeSingle(),
+  ]);
+
+  return (
+    <>
+      {/* Steht ganz oben: es ist die folgenreichste Einstellung der Seite. */}
+      <Rueckschreiben
+        stand={{
+          // Im Zweifel gesperrt anzeigen - so wie die Sperre selbst
+          // im Zweifel sperrt.
+          nurLesen: schalter?.sync_read_only !== false,
+          bearbeiter: schalter?.sync_push_assignee === true,
+          status: schalter?.sync_push_status === true,
+        }}
+      />
+      <EinstellungenFormular anbindung={anbindung} />
+    </>
+  );
 }
