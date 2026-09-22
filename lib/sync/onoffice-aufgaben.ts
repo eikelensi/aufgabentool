@@ -18,6 +18,7 @@
  */
 
 import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
+import { istAbgeschlossen } from "@/lib/onoffice/mapping";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export interface NameMitAnzahl {
@@ -31,6 +32,12 @@ export interface SyncErgebnis {
   neu: number;
   aktualisiert: number;
   uebersprungen: number;
+  /**
+   * Abgeschlossene Aufgaben, die wir noch nicht kennen - nicht geholt.
+   * Siehe istAbgeschlossen(): der Mandant hat knapp 600 Aufgaben allein
+   * fuer einen Nutzer, fast alle erledigt. Die gehoeren nicht ins Tool.
+   */
+  altlasten: number;
   unbekannteNamen: string[];
   /**
    * Jeder Name, der in den geholten Aufgaben als Bearbeiter oder
@@ -133,6 +140,7 @@ export async function synchronisiereAufgaben(
     neu: 0,
     aktualisiert: 0,
     uebersprungen: 0,
+    altlasten: 0,
     unbekannteNamen: [],
     gefundeneNamen: [],
     // Ohne eine einzige Zuordnung wird gelesen, aber nichts uebernommen.
@@ -223,6 +231,15 @@ export async function synchronisiereAufgaben(
     // Ersteller; fehlt sie, tritt der Bearbeiter ein.
     const creatorId = verantwortungId ?? bearbeiterId!;
     const vorhandene = bekannt.get(aufgabe.id);
+
+    // Keine Altlasten. Was abgeschlossen ist und hier noch nie war,
+    // bleibt drueben. Was wir schon kennen, wird weiter aktualisiert -
+    // eine Aufgabe, die im Tool erledigt wurde, soll nicht beim
+    // naechsten Lauf wieder verschwinden.
+    if (!vorhandene && istAbgeschlossen(aufgabe.rawStatus)) {
+      ergebnis.altlasten++;
+      continue;
+    }
 
     // Die Datenbank verlangt bei "Rückfragen offen" eine Notiz (in onOffice
     // heisst dieser Status "In Bearbeitung"). Aus onOffice
@@ -315,7 +332,8 @@ export async function synchronisiereAufgaben(
         `(noch keine Zuordnung), ${ergebnis.gefundeneNamen.length} Namen gefunden`
       : `${ergebnis.gelesen} gelesen, ${ergebnis.uebernommen} uebernommen ` +
         `(${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert), ` +
-        `${ergebnis.uebersprungen} uebersprungen`,
+        `${ergebnis.uebersprungen} uebersprungen, ` +
+        `${ergebnis.altlasten} abgeschlossene nicht geholt`,
     payload: {
       unbekannteNamen: ergebnis.unbekannteNamen.slice(0, 50),
       fehler: ergebnis.fehler.slice(0, 20),

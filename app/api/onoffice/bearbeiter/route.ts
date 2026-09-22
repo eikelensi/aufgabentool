@@ -1,9 +1,14 @@
 /**
  * Den Bearbeiter nach onOffice zurueckschreiben.
  *
- * Ausgeloest, wenn sich jemand eine Aufgabe aus dem Pool zieht. Geschrieben
- * wird genau EIN Feld: "Bearbeiter", mit dem onOffice-Anzeigenamen der
- * Person. Nichts sonst - kein Status, kein Betreff, kein Datum.
+ * Ausgeloest bei JEDER Aenderung der Zuweisung: wenn sich jemand eine
+ * Aufgabe aus dem Pool zieht, wenn im Aufgabendialog ein anderer
+ * Bearbeiter gewaehlt wird, und wenn eine Aufgabe zurueck in den Pool
+ * gelegt wird - dann wird das Feld drueben geleert.
+ *
+ * Geschrieben wird genau EIN Feld: "Bearbeiter", mit dem
+ * onOffice-Anzeigenamen der Person. Nichts sonst - kein Status, kein
+ * Betreff, kein Datum.
  *
  * Das ist der erste Schreibvorgang des Tools in echte CRM-Daten. Deshalb:
  *  - er laeuft nur fuer die eigene Aufgabe (oder als Admin),
@@ -35,14 +40,20 @@ export async function POST(request: Request) {
 
   const { data: aufgabe } = await sb
     .from("tasks")
-    .select("id, onoffice_task_id, assignee_id, onoffice_assignee, title")
+    .select("id, onoffice_task_id, assignee_id, creator_id, is_pool, onoffice_assignee, title")
     .eq("id", taskId)
     .maybeSingle();
 
   if (!aufgabe) return NextResponse.json({ fehler: "Aufgabe nicht gefunden." }, { status: 404 });
 
-  // Nur fuer die eigene Aufgabe - sonst koennte jeder jeden eintragen.
-  if (aufgabe.assignee_id !== profil.id && !istAdmin(profil)) {
+  // Wer darf hier ueberhaupt etwas bewegen: die Person, der die Aufgabe
+  // jetzt gehoert, die Person, die sie gerade abgegeben hat (dann steht
+  // assignee_id schon auf null), der Verantwortliche - oder ein Admin.
+  const darf =
+    aufgabe.assignee_id === profil.id ||
+    aufgabe.creator_id === profil.id ||
+    istAdmin(profil);
+  if (!darf) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
   }
 
@@ -59,21 +70,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ uebertragen: false, meldung: sperre.grund });
   }
 
-  // Der Bearbeiter, den das Tool eintraegt, ist der Name, unter dem die
-  // Person in onOffice gefuehrt wird - nicht ihr Name bei uns.
-  const { data: wer } = await sb
-    .from("profiles")
-    .select("onoffice_display_name, full_name")
-    .eq("id", aufgabe.assignee_id ?? profil.id)
-    .maybeSingle();
+  // Ohne Bearbeiter im Tool wird das Feld in onOffice GELEERT. Sonst
+  // laufen die beiden auseinander: im Tool liegt die Aufgabe im Pool,
+  // in onOffice steht weiter der alte Bearbeiter - und der naechste
+  // Abgleich holt sie prompt wieder aus dem Pool heraus, weil onOffice
+  // bei diesem Feld fuehrt. Abgeben muss in beiden Systemen dasselbe
+  // heissen.
+  let name = "";
+  if (aufgabe.assignee_id) {
+    // Der Bearbeiter, den das Tool eintraegt, ist der Name, unter dem die
+    // Person in onOffice gefuehrt wird - nicht ihr Name bei uns.
+    const { data: wer } = await sb
+      .from("profiles")
+      .select("onoffice_display_name, full_name")
+      .eq("id", aufgabe.assignee_id)
+      .maybeSingle();
 
-  const name = wer?.onoffice_display_name?.trim();
-  if (!name) {
+    name = wer?.onoffice_display_name?.trim() ?? "";
+    if (!name) {
+      return NextResponse.json({
+        uebertragen: false,
+        meldung:
+          `Für ${wer?.full_name ?? "diese Person"} ist kein onOffice-Name hinterlegt. ` +
+          "Ohne den weiß onOffice nicht, wer gemeint ist – nachzutragen in der Nutzerverwaltung.",
+      });
+    }
+  }
+
+  // Steht in onOffice schon genau das, was wir schreiben wollen, ist
+  // nichts zu tun. Spart einen Schreibvorgang in fremde Daten und haelt
+  // das Protokoll lesbar.
+  if ((aufgabe.onoffice_assignee ?? "").trim() === name) {
     return NextResponse.json({
       uebertragen: false,
-      meldung:
-        `Für ${wer?.full_name ?? "diese Person"} ist kein onOffice-Name hinterlegt. ` +
-        "Ohne den weiß onOffice nicht, wer gemeint ist – nachzutragen in der Nutzerverwaltung.",
+      meldung: name
+        ? `In onOffice steht bereits ${name} als Bearbeiter.`
+        : "In onOffice steht bereits kein Bearbeiter.",
     });
   }
 
@@ -82,7 +114,10 @@ export async function POST(request: Request) {
 
     await sb
       .from("tasks")
-      .update({ onoffice_assignee: name, onoffice_synced_at: new Date().toISOString() })
+      .update({
+        onoffice_assignee: name || null,
+        onoffice_synced_at: new Date().toISOString(),
+      })
       .eq("id", aufgabe.id);
 
     await sb.from("onoffice_sync_log").insert({
@@ -90,13 +125,17 @@ export async function POST(request: Request) {
       resource: "task",
       reference: aufgabe.onoffice_task_id,
       ok: true,
-      message: `Bearbeiter auf "${name}" gesetzt`,
+      message: name
+        ? `Bearbeiter auf "${name}" gesetzt, vorher "${aufgabe.onoffice_assignee ?? "leer"}"`
+        : `Bearbeiter geleert, vorher "${aufgabe.onoffice_assignee ?? "leer"}"`,
       payload: { aufgabe: aufgabe.title, durch: profil.email },
     });
 
     return NextResponse.json({
       uebertragen: true,
-      meldung: `In onOffice als Bearbeiter eingetragen: ${name}.`,
+      meldung: name
+        ? `In onOffice als Bearbeiter eingetragen: ${name}.`
+        : "Der Bearbeiter ist in onOffice jetzt leer – die Aufgabe ist dort wieder frei.",
     });
   } catch (err) {
     const meldung = (err as Error).message;

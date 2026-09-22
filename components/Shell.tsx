@@ -18,6 +18,7 @@ export interface ShellProfil {
 const NAV = [
   { href: "/", label: "Mein Tag" },
   { href: "/pool", label: "Aufgabenpool" },
+  { href: "/verteilt", label: "Verteilt" },
   { href: "/onoffice", label: "onOffice-Eingang" },
   { href: "/uebersicht", label: "Übersicht", adminOnly: true },
   { href: "/admin", label: "Verwaltung", adminOnly: true },

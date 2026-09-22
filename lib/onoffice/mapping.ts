@@ -29,8 +29,15 @@ export const ONOFFICE_STATUS: Record<string, { label: string; unser: TaskStatus 
   "1": { label: "Nicht begonnen", unser: "offen" },
   "2": { label: "In Bearbeitung", unser: "in_bearbeitung" },
   "3": { label: "Erledigt", unser: "erledigt" },
+  // Zurueckgestellt ist NICHT abgeschlossen - die Arbeit steht noch an,
+  // nur spaeter. Im Mandanten der 4waendekanzlei ist dieser Status in
+  // Gebrauch (gesehen im Statusfilter der Aufgabenverwaltung).
   "4": { label: "Zurückgestellt", unser: "offen" },
-  "5": { label: "Abgebrochen", unser: "offen" },
+  // Abgebrochen ist vom Tisch. "offen" waere hier falsch: die Aufgabe
+  // stuende dann als zu erledigen im Tool, obwohl sie niemand mehr
+  // anfasst. Von den drei Status, die es hier gibt, trifft "erledigt"
+  // es am ehesten.
+  "5": { label: "Abgebrochen", unser: "erledigt" },
   "6": { label: "Sonstiges", unser: "offen" },
   "7": { label: "Geprüft", unser: "erledigt" },
   // In onOffice heisst dieser Status "Klärungsbedarf". Im Tool gibt es
@@ -72,6 +79,34 @@ export function toOnofficeStatus(status: TaskStatus): string {
 /** Die Beschriftung zu einem geschriebenen Wert - fuer Protokoll und Anzeige. */
 export function onofficeStatusLabel(wert: string): string {
   return ONOFFICE_STATUS[String(wert).trim()]?.label ?? wert;
+}
+
+/**
+ * Status, bei denen die Aufgabe vom Tisch ist: Erledigt, Abgebrochen,
+ * Geprueft.
+ *
+ * Wofuer das gebraucht wird: der Mandant hat allein fuer einen einzigen
+ * Nutzer knapp 600 Aufgaben, und fast alle stehen auf "erl.". Wer die
+ * alle holt, hat am ersten Tag ein Tool voller abgeschlossener Vorgaenge
+ * aus zwei Jahren und findet die drei Sachen nicht mehr, die heute
+ * anstehen. Der Abgleich holt abgeschlossene Aufgaben deshalb nicht neu.
+ *
+ * Was wir schon kennen, wird weiter aktualisiert: eine Aufgabe, die im
+ * Tool bearbeitet und dann erledigt wurde, verschwindet nicht - sie
+ * wurde ja hier fertig.
+ *
+ * Zurueckgestellt zaehlt bewusst nicht dazu. Die Arbeit steht noch an.
+ */
+const ABGESCHLOSSEN = new Set(["3", "5", "7"]);
+
+export function istAbgeschlossen(onofficeStatus: unknown): boolean {
+  const key = String(onofficeStatus ?? "").trim().toLowerCase();
+  for (const [zahl, { label }] of Object.entries(ONOFFICE_STATUS)) {
+    if (!ABGESCHLOSSEN.has(zahl)) continue;
+    if (key === zahl || key === label.toLowerCase()) return true;
+  }
+  // Schreibweisen ohne Umlaut.
+  return key === "geprueft";
 }
 
 /**

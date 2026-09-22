@@ -98,6 +98,8 @@ export function zuAufgabe(row: any): Task {
     visibleFrom: row.visible_from,
     dueDate: row.due_date ?? null,
     onofficeTaskId: row.onoffice_task_id ?? null,
+    onofficeAssignee: row.onoffice_assignee ?? null,
+    onofficeResponsible: row.onoffice_responsible ?? null,
     onofficeEstateNo: row.onoffice_estate_no ?? row.onoffice_estate_id ?? undefined,
     onofficeAddressId: row.onoffice_address_id ?? undefined,
     source: row.source,

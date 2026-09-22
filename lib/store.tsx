@@ -43,6 +43,7 @@ const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
   broker_contact_id, is_pool, is_private, visible_from, due_date,
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
+  onoffice_assignee, onoffice_responsible,
   in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
   escalation_7d_sent_at,
   task_status_history ( created_at, from_status, to_status, note, changed_by ),
@@ -328,10 +329,40 @@ export function StoreProvider({
     }
 
     async function updateTask(taskId: string, patch: Partial<Task>): Promise<Ergebnis> {
+      const vorher = tasks.find((t) => t.id === taskId);
       const zeile = { ...aufgabeZurZeile(patch), updated_by: profil.id };
       const { error } = await sb.from("tasks").update(zeile).eq("id", taskId);
+
+      if (error) {
+        await neuLaden();
+        return { ok: false, error: error.message };
+      }
+
+      // Die Zuweisung ist kein Feld wie jedes andere: sie steht in
+      // onOffice genauso. Wer sie hier aendert und drueben nicht,
+      // bekommt sie beim naechsten Abgleich zurueckgedreht - onOffice
+      // fuehrt bei diesem Feld. Also derselbe Weg wie beim Ziehen aus
+      // dem Pool, mitsamt Leeren beim Zuruecklegen.
+      const zuweisungGeaendert =
+        patch.assigneeId !== undefined && patch.assigneeId !== (vorher?.assigneeId ?? null);
+
+      let hinweis: string | undefined;
+      if (zuweisungGeaendert && vorher?.onofficeTaskId) {
+        try {
+          const res = await fetch("/api/onoffice/bearbeiter", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.status === 207 && json?.meldung) hinweis = json.meldung;
+        } catch {
+          hinweis = "Die Zuweisung steht im Tool, onOffice war aber gerade nicht erreichbar.";
+        }
+      }
+
       await neuLaden();
-      return error ? { ok: false, error: error.message } : { ok: true };
+      return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }
 
     async function deleteTask(taskId: string): Promise<Ergebnis> {

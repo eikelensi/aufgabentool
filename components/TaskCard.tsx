@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useStore } from "@/lib/store";
-import type { Task } from "@/lib/types";
+import { istVerteilt, type Task } from "@/lib/types";
 import { Avatar, CategoryChip, PriorityChip, daysSince, formatDate } from "./ui";
 
 export default function TaskCard({
@@ -76,6 +76,18 @@ export default function TaskCard({
         {task.source === "email" ? (
           <span className="chip" style={{ background: "var(--panel-2)", color: "var(--muted)" }}>
             ✉️ aus Mail
+          </span>
+        ) : null}
+        {/* In onOffice steht ein Bearbeiter, den das Tool nicht kennt.
+            Ohne diesen Hinweis saehe die Aufgabe aus wie herrenlos -
+            dabei sitzt jemand daran, nur nicht hier. */}
+        {istVerteilt(task) ? (
+          <span
+            className="chip"
+            style={{ background: "var(--info-bg)", color: "var(--info-fg)" }}
+            title={`In onOffice als Bearbeiter eingetragen: ${task.onofficeAssignee}`}
+          >
+            → {task.onofficeAssignee}
           </span>
         ) : null}
         {task.attachments.length > 0 ? (

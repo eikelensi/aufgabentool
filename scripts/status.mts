@@ -19,7 +19,7 @@
  * Kopie waere genau die Art Test, die noch gruen ist, wenn das Original
  * schon falsch ist.
  */
-import { ONOFFICE_STATUS, toOnofficeStatus, toOurStatus, onofficeStatusLabel }
+import { ONOFFICE_STATUS, toOnofficeStatus, toOurStatus, onofficeStatusLabel, istAbgeschlossen }
   from "../lib/onoffice/mapping.ts";
 import type { TaskStatus } from "../lib/types.ts";
 
@@ -50,12 +50,17 @@ console.log("\n--- Die Schutzregel: wird geschrieben oder nicht? ---");
 const wuerdeSchreiben = (roh: string | null, unser: TaskStatus) =>
   !(roh && toOurStatus(roh) === unser);
 
-// Das ist der Schaden, um den es geht: diese vier duerfen NICHT
+// Das ist der Schaden, um den es geht: diese drei duerfen NICHT
 // ueberschrieben werden, solange bei uns "offen" steht.
-for (const roh of ["Zurückgestellt", "Abgebrochen", "Sonstiges", "Nicht begonnen"]) {
+for (const roh of ["Zurückgestellt", "Sonstiges", "Nicht begonnen"]) {
   pruefe(!wuerdeSchreiben(roh, "offen"), `"${roh}" + offen -> nichts anfassen`);
 }
-pruefe(!wuerdeSchreiben("Geprüft", "erledigt"), `"Geprüft" + erledigt -> nichts anfassen`);
+for (const roh of ["Geprüft", "Abgebrochen"]) {
+  pruefe(!wuerdeSchreiben(roh, "erledigt"), `"${roh}" + erledigt -> nichts anfassen`);
+}
+// Umgekehrt: wer eine abgebrochene Aufgabe im Tool wieder aufmacht,
+// meint das so - das darf durchgehen.
+pruefe(wuerdeSchreiben("Abgebrochen", "offen"), `"Abgebrochen" -> offen: schreiben`);
 pruefe(!wuerdeSchreiben("Klärungsbedarf", "in_bearbeitung"), `"Klärungsbedarf" + Rueckfragen offen -> nichts anfassen`);
 
 // Echte Wechsel muessen dagegen durchgehen.
@@ -63,6 +68,15 @@ pruefe(wuerdeSchreiben("Zurückgestellt", "erledigt"), `"Zurückgestellt" -> erl
 pruefe(wuerdeSchreiben("Nicht begonnen", "in_bearbeitung"), `"Nicht begonnen" -> Rueckfragen offen: schreiben`);
 pruefe(wuerdeSchreiben("Erledigt", "offen"), `"Erledigt" -> offen: schreiben`);
 pruefe(wuerdeSchreiben(null, "erledigt"), `ohne Rohwert: schreiben`);
+
+console.log("\n--- Altlasten: was wird NICHT neu geholt? ---");
+for (const roh of ["Erledigt", "Abgebrochen", "Geprüft", "3", "5", "7", "geprueft"]) {
+  pruefe(istAbgeschlossen(roh), `"${roh}" gilt als abgeschlossen`);
+}
+// Zurueckgestellt ist Arbeit, die noch ansteht - die muss herein.
+for (const roh of ["Nicht begonnen", "In Bearbeitung", "Zurückgestellt", "Sonstiges", "Klärungsbedarf", "", "1", "2", "4"]) {
+  pruefe(!istAbgeschlossen(roh), `"${roh}" gilt NICHT als abgeschlossen`);
+}
 
 console.log(fehler ? `\n  ${fehler} Beanstandung(en).\n` : "\n  Alles in Ordnung.\n");
 process.exit(fehler ? 1 : 0);

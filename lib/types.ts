@@ -90,6 +90,13 @@ export interface Task {
   dueDate: string | null;
   /** Die Aufgabennummer aus onOffice, z.B. 21921. */
   onofficeTaskId?: string | null;
+  /**
+   * Bearbeiter und Verantwortung so, wie sie in onOffice stehen - als
+   * Text, nicht als Verweis. Steht hier ein Name, den das Tool nicht
+   * kennt, ist die Aufgabe an jemanden ausserhalb vergeben.
+   */
+  onofficeAssignee?: string | null;
+  onofficeResponsible?: string | null;
   onofficeEstateNo?: string;
   onofficeAddressId?: string;
   source: TaskSource;
@@ -137,6 +144,19 @@ export interface AppSettings {
   attachmentMaxMb: number;
   attachmentPushOnoffice: boolean;
   attachmentDefaultArt: string;
+}
+
+/**
+ * Vergeben - aber an jemanden, der kein Nutzer dieses Tools ist.
+ *
+ * In onOffice steht ein Bearbeiter, den wir keinem Profil zuordnen
+ * koennen. Solche Aufgaben gehoeren weder in "Mein Tag" (sie sind nicht
+ * meine) noch in den Pool (sie sind nicht frei). Sie haben einen
+ * eigenen Bereich, sonst faellt ein paar hundert Aufgaben zwischen die
+ * Ansichten - siehe app/(app)/verteilt.
+ */
+export function istVerteilt(t: Task): boolean {
+  return Boolean(t.onofficeAssignee) && !t.assigneeId && !t.isPool;
 }
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {

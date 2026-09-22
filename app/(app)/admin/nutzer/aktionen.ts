@@ -276,8 +276,9 @@ export async function aufgabenSynchronisieren(seit?: string): Promise<SyncMeldun
         ]
       : [
           `${r.gelesen} Aufgaben aus onOffice gelesen`,
-          `${r.uebernommen} uebernommen (${r.neu} neu, ${r.aktualisiert} aktualisiert)`,
-          `${r.uebersprungen} uebersprungen, weil weder Bearbeiter noch Verantwortung ein Nutzer ist`,
+          `${r.uebernommen} übernommen (${r.neu} neu, ${r.aktualisiert} aktualisiert)`,
+          `${r.uebersprungen} übersprungen, weil weder Bearbeiter noch Verantwortung ein Nutzer ist`,
+          `${r.altlasten} abgeschlossene nicht geholt (Altlasten bleiben in onOffice)`,
         ];
     for (const h of r.hinweise) teile.push(h);
     for (const f of r.fehler) teile.push(`Fehler: ${f}`);

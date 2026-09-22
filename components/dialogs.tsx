@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useStore } from "@/lib/store";
 import { isoDate } from "@/lib/data";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
-import { STATUS_LABEL } from "@/lib/types";
+import { STATUS_LABEL, istVerteilt } from "@/lib/types";
 import { Avatar, CategoryChip, Field, Modal, PriorityChip, StatusChip, formatDate, formatDateTime } from "./ui";
 import { AttachmentSection, FileDrop, PendingFiles } from "./Attachments";
 
@@ -420,25 +420,47 @@ export function TaskDetailDialog({
 
       {isAdmin ? (
         <div className="mb-4">
-          <Field label="Neu zuordnen (z. B. bei Krankheit)">
-            <select
-              className="field"
-              value={task.assigneeId ?? "__pool"}
-              onChange={(e) =>
-                updateTask(task.id, {
-                  assigneeId: e.target.value === "__pool" ? null : e.target.value,
-                  isPool: e.target.value === "__pool",
-                })
-              }
+          {/* In onOffice sitzt jemand daran, den das Tool nicht kennt.
+              Von hier aus umzuzuordnen hiesse, ihm die Arbeit
+              wegzunehmen - womoeglich mittendrin. Das gehoert in
+              onOffice entschieden, nicht hier. */}
+          {istVerteilt(task) ? (
+            <div
+              className="rounded-md border px-2.5 py-2 text-xs leading-relaxed"
+              style={{ background: "var(--info-bg)", borderColor: "var(--info-fg)", color: "var(--info-fg)" }}
             >
-              <option value="__pool">Zurück in den Aufgabenpool</option>
-              {profiles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.fullName}
-                </option>
-              ))}
-            </select>
-          </Field>
+              <strong>In onOffice vergeben an {task.onofficeAssignee}.</strong> Diese
+              Person hat keinen Zugang zum Tool, deshalb lässt sich die Aufgabe hier
+              nicht zuordnen. Wer sie übernehmen soll, wird in onOffice als Bearbeiter
+              eingetragen – beim nächsten Abgleich steht sie dann hier.
+            </div>
+          ) : (
+            <Field label="Neu zuordnen (z. B. bei Krankheit)">
+              <select
+                className="field"
+                value={task.assigneeId ?? "__pool"}
+                onChange={(e) =>
+                  updateTask(task.id, {
+                    assigneeId: e.target.value === "__pool" ? null : e.target.value,
+                    isPool: e.target.value === "__pool",
+                  })
+                }
+              >
+                <option value="__pool">Zurück in den Aufgabenpool</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.fullName}
+                  </option>
+                ))}
+              </select>
+              {task.onofficeTaskId ? (
+                <p className="muted mt-1 text-[11px] leading-relaxed">
+                  Wird auch in onOffice eingetragen. „Zurück in den Aufgabenpool“
+                  leert das Feld „Bearbeiter“ dort.
+                </p>
+              ) : null}
+            </Field>
+          )}
         </div>
       ) : null}
 
