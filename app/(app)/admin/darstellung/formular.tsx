@@ -3,19 +3,26 @@
 /**
  * Farbwahl mit Sofortwirkung.
  *
- * Waehrend des Einstellens werden die Werte direkt auf das Dokument
- * geschrieben - man sieht also die echte Oberflaeche, nicht eine
- * nachgebaute Vorschau. Beim Verlassen ohne Speichern wird das wieder
- * entfernt.
+ * Waehrend des Einstellens legt die Seite einen eigenen style-Block ins
+ * Dokument, der dieselbe Regel traegt wie der Betrieb: begrenzt auf
+ * :root[data-theme="dark"]. Man sieht also die echte Oberflaeche und
+ * nicht eine nachgebaute Vorschau - und der helle Modus bleibt
+ * unberuehrt. Beim Verlassen ohne Speichern verschwindet der Block.
+ *
+ * Nicht ueber Inline-Stile am Wurzelelement, wie eine fruehere Fassung:
+ * Inline-Angaben schlagen jede Regel aus dem Stylesheet, also auch die
+ * des hellen Modus. Der Umschalter sah danach kaputt aus.
  */
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   DUNKEL_VOREINSTELLUNG,
   FARB_FELDER,
   GRUPPEN,
   VARIABLE,
   VORLAGEN,
+  dunkelCss,
   kontrast,
   type Dunkelfarben,
   type FarbFeld,
@@ -23,26 +30,48 @@ import {
 import { farbenSpeichern, farbenZuruecksetzen, type Ergebnis } from "./aktionen";
 
 export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarben }) {
+  const router = useRouter();
   const [farben, setFarben] = useState<Dunkelfarben>(gespeichert);
   const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
   const [laeuft, starte] = useTransition();
   const [dunkel, setDunkel] = useState(false);
-  const gesichert = useRef(false);
-
-  useEffect(() => {
-    setDunkel(document.documentElement.dataset.theme === "dark");
-  }, []);
 
   useEffect(() => {
     const wurzel = document.documentElement;
+
+    // Aufraeumen nach einem Fehler frueherer Fassungen: die Vorschau
+    // schrieb die Farben direkt auf das Wurzelelement. Solche
+    // Inline-Angaben schlagen JEDE Regel aus dem Stylesheet - auch die
+    // des hellen Modus. Wer die Seite einmal offen hatte, konnte danach
+    // nicht mehr auf Hell umschalten.
     for (const { schluessel } of FARB_FELDER) {
-      wurzel.style.setProperty(VARIABLE[schluessel], farben[schluessel]);
+      wurzel.style.removeProperty(VARIABLE[schluessel]);
     }
+
+    // Der Hinweis "du bist im hellen Modus" soll verschwinden, sobald
+    // oben rechts umgeschaltet wird - ohne dass die Seite neu laedt.
+    const lies = () => setDunkel(wurzel.dataset.theme === "dark");
+    lies();
+    const beobachter = new MutationObserver(lies);
+    beobachter.observe(wurzel, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => beobachter.disconnect();
+  }, []);
+
+  // Vorschau jetzt als eigener style-Block, auf den dunklen Modus
+  // begrenzt - genau wie im Betrieb. Damit bleibt der helle Modus
+  // unberuehrt und der Umschalter funktioniert weiter.
+  useEffect(() => {
+    const id = "farb-vorschau";
+    let block = document.getElementById(id) as HTMLStyleElement | null;
+    if (!block) {
+      block = document.createElement("style");
+      block.id = id;
+      document.head.appendChild(block);
+    }
+    block.textContent = dunkelCss(farben);
+
     return () => {
-      if (gesichert.current) return;
-      for (const { schluessel } of FARB_FELDER) {
-        wurzel.style.removeProperty(VARIABLE[schluessel]);
-      }
+      document.getElementById(id)?.remove();
     };
   }, [farben]);
 
@@ -125,7 +154,7 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
           starte(async () => {
             const r = await farbenSpeichern(formData);
             setErgebnis(r);
-            if (r.ok) gesichert.current = true;
+            if (r.ok) router.refresh();
           })
         }
       >
@@ -192,8 +221,8 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
                 const r = await farbenZuruecksetzen();
                 setErgebnis(r);
                 if (r.ok) {
-                  gesichert.current = true;
                   setFarben(DUNKEL_VOREINSTELLUNG);
+                  router.refresh();
                 }
               })
             }
