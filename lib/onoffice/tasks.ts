@@ -221,11 +221,24 @@ export async function pushStatus(
   await call({
     action: "modify",
     resourceType: "task",
-    identifier: taskId,
+    // Die Aufgabennummer gehoert in resourceid, nicht in identifier.
+    // Siehe modifyTask() darunter.
+    resourceId: String(taskId),
     parameters,
   });
 }
 
+/**
+ * Felder einer Aufgabe in onOffice aendern.
+ *
+ * Die Aufgabennummer geht als resourceid mit, nicht als identifier. Das
+ * ist keine Geschmacksfrage: die Doku zu "Modify Tasks" sagt "The task
+ * ID has to be specified as resource ID", und mit identifier antwortet
+ * die Schnittstelle "Missing or invalid attribute: resourceid (Code
+ * 18)". Beim LESEN ist es umgekehrt unkritisch, dort traegt die Liste
+ * in parameters.recordids die Kennung - deshalb ist es beim Bauen der
+ * Leserichtung nie aufgefallen.
+ */
 export async function modifyTask(
   taskId: string | number,
   fields: Record<string, unknown>,
@@ -233,7 +246,7 @@ export async function modifyTask(
   await call({
     action: "modify",
     resourceType: "task",
-    identifier: taskId,
+    resourceId: String(taskId),
     parameters: fields,
   });
 }

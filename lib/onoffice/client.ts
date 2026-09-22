@@ -109,9 +109,20 @@ function hmacV2(args: {
 export interface CallOptions {
   action: ActionKey;
   resourceType: string;
-  /** Zweite Ebene der Ressource, z.B. "estate" bei resourcetype "file". */
+  /**
+   * Das, was die Schnittstelle "resourceid" nennt. Je nach Ressource
+   * zweierlei: bei "file" die zweite Ebene ("estate", "address",
+   * "task"), bei modify und delete die KENNUNG DES DATENSATZES. Die
+   * Doku zu "Modify Tasks" ist da eindeutig: "The task ID has to be
+   * specified as resource ID."
+   */
   resourceId?: string;
-  /** Datensatz-ID bei modify/delete. */
+  /**
+   * NICHT die Datensatz-ID, auch wenn der Name danach klingt. Beim
+   * Aendern wird sie ignoriert, und onOffice antwortet mit "Missing or
+   * invalid attribute: resourceid (Code 18)". Wer einen Datensatz
+   * aendern will, nimmt resourceId.
+   */
   identifier?: string | number;
   parameters?: Record<string, unknown>;
   /** Timeout in Millisekunden, Standard 30 s. */
