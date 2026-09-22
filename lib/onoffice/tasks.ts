@@ -185,17 +185,23 @@ export interface CreateTaskInput {
 }
 
 export async function createTask(input: CreateTaskInput): Promise<string> {
-  const parameters: Record<string, unknown> = {
+  // Die Felder der Aufgabe gehoeren in parameters.data. Daneben, auf
+  // gleicher Ebene wie data, stehen nur die Verknuepfungen zu Objekt
+  // und Kunde - so zeigt es die Doku, und so nimmt es die Schnittstelle
+  // an. Siehe den Kommentar bei modifyTask().
+  const data: Record<string, unknown> = {
     Betreff: input.subject,
     Aufgabe: input.description ?? input.subject,
     Status: toOnofficeStatus(input.status ?? "offen"),
     Prio: toOnofficePriority(input.priority ?? "normal"),
   };
-  if (input.processor) parameters.Bearbeiter = input.processor;
-  if (input.responsibility) parameters.Verantwortung = input.responsibility;
-  if (input.startDate) parameters.Beginnt_am = input.startDate;
-  if (input.deadline) parameters.Deadline = input.deadline;
-  if (input.isPrivate) parameters.Privat = 1;
+  if (input.processor) data.Bearbeiter = input.processor;
+  if (input.responsibility) data.Verantwortung = input.responsibility;
+  if (input.startDate) data.Beginnt_am = input.startDate;
+  if (input.deadline) data.Deadline = input.deadline;
+  if (input.isPrivate) data.Privat = 1;
+
+  const parameters: Record<string, unknown> = { data };
   if (input.relatedEstateId) parameters.relatedEstateId = String(input.relatedEstateId);
   if (input.relatedAddressId) parameters.relatedAddressId = String(input.relatedAddressId);
 
@@ -216,28 +222,28 @@ export async function pushStatus(
   comment?: string,
 ): Promise<void> {
   // Das Feld "Kommentar" existiert im Mandanten nicht - nur der Status geht zurueck.
-  const parameters: Record<string, unknown> = { Status: toOnofficeStatus(status) };
-
-  await call({
-    action: "modify",
-    resourceType: "task",
-    // Die Aufgabennummer gehoert in resourceid, nicht in identifier.
-    // Siehe modifyTask() darunter.
-    resourceId: String(taskId),
-    parameters,
-  });
+  await modifyTask(taskId, { Status: toOnofficeStatus(status) });
 }
 
 /**
  * Felder einer Aufgabe in onOffice aendern.
  *
- * Die Aufgabennummer geht als resourceid mit, nicht als identifier. Das
- * ist keine Geschmacksfrage: die Doku zu "Modify Tasks" sagt "The task
- * ID has to be specified as resource ID", und mit identifier antwortet
- * die Schnittstelle "Missing or invalid attribute: resourceid (Code
- * 18)". Beim LESEN ist es umgekehrt unkritisch, dort traegt die Liste
- * in parameters.recordids die Kennung - deshalb ist es beim Bauen der
- * Leserichtung nie aufgefallen.
+ * Zwei Dinge, die beide nicht nach ihrem Namen aussehen:
+ *
+ * 1. Die Aufgabennummer geht als resourceid mit, nicht als identifier.
+ *    Die Doku zu "Modify Tasks" sagt "The task ID has to be specified
+ *    as resource ID"; mit identifier antwortet die Schnittstelle
+ *    "Missing or invalid attribute: resourceid (Code 18)".
+ *
+ * 2. Die Felder liegen in parameters.DATA, nicht direkt in parameters.
+ *    Direkt darunter heisst es "Invalid field in input data: Status
+ *    (Code 144)" - die Meldung klingt, als sei das Feld unbekannt,
+ *    dabei steht es nur an der falschen Stelle.
+ *
+ * Beim LESEN faellt beides nicht auf: dort traegt parameters.recordids
+ * die Kennung und parameters.data ist eine blosse Feldliste. Deshalb
+ * lief die Leserichtung vom ersten Tag an und der erste Schreibversuch
+ * scheiterte zweimal hintereinander.
  */
 export async function modifyTask(
   taskId: string | number,
@@ -247,6 +253,6 @@ export async function modifyTask(
     action: "modify",
     resourceType: "task",
     resourceId: String(taskId),
-    parameters: fields,
+    parameters: { data: fields },
   });
 }
