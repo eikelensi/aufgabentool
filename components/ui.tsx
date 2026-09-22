@@ -35,7 +35,7 @@ export function Avatar({ profile, size = 26 }: { profile?: Profile; size?: numbe
 export function PriorityChip({ priority }: { priority: TaskPriority }) {
   if (priority === "normal") return null;
   return (
-    <span className="chip" style={{ background: "#fee2e2", color: "#b91c1c" }}>
+    <span className="chip" style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}>
       ▲ Hoch
     </span>
   );
@@ -62,9 +62,9 @@ export function CategoryChip({ category }: { category?: Category }) {
 }
 
 const STATUS_STYLE: Record<TaskStatus, { bg: string; fg: string }> = {
-  offen: { bg: "#e2e8f0", fg: "#475569" },
-  in_bearbeitung: { bg: "#fef3c7", fg: "#b45309" },
-  erledigt: { bg: "#dcfce7", fg: "#15803d" },
+  offen: { bg: "var(--neutral-bg)", fg: "var(--neutral-fg)" },
+  in_bearbeitung: { bg: "var(--warn-bg)", fg: "var(--warn-fg)" },
+  erledigt: { bg: "var(--ok-bg)", fg: "var(--ok-fg)" },
 };
 
 export function StatusChip({ status }: { status: TaskStatus }) {

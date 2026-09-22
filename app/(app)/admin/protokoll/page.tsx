@@ -163,7 +163,7 @@ export default async function ProtokollSeite({
           href="/admin/protokoll"
           style={
             !mailAnsicht
-              ? { background: "var(--color-ci-400)", color: "#10200a" }
+              ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" }
               : undefined
           }
         >
@@ -173,7 +173,7 @@ export default async function ProtokollSeite({
           className="btn"
           href="/admin/protokoll?zeigt=mails"
           style={
-            mailAnsicht ? { background: "var(--color-ci-400)", color: "#10200a" } : undefined
+            mailAnsicht ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" } : undefined
           }
         >
           Verschickte Mails
@@ -190,7 +190,7 @@ export default async function ProtokollSeite({
           </p>
 
           {protokoll.error ? (
-            <div className="panel p-4" style={{ borderLeft: "3px solid #dc2626" }}>
+            <div className="panel p-4" style={{ borderLeft: "3px solid var(--err-fg)" }}>
               <p className="muted text-xs">{protokoll.error.message}</p>
             </div>
           ) : !protokoll.data?.length ? (
@@ -278,19 +278,19 @@ export default async function ProtokollSeite({
                         <td className="muted px-3 py-2 text-[11px]">{m.provider}</td>
                         <td className="px-3 py-2">
                           {m.status === "sent" ? (
-                            <span className="chip" style={{ background: "#dcfce7", color: "#15803d" }}>
+                            <span className="chip" style={{ background: "var(--ok-bg)", color: "var(--ok-fg)" }}>
                               versendet
                             </span>
                           ) : m.status === "failed" ? (
                             <span
                               className="chip"
-                              style={{ background: "#fee2e2", color: "#b91c1c" }}
+                              style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}
                               title={m.error ?? undefined}
                             >
                               fehlgeschlagen
                             </span>
                           ) : (
-                            <span className="chip" style={{ background: "#fef3c7", color: "#b45309" }}>
+                            <span className="chip" style={{ background: "var(--warn-bg)", color: "var(--warn-fg)" }}>
                               {m.status}
                             </span>
                           )}

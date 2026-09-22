@@ -13,21 +13,14 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import {
   DUNKEL_VOREINSTELLUNG,
   FARB_FELDER,
+  GRUPPEN,
+  VARIABLE,
+  VORLAGEN,
   kontrast,
   type Dunkelfarben,
+  type FarbFeld,
 } from "@/lib/design/farben";
 import { farbenSpeichern, farbenZuruecksetzen, type Ergebnis } from "./aktionen";
-
-const VARIABLE: Record<keyof Dunkelfarben, string> = {
-  bg: "--bg",
-  panel: "--panel",
-  panel2: "--panel-2",
-  line: "--line",
-  text: "--text",
-  muted: "--muted",
-  ci400: "--color-ci-400",
-  ci500: "--color-ci-500",
-};
 
 export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarben }) {
   const [farben, setFarben] = useState<Dunkelfarben>(gespeichert);
@@ -40,7 +33,6 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
     setDunkel(document.documentElement.dataset.theme === "dark");
   }, []);
 
-  // Vorschau schreiben und beim Verlassen wieder abraeumen.
   useEffect(() => {
     const wurzel = document.documentElement;
     for (const { schluessel } of FARB_FELDER) {
@@ -57,20 +49,23 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
   const setze = (schluessel: keyof Dunkelfarben, wert: string) =>
     setFarben((f) => ({ ...f, [schluessel]: wert }));
 
-  const textKontrast = kontrast(farben.text, farben.panel);
-  const nebenKontrast = kontrast(farben.muted, farben.panel);
-  const akzentKontrast = kontrast("#10200a", farben.ci400);
-
   const geaendert = FARB_FELDER.some(
     ({ schluessel }) => farben[schluessel] !== gespeichert[schluessel],
   );
 
+  // Alles, was aufeinander gelesen wird, einmal durchrechnen.
+  const pruefungen = FARB_FELDER.filter((f) => f.gegen).map((f) => ({
+    label: f.label,
+    wert: kontrast(farben[f.schluessel], farben[f.gegen!]),
+  }));
+  const schwach = pruefungen.filter((p) => p.wert < 4.5);
+
   return (
-    <div className="max-w-[70ch]">
+    <div className="max-w-[78ch]">
       {!dunkel ? (
         <p
           className="mb-4 rounded-md px-2.5 py-2 text-xs leading-relaxed"
-          style={{ background: "#fef3c7", color: "#b45309" }}
+          style={{ background: "var(--warn-bg)", color: "var(--warn-fg)" }}
         >
           Du bist gerade im hellen Modus – von den Änderungen siehst du hier
           nichts. Schalte oben rechts auf 🌙 um, dann ändert sich die Seite
@@ -83,14 +78,47 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
           className="mb-4 rounded-md px-2.5 py-2 text-xs leading-relaxed"
           style={
             ergebnis.ok
-              ? { background: "#dcfce7", color: "#15803d" }
-              : { background: "#fee2e2", color: "#b91c1c" }
+              ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
+              : { background: "var(--err-bg)", color: "var(--err-fg)" }
           }
           role={ergebnis.ok ? "status" : "alert"}
         >
           {ergebnis.meldung}
         </p>
       ) : null}
+
+      <div className="panel mb-4 p-3">
+        <h2 className="mb-1 text-sm font-semibold">Vorlagen</h2>
+        <p className="muted mb-2 text-[11px]">
+          Ein Ausgangspunkt – danach lässt sich jede Farbe einzeln nachziehen.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {VORLAGEN.map((v) => (
+            <button
+              key={v.name}
+              type="button"
+              className="btn btn-ghost"
+              style={{ fontSize: 12 }}
+              title={v.text}
+              onClick={() => setFarben(v.farben)}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 3,
+                  background: v.farben.bg,
+                  border: `1px solid ${v.farben.line}`,
+                  display: "inline-block",
+                  marginRight: 4,
+                }}
+              />
+              {v.name}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <form
         action={(formData) =>
@@ -101,73 +129,46 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
           })
         }
       >
-        <div className="panel mb-3 divide-y" style={{ borderColor: "var(--line)" }}>
-          {FARB_FELDER.map(({ schluessel, label, erklaerung }) => (
-            <div key={schluessel} className="flex items-center gap-3 p-3">
-              <input
-                type="color"
-                aria-label={label}
-                value={farben[schluessel]}
-                onChange={(e) => setze(schluessel, e.target.value)}
-                style={{
-                  width: 40,
-                  height: 32,
-                  padding: 0,
-                  border: "1px solid var(--line)",
-                  borderRadius: 6,
-                  background: "transparent",
-                  cursor: "pointer",
-                }}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium">{label}</div>
-                <div className="muted text-[11px]">{erklaerung}</div>
-              </div>
-              <input
-                name={schluessel}
-                className="field"
-                style={{ width: 104, fontFamily: "ui-monospace, monospace", fontSize: "0.75rem" }}
-                value={farben[schluessel]}
-                onChange={(e) => setze(schluessel, e.target.value)}
-                spellCheck={false}
-              />
-              {farben[schluessel] !== DUNKEL_VOREINSTELLUNG[schluessel] ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ fontSize: 11 }}
-                  title={`Zurück auf ${DUNKEL_VOREINSTELLUNG[schluessel]}`}
-                  onClick={() => setze(schluessel, DUNKEL_VOREINSTELLUNG[schluessel])}
-                >
-                  ↺
-                </button>
-              ) : null}
+        {GRUPPEN.map((gruppe) => (
+          <div key={gruppe.titel} className="panel mb-3">
+            <div className="line border-b p-3">
+              <h2 className="text-sm font-semibold">{gruppe.titel}</h2>
+              <p className="muted text-[11px]">{gruppe.text}</p>
             </div>
-          ))}
-        </div>
+            {gruppe.felder.map((feld) => (
+              <Zeile
+                key={feld.schluessel}
+                feld={feld}
+                farben={farben}
+                onSetze={setze}
+              />
+            ))}
+          </div>
+        ))}
 
         <div className="panel mb-3 p-3">
           <h2 className="mb-1.5 text-sm font-semibold">Lesbarkeit</h2>
-          <ul className="space-y-1 text-[11px] leading-relaxed">
-            <Pruefung
-              label="Schrift auf Karten"
-              wert={textKontrast}
-              schwelle={4.5}
-              hinweis="Unter 4.5 wird normaler Text für manche Augen mühsam."
-            />
-            <Pruefung
-              label="Nebensächliche Schrift"
-              wert={nebenKontrast}
-              schwelle={3}
-              hinweis="Hinweise und Datumsangaben sollten mindestens 3 erreichen."
-            />
-            <Pruefung
-              label="Schrift auf dem Akzent"
-              wert={akzentKontrast}
-              schwelle={4.5}
-              hinweis="Betrifft den aktiven Menüpunkt und den Hauptknopf."
-            />
-          </ul>
+          {schwach.length === 0 ? (
+            <p className="text-[11px]" style={{ color: "var(--ok-fg)" }}>
+              ✓ Alle {pruefungen.length} Kombinationen erreichen mindestens 4.5:1.
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-1 text-[11px] leading-relaxed">
+                {schwach.map((p) => (
+                  <li key={p.label}>
+                    <span style={{ color: "var(--warn-fg)" }}>!</span>{" "}
+                    <span className="font-medium">{p.label}</span>: {p.wert.toFixed(1)}:1
+                  </li>
+                ))}
+              </ul>
+              <p className="muted mt-1.5 text-[11px] leading-relaxed">
+                Unter 4.5:1 wird Text für manche Augen mühsam – bei kleiner Schrift
+                schneller, als man selbst merkt. Speichern kannst du trotzdem; es
+                ist ein Hinweis, keine Sperre.
+              </p>
+            </>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -177,7 +178,7 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
           <button
             className="btn btn-ghost"
             type="button"
-            disabled={laeuft}
+            disabled={laeuft || !geaendert}
             onClick={() => setFarben(gespeichert)}
           >
             Änderungen verwerfen
@@ -205,23 +206,72 @@ export default function FarbFormular({ gespeichert }: { gespeichert: Dunkelfarbe
   );
 }
 
-function Pruefung({
-  label,
-  wert,
-  schwelle,
-  hinweis,
+function Zeile({
+  feld,
+  farben,
+  onSetze,
 }: {
-  label: string;
-  wert: number;
-  schwelle: number;
-  hinweis: string;
+  feld: FarbFeld;
+  farben: Dunkelfarben;
+  onSetze: (s: keyof Dunkelfarben, w: string) => void;
 }) {
-  const gut = wert >= schwelle;
+  const { schluessel, label, erklaerung, gegen } = feld;
+  const wert = farben[schluessel];
+  const abweichend = wert !== DUNKEL_VOREINSTELLUNG[schluessel];
+  const verhaeltnis = gegen ? kontrast(wert, farben[gegen]) : null;
+
   return (
-    <li>
-      <span style={{ color: gut ? "#15803d" : "#b45309" }}>{gut ? "✓" : "!"}</span>{" "}
-      <span className="font-medium">{label}:</span> {wert.toFixed(1)}:1{" "}
-      {gut ? null : <span className="muted">— {hinweis}</span>}
-    </li>
+    <div className="line flex items-center gap-3 border-b p-3 last:border-0">
+      <input
+        type="color"
+        aria-label={label}
+        value={wert}
+        onChange={(e) => onSetze(schluessel, e.target.value)}
+        style={{
+          width: 40,
+          height: 32,
+          padding: 0,
+          border: "1px solid var(--line)",
+          borderRadius: 6,
+          background: "transparent",
+          cursor: "pointer",
+          flexShrink: 0,
+        }}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium">{label}</div>
+        {erklaerung ? <div className="muted text-[11px]">{erklaerung}</div> : null}
+      </div>
+      {verhaeltnis !== null ? (
+        <span
+          className="chip"
+          style={
+            verhaeltnis >= 4.5
+              ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
+              : { background: "var(--warn-bg)", color: "var(--warn-fg)" }
+          }
+          title={`Kontrast zur zugehörigen Fläche: ${verhaeltnis.toFixed(2)}:1`}
+        >
+          {verhaeltnis.toFixed(1)}
+        </span>
+      ) : null}
+      <input
+        name={schluessel}
+        className="field"
+        style={{ width: 100, fontFamily: "ui-monospace, monospace", fontSize: "0.72rem" }}
+        value={wert}
+        onChange={(e) => onSetze(schluessel, e.target.value)}
+        spellCheck={false}
+      />
+      <button
+        type="button"
+        className="btn btn-ghost"
+        style={{ fontSize: 11, visibility: abweichend ? "visible" : "hidden" }}
+        title={`Zurück auf ${DUNKEL_VOREINSTELLUNG[schluessel]}`}
+        onClick={() => onSetze(schluessel, DUNKEL_VOREINSTELLUNG[schluessel])}
+      >
+        ↺
+      </button>
+    </div>
   );
 }

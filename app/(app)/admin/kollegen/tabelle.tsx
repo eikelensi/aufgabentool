@@ -39,8 +39,8 @@ function Meldung({ ergebnis }: { ergebnis: Ergebnis | null }) {
       className="mb-3 rounded-md px-2.5 py-2 text-xs leading-relaxed"
       style={
         ergebnis.ok
-          ? { background: "#dcfce7", color: "#15803d" }
-          : { background: "#fee2e2", color: "#b91c1c" }
+          ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
+          : { background: "var(--err-bg)", color: "var(--err-fg)" }
       }
       role={ergebnis.ok ? "status" : "alert"}
     >
@@ -270,7 +270,7 @@ export function KollegenBereich({
           {unvollstaendig ? (
             <p
               className="mb-3 rounded-md px-2.5 py-2 text-xs"
-              style={{ background: "#fef3c7", color: "#b45309" }}
+              style={{ background: "var(--warn-bg)", color: "var(--warn-fg)" }}
             >
               Bei {unvollstaendig} {unvollstaendig === 1 ? "Kollegen fehlt" : "Kollegen fehlen"}{" "}
               Telefon oder Standort.
@@ -304,7 +304,7 @@ export function KollegenBereich({
                         {!k.isActive ? (
                           <span
                             className="chip ml-1.5"
-                            style={{ background: "#fee2e2", color: "#b91c1c" }}
+                            style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}
                           >
                             ausgeblendet
                           </span>

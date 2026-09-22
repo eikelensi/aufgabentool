@@ -383,13 +383,13 @@ function StatusRow({
 }) {
   const style =
     state === "bereit"
-      ? { background: "#dcfce7", color: "#15803d" }
+      ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
       : state === "prüfen"
-        ? { background: "#fef3c7", color: "#b45309" }
+        ? { background: "var(--warn-bg)", color: "var(--warn-fg)" }
         : state === "nicht möglich"
           ? // Grau, nicht rot: hier fehlt nichts, was noch kommen könnte.
             { background: "var(--panel-2)", color: "var(--muted)" }
-          : { background: "#fee2e2", color: "#b91c1c" };
+          : { background: "var(--err-bg)", color: "var(--err-fg)" };
   return (
     <li className="flex flex-wrap items-center gap-2">
       <span className="chip" style={style}>

@@ -59,7 +59,7 @@ export default async function KollegenSeite() {
 
   if (kollegenRes.error) {
     return (
-      <div className="panel p-4" style={{ borderLeft: "3px solid #dc2626", maxWidth: 560 }}>
+      <div className="panel p-4" style={{ borderLeft: "3px solid var(--err-fg)", maxWidth: 560 }}>
         <h1 className="mb-2 text-base font-semibold">Mitarbeiterverwaltung</h1>
         <p className="muted text-xs leading-relaxed">{kollegenRes.error.message}</p>
       </div>

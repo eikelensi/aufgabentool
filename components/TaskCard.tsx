@@ -59,7 +59,7 @@ export default function TaskCard({
         <PriorityChip priority={task.priority} />
         <CategoryChip category={category} />
         {task.isPrivate ? (
-          <span className="chip" style={{ background: "#ede9fe", color: "#6d28d9" }}>
+          <span className="chip" style={{ background: "var(--privat-bg)", color: "var(--privat-fg)" }}>
             🔒 Privat
           </span>
         ) : null}
@@ -95,15 +95,15 @@ export default function TaskCard({
 
       <div className="muted mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
         {task.dueDate ? (
-          <span style={overdue && task.status !== "erledigt" ? { color: "#dc2626", fontWeight: 600 } : undefined}>
+          <span style={overdue && task.status !== "erledigt" ? { color: "var(--err-fg)", fontWeight: 600 } : undefined}>
             📅 {formatDate(task.dueDate)}
           </span>
         ) : null}
         {broker ? <span>🤝 {broker.shortCode}</span> : null}
         {task.status === "offen" && !task.isPrivate && age >= settings.escalationDays ? (
-          <span style={{ color: "#dc2626", fontWeight: 600 }}>⚠︎ {age} Tage offen</span>
+          <span style={{ color: "var(--err-fg)", fontWeight: 600 }}>⚠︎ {age} Tage offen</span>
         ) : task.status === "offen" && !task.isPrivate && age >= settings.reminderDays ? (
-          <span style={{ color: "#d97706", fontWeight: 600 }}>⏰ {age} Tage offen</span>
+          <span style={{ color: "var(--warn-fg)", fontWeight: 600 }}>⏰ {age} Tage offen</span>
         ) : null}
       </div>
 

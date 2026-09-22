@@ -41,8 +41,8 @@ function Meldung({ ergebnis }: { ergebnis: Ergebnis | null }) {
       className="mb-3 rounded-md px-2.5 py-2 text-xs leading-relaxed"
       style={
         ergebnis.ok
-          ? { background: "#dcfce7", color: "#15803d" }
-          : { background: "#fee2e2", color: "#b91c1c" }
+          ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
+          : { background: "var(--err-bg)", color: "var(--err-fg)" }
       }
       role={ergebnis.ok ? "status" : "alert"}
     >
@@ -233,15 +233,15 @@ export function NutzerTabelle({
                   </td>
                   <td className="px-3 py-2">
                     {!n.isActive ? (
-                      <span className="chip" style={{ background: "#fee2e2", color: "#b91c1c" }}>
+                      <span className="chip" style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}>
                         gesperrt
                       </span>
                     ) : n.hatSichAngemeldet ? (
-                      <span className="chip" style={{ background: "#dcfce7", color: "#15803d" }}>
+                      <span className="chip" style={{ background: "var(--ok-bg)", color: "var(--ok-fg)" }}>
                         aktiv
                       </span>
                     ) : (
-                      <span className="chip" style={{ background: "#fef3c7", color: "#b45309" }}>
+                      <span className="chip" style={{ background: "var(--warn-bg)", color: "var(--warn-fg)" }}>
                         eingeladen
                       </span>
                     )}
@@ -367,8 +367,8 @@ export function SyncBereich({ unbekannteNamen }: { unbekannteNamen: { name: stri
           className="mt-3 rounded-md px-2.5 py-2 text-[11px] leading-relaxed"
           style={
             ergebnis.ok
-              ? { background: "#dcfce7", color: "#15803d" }
-              : { background: "#fef3c7", color: "#b45309" }
+              ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
+              : { background: "var(--warn-bg)", color: "var(--warn-fg)" }
           }
           role="status"
         >

@@ -34,7 +34,7 @@ function Kachel({
       {warnung ? (
         <p
           className="mt-2 rounded px-2 py-1 text-[11px] leading-relaxed"
-          style={{ background: "#fef3c7", color: "#b45309" }}
+          style={{ background: "var(--warn-bg)", color: "var(--warn-fg)" }}
         >
           {warnung}
         </p>

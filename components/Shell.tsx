@@ -109,7 +109,7 @@ export default function Shell({
                   className="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition"
                   style={
                     active
-                      ? { background: "var(--color-ci-400)", color: "#10200a" }
+                      ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" }
                       : { color: "var(--muted)" }
                   }
                 >
@@ -137,7 +137,7 @@ export default function Shell({
               >
                 <span
                   className="flex h-[26px] w-[26px] items-center justify-center rounded-full text-[10px] font-bold"
-                  style={{ background: "var(--color-ci-400)", color: "#10200a" }}
+                  style={{ background: "var(--color-ci-400)", color: "var(--auf-akzent)" }}
                 >
                   {initialen(profil.fullName)}
                 </span>

@@ -14,11 +14,11 @@ export function formatBytes(n: number): string {
 }
 
 const SYNC_STYLE: Record<AttachmentSync, { bg: string; fg: string }> = {
-  lokal: { bg: "#e2e8f0", fg: "#475569" },
-  wartet: { bg: "#fef3c7", fg: "#b45309" },
-  synchron: { bg: "#dcfce7", fg: "#15803d" },
-  nur_onoffice: { bg: "#e0f2fe", fg: "#0369a1" },
-  fehler: { bg: "#fee2e2", fg: "#b91c1c" },
+  lokal: { bg: "var(--neutral-bg)", fg: "var(--neutral-fg)" },
+  wartet: { bg: "var(--warn-bg)", fg: "var(--warn-fg)" },
+  synchron: { bg: "var(--ok-bg)", fg: "var(--ok-fg)" },
+  nur_onoffice: { bg: "var(--info-bg)", fg: "var(--info-fg)" },
+  fehler: { bg: "var(--err-bg)", fg: "var(--err-fg)" },
 };
 
 export function SyncChip({ state }: { state: AttachmentSync }) {
@@ -214,7 +214,7 @@ export function AttachmentSection({ task }: { task: Task }) {
       {rejected.length > 0 ? (
         <ul className="flex flex-col gap-0.5">
           {rejected.map((r) => (
-            <li key={r} className="text-[11px] font-medium" style={{ color: "#dc2626" }}>
+            <li key={r} className="text-[11px] font-medium" style={{ color: "var(--err-fg)" }}>
               {r}
             </li>
           ))}

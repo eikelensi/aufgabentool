@@ -18,9 +18,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "onOffice-Eingang – Aufgabentool" };
 
 const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
-  offen: { bg: "#e2e8f0", fg: "#475569" },
-  in_bearbeitung: { bg: "#fef3c7", fg: "#b45309" },
-  erledigt: { bg: "#dcfce7", fg: "#15803d" },
+  offen: { bg: "var(--neutral-bg)", fg: "var(--neutral-fg)" },
+  in_bearbeitung: { bg: "var(--warn-bg)", fg: "var(--warn-fg)" },
+  erledigt: { bg: "var(--ok-bg)", fg: "var(--ok-fg)" },
 };
 
 function Chip({ children, bg, fg }: { children: React.ReactNode; bg: string; fg: string }) {
@@ -84,7 +84,7 @@ export default async function OnofficePage() {
       {error ? (
         <div
           className="panel p-4"
-          style={{ borderLeft: "3px solid #dc2626", maxWidth: 620 }}
+          style={{ borderLeft: "3px solid var(--err-fg)", maxWidth: 620 }}
         >
           <h2 className="mb-1 text-sm font-semibold">Abruf fehlgeschlagen</h2>
           <p className="muted text-xs leading-relaxed">{error}</p>
@@ -153,7 +153,7 @@ export default async function OnofficePage() {
                         </td>
                         <td className="px-3 py-2">
                           {t.priority === "hoch" ? (
-                            <Chip bg="#fee2e2" fg="#b91c1c">Hoch</Chip>
+                            <Chip bg="var(--err-bg)" fg="var(--err-fg)">Hoch</Chip>
                           ) : (
                             <span className="muted text-[11px]">{t.rawPriority}</span>
                           )}

@@ -150,7 +150,7 @@ export default async function HandbuchSeite() {
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {aktiveKategorien.map((k) => (
-            <span key={k.name} className="chip" style={{ background: k.color, color: "#10200a" }}>
+            <span key={k.name} className="chip" style={{ background: k.color, color: "var(--auf-akzent)" }}>
               {k.name}
             </span>
           ))}
@@ -249,7 +249,7 @@ export default async function HandbuchSeite() {
             </ul>
           </>
         ) : (
-          <p style={{ color: "#b45309" }}>
+          <p style={{ color: "var(--warn-fg)" }}>
             Für niemanden ist ein onOffice-Name hinterlegt – im Moment wird also
             keine einzige Aufgabe übernommen. Das wird in der Nutzerverwaltung
             eingetragen.

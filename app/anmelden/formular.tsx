@@ -134,7 +134,7 @@ export default function AnmeldenFormular() {
           {fehler ? (
             <p
               className="mb-3 rounded-md px-2.5 py-2 text-xs"
-              style={{ background: "#fee2e2", color: "#b91c1c" }}
+              style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}
               role="alert"
             >
               {fehler}
@@ -144,7 +144,7 @@ export default function AnmeldenFormular() {
           {hinweis ? (
             <p
               className="mb-3 rounded-md px-2.5 py-2 text-xs"
-              style={{ background: "#dcfce7", color: "#15803d" }}
+              style={{ background: "var(--ok-bg)", color: "var(--ok-fg)" }}
               role="status"
             >
               {hinweis}

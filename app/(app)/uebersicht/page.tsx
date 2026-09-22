@@ -71,7 +71,7 @@ export default function UebersichtPage() {
               className="btn"
               style={
                 tab === key
-                  ? { background: "var(--color-ci-400)", borderColor: "var(--color-ci-500)", color: "#10200a" }
+                  ? { background: "var(--color-ci-400)", borderColor: "var(--color-ci-500)", color: "var(--auf-akzent)" }
                   : undefined
               }
               onClick={() => setTab(key)}

@@ -52,7 +52,7 @@ export default async function NutzerSeite() {
 
   if (error) {
     return (
-      <div className="panel p-4" style={{ borderLeft: "3px solid #dc2626", maxWidth: 560 }}>
+      <div className="panel p-4" style={{ borderLeft: "3px solid var(--err-fg)", maxWidth: 560 }}>
         <h1 className="mb-2 text-base font-semibold">Nutzerverwaltung</h1>
         <p className="muted text-xs leading-relaxed">{error.message}</p>
       </div>
@@ -113,7 +113,7 @@ export default async function NutzerSeite() {
       {ohneZuordnung ? (
         <p
           className="mb-4 rounded-md px-2.5 py-2 text-xs leading-relaxed"
-          style={{ background: "#fef3c7", color: "#b45309" }}
+          style={{ background: "var(--warn-bg)", color: "var(--warn-fg)" }}
         >
           {ohneZuordnung === 1
             ? "Für einen Nutzer fehlt der onOffice-Name"

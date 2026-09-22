@@ -8,7 +8,7 @@ import { EmptyState } from "./ui";
 
 const COLUMNS: { status: TaskStatus; accent: string; hint: string }[] = [
   { status: "offen", accent: "#94a3b8", hint: "Noch nicht angefasst" },
-  { status: "in_bearbeitung", accent: "#f59e0b", hint: "Notiz erforderlich" },
+  { status: "in_bearbeitung", accent: "var(--warn-fg)", hint: "Notiz erforderlich" },
   { status: "erledigt", accent: "#88cc44", hint: "Fertig" },
 ];
 

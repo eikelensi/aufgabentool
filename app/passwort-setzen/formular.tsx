@@ -154,7 +154,7 @@ export default function PasswortSetzenFormular() {
         ) : fertig ? (
           <p
             className="rounded-md px-2.5 py-2 text-xs"
-            style={{ background: "#dcfce7", color: "#15803d" }}
+            style={{ background: "var(--ok-bg)", color: "var(--ok-fg)" }}
             role="status"
           >
             Passwort gespeichert. Du wirst weitergeleitet…
@@ -204,7 +204,7 @@ export default function PasswortSetzenFormular() {
               {fehler ? (
                 <p
                   className="mb-3 rounded-md px-2.5 py-2 text-xs leading-relaxed"
-                  style={{ background: "#fee2e2", color: "#b91c1c" }}
+                  style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}
                   role="alert"
                 >
                   {fehler}

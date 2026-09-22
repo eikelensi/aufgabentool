@@ -34,7 +34,7 @@ export default function AdminNavigation({ istSuperadmin }: { istSuperadmin: bool
               className="rounded-md px-2.5 py-1.5 text-[13px] font-medium transition"
               style={
                 aktiv
-                  ? { background: "var(--color-ci-400)", color: "#10200a" }
+                  ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" }
                   : { color: "var(--muted)" }
               }
             >

@@ -22,6 +22,25 @@
   --text: #1a1f18;
   --muted: #6b7566;
   --shadow: 0 1px 2px rgba(20, 30, 15, 0.06), 0 1px 3px rgba(20, 30, 15, 0.04);
+
+  /* Zustandsfarben. Standen frueher an rund fuenfzig Stellen fest im
+     Code - im dunklen Modus leuchteten die Pastelltoene dann wie
+     Textmarker auf schwarzem Papier. */
+  --ok-bg: #dcfce7;
+  --ok-fg: #15803d;
+  --warn-bg: #fef3c7;
+  --warn-fg: #b45309;
+  --err-bg: #fee2e2;
+  --err-fg: #b91c1c;
+  --info-bg: #e0f2fe;
+  --info-fg: #0369a1;
+  --neutral-bg: #e2e8f0;
+  --neutral-fg: #475569;
+  --privat-bg: #ede9fe;
+  --privat-fg: #6d28d9;
+  /* Schrift auf der Akzentflaeche (aktiver Menuepunkt, Hauptknopf). */
+  --auf-akzent: #10200a;
+
   color-scheme: light;
 }
 
@@ -33,6 +52,22 @@
   --text: #e7efe2;
   --muted: #93a48c;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+
+  /* Im Dunklen gedeckte Flaechen mit heller Schrift statt umgekehrt. */
+  --ok-bg: #16301f;
+  --ok-fg: #86e0a6;
+  --warn-bg: #3a2c12;
+  --warn-fg: #f2bd6a;
+  --err-bg: #3a1c1c;
+  --err-fg: #f5a19b;
+  --info-bg: #122a3a;
+  --info-fg: #85c9ef;
+  --neutral-bg: #232f20;
+  --neutral-fg: #9fb098;
+  --privat-bg: #251d3d;
+  --privat-fg: #c4b5fd;
+  --auf-akzent: #10200a;
+
   color-scheme: dark;
 }
 
@@ -140,7 +175,7 @@ body {
 }
 
 .card-hoch {
-  border-left: 3px solid #dc2626;
+  border-left: 3px solid var(--err-fg);
 }
 
 .scroll-x {

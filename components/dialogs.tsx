@@ -66,7 +66,7 @@ export function NoteDialog({
         />
       </Field>
       {error ? (
-        <p className="mt-2 text-xs font-medium" style={{ color: "#dc2626" }}>
+        <p className="mt-2 text-xs font-medium" style={{ color: "var(--err-fg)" }}>
           {error}
         </p>
       ) : null}
@@ -336,12 +336,12 @@ export function TaskDetailDialog({
         <PriorityChip priority={task.priority} />
         <CategoryChip category={category} />
         {task.isPrivate ? (
-          <span className="chip" style={{ background: "#ede9fe", color: "#6d28d9" }}>
+          <span className="chip" style={{ background: "var(--privat-bg)", color: "var(--privat-fg)" }}>
             🔒 Privat
           </span>
         ) : null}
         {task.isPool && !task.assigneeId ? (
-          <span className="chip" style={{ background: "#e0f2fe", color: "#0369a1" }}>
+          <span className="chip" style={{ background: "var(--info-bg)", color: "var(--info-fg)" }}>
             Pool
           </span>
         ) : null}
@@ -412,7 +412,7 @@ export function TaskDetailDialog({
       {task.inProgressNote ? (
         <div
           className="mb-4 rounded-lg border px-3 py-2 text-xs"
-          style={{ background: "#fffbeb", borderColor: "#fcd34d", color: "#92400e" }}
+          style={{ background: "var(--warn-bg)", borderColor: "var(--warn-fg)", color: "var(--warn-fg)" }}
         >
           <strong>Notiz zu „Rückfragen offen“:</strong> {task.inProgressNote}
         </div>
