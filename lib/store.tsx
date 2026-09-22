@@ -249,14 +249,34 @@ export function StoreProvider({
         };
       }
 
+      let hinweis: string | undefined;
+
       if (status === "in_bearbeitung" || status === "erledigt") {
         // Mails laufen auf dem Server; ein Fehlschlag darf den
-        // Statuswechsel nicht rueckgaengig machen.
-        void fetch("/api/mail/aufgabe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskId, status }),
-        }).catch(() => undefined);
+        // Statuswechsel nicht rueckgaengig machen - aber er darf auch
+        // nicht lautlos sein. Vorher stand hier ein "void fetch" mit
+        // .catch(() => undefined): als die Route wegen einer
+        // mehrdeutigen Verknuepfung 500 lieferte, verschwand das
+        // spurlos. Keine Mail, kein Protokolleintrag, keine Meldung -
+        // die Pflichtnotiz erreichte niemanden, und es gab nichts, woran
+        // man das haette sehen koennen.
+        try {
+          const res = await fetch("/api/mail/aufgabe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId, status }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            hinweis = `Der Status steht, aber die Benachrichtigung ging nicht raus: ${
+              json?.fehler ?? `Fehler ${res.status}`
+            }`;
+          } else if (Array.isArray(json?.fehler) && json.fehler.length) {
+            hinweis = `Der Status steht, aber eine Benachrichtigung scheiterte: ${json.fehler[0]}`;
+          }
+        } catch {
+          hinweis = "Der Status steht, die Benachrichtigung konnte aber nicht ausgelöst werden.";
+        }
       }
 
       // Den Status nach onOffice spiegeln. Wie beim Bearbeiter: danach,
@@ -265,7 +285,6 @@ export function StoreProvider({
       // sie kennt den zuletzt gelesenen Rohwert aus onOffice und laesst
       // einen zurueckgestellten Vorgang in Ruhe, der bei uns nur
       // "offen" heisst.
-      let hinweis: string | undefined;
       if (aufgabe.onofficeTaskId) {
         try {
           const res = await fetch("/api/onoffice/status", {

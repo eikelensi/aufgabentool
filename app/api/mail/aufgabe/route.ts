@@ -6,6 +6,15 @@
  * "Erledigt": der Kollege wird informiert.
  *
  * Private Aufgaben loesen nichts aus - sie sind nur fuer den Ersteller da.
+ *
+ * Die Verknuepfung zu broker_contacts nennt ausdruecklich ihren
+ * Fremdschluessel. Seit tasks zwei davon auf dieselbe Tabelle hat -
+ * broker_contact_id (wer den Auftrag gab) und onoffice_bearbeiter_id
+ * (wer ihn bearbeitet) - kann PostgREST nicht mehr raten, welcher
+ * gemeint ist, und lehnt die ganze Abfrage ab. Ohne den Namen kam hier
+ * gar keine Aufgabe mehr an, die Route gab 500 zurueck, und weil der
+ * Aufruf im Browser ein "void fetch" ist, sah niemand etwas: keine
+ * Mail, kein Protokolleintrag, keine Fehlermeldung.
  */
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -43,7 +52,7 @@ export async function POST(request: Request) {
        onoffice_estate_no, onoffice_estate_id,
        creator:profiles!tasks_creator_id_fkey ( id, full_name, email ),
        bearbeiter:profiles!tasks_assignee_id_fkey ( id, full_name, email ),
-       makler:broker_contacts ( id, display_name, email )`,
+       makler:broker_contacts!tasks_broker_contact_id_fkey ( id, display_name, email )`,
     )
     .eq("id", taskId)
     .maybeSingle();
