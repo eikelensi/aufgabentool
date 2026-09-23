@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { NewTaskDialog } from "./dialogs";
 import Meldungen from "./Meldungen";
-import type { AppRole } from "@/lib/types";
+import { ROLLE_LABEL, darfSehen, type AppRole, type Bereich, type Bereichsrechte } from "@/lib/types";
 
 export interface ShellProfil {
   id: string;
@@ -28,19 +28,14 @@ export interface ShellProfil {
  * statt seiner: ein Menuepunkt, den man nur am Symbol erkennt, ist
  * geraten, nicht gelesen.
  */
-const NAV = [
-  { href: "/", label: "Mein Tag", icon: "☀️" },
-  { href: "/pool", label: "Aufgabenpool", icon: "📥" },
-  { href: "/verteilt", label: "Verteilt", icon: "↗️" },
-  { href: "/uebersicht", label: "Übersicht", icon: "📊", adminOnly: true },
-  { href: "/admin", label: "Verwaltung", icon: "⚙️", adminOnly: true },
+const NAV: { href: string; label: string; icon: string; bereich: Bereich }[] = [
+  { href: "/", label: "Mein Tag", icon: "☀️", bereich: "mein_tag" },
+  { href: "/pool", label: "Aufgabenpool", icon: "📥", bereich: "pool" },
+  { href: "/verteilt", label: "Verteilt", icon: "↗️", bereich: "verteilt" },
+  { href: "/asana", label: "Asana", icon: "🗂️", bereich: "asana" },
+  { href: "/uebersicht", label: "Übersicht", icon: "📊", bereich: "uebersicht" },
+  { href: "/admin", label: "Verwaltung", icon: "⚙️", bereich: "verwaltung" },
 ];
-
-const ROLLE_LABEL: Record<AppRole, string> = {
-  superadmin: "Superadmin",
-  admin: "Admin",
-  mitarbeiter: "Mitarbeiter",
-};
 
 function initialen(name: string): string {
   const teile = name.trim().split(/\s+/).filter(Boolean);
@@ -52,9 +47,12 @@ function initialen(name: string): string {
 export default function Shell({
   children,
   profil,
+  rechte,
 }: {
   children: React.ReactNode;
   profil: ShellProfil;
+  /** Welche Rolle welchen Bereich sieht - kommt vom Server. */
+  rechte: Bereichsrechte;
 }) {
   const { neuLaden, bereit } = useStore();
   const pathname = usePathname();
@@ -62,7 +60,7 @@ export default function Shell({
   const [newTask, setNewTask] = useState(false);
   const [menuOffen, setMenuOffen] = useState(false);
 
-  const isAdmin = profil.role === "admin" || profil.role === "superadmin";
+  const isAdmin = profil.role === "gf" || profil.role === "superadmin";
 
   // Gesetzt hat den Modus schon das Skript im Kopf, bevor das erste Bild
   // stand. Hier wird er nur noch abgelesen, damit der Knopf das richtige
@@ -92,7 +90,9 @@ export default function Shell({
     }
   };
 
-  const nav = NAV.filter((n) => !n.adminOnly || isAdmin);
+  // Was jemand sieht, steht in der Verwaltung und nicht im Code - bis
+  // auf den Superadmin, der immer alles sieht.
+  const nav = NAV.filter((n) => darfSehen(profil.role, n.bereich, rechte));
 
   return (
     <div className="min-h-screen">

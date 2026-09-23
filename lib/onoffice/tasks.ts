@@ -272,15 +272,26 @@ export async function readTaskFieldNames(): Promise<string[]> {
     parameters: { labels: true, language: "DEU", modules: ["task"] },
   });
 
+  // Die Antwort hat je Modul ein Objekt, dessen SCHLUESSEL die Feldnamen
+  // sind; darunter haengen label, type, length und so weiter. Der erste
+  // Versuch hat eine Ebene zu tief gegriffen und die Attribute eines
+  // Feldes fuer die Felder gehalten - acht Namen fuer ein ganzes Modul
+  // haetten stutzig machen muessen.
   const namen = new Set<string>();
   for (const record of res.records as OnOfficeRecord[]) {
     for (const [schluessel, wert] of Object.entries(elements(record))) {
-      // Die Antwort ist nach Modul gruppiert; die Feldnamen sind die
-      // Schluessel der inneren Objekte.
+      if (schluessel === "modul" || schluessel === "module" || schluessel === "id") continue;
       if (wert && typeof wert === "object" && !Array.isArray(wert)) {
-        for (const feld of Object.keys(wert as Record<string, unknown>)) namen.add(feld);
-      } else if (schluessel !== "modul" && schluessel !== "module") {
         namen.add(schluessel);
+        // Manche Mandanten schachteln noch eine Ebene nach Modul.
+        const innen = wert as Record<string, unknown>;
+        const sindFelder = Object.values(innen).every(
+          (v) => v && typeof v === "object" && !Array.isArray(v),
+        );
+        if (sindFelder) {
+          namen.delete(schluessel);
+          for (const feld of Object.keys(innen)) namen.add(feld);
+        }
       }
     }
   }

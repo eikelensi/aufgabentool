@@ -7,7 +7,7 @@ import TaskCard from "@/components/TaskCard";
 import Filters, { EMPTY_FILTER, applyFilters, type FilterState } from "@/components/Filters";
 import { NoteDialog, TaskDetailDialog } from "@/components/dialogs";
 import { Avatar, EmptyState } from "@/components/ui";
-import type { Task, TaskStatus } from "@/lib/types";
+import { ROLLE_LABEL, type AppRole, type Task, type TaskStatus } from "@/lib/types";
 import { STATUS_LABEL } from "@/lib/types";
 
 type Tab = "tag" | "person" | "kategorie";
@@ -114,7 +114,7 @@ export default function UebersichtPage() {
               <Lane
                 key={p.id}
                 label={p.fullName}
-                sub={p.role === "mitarbeiter" ? "Mitarbeiter" : "Admin"}
+                sub={ROLLE_LABEL[p.role as AppRole] ?? "Mitarbeiter"}
                 avatar={<Avatar profile={p} size={22} />}
                 tasks={tasks.filter((t) => t.assigneeId === p.id)}
                 assigneeId={p.id}

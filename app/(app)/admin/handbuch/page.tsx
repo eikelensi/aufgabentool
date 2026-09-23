@@ -15,9 +15,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Handbuch – Aufgabentool" };
 
 const ROLLE_TEXT: Record<string, string> = {
-  superadmin: "sieht und darf alles, auch die Einstellungen",
-  admin: "sieht alle Aufgaben, darf umverteilen und verwalten",
-  mitarbeiter: "sieht die eigenen Aufgaben und den Pool",
+  superadmin: "sieht und darf alles, auch die Einstellungen – immer, unabhängig von jeder Einstellung",
+  gf: "sieht alle Aufgaben, darf umverteilen und verwalten, dazu den Asana-Bereich",
+  qm: "sieht alle Aufgaben und die Übersicht",
+  user: "sieht die eigenen Aufgaben und den Pool",
 };
 
 function Abschnitt({

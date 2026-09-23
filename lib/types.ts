@@ -1,6 +1,60 @@
 export type TaskStatus = "offen" | "in_bearbeitung" | "erledigt";
 export type TaskPriority = "normal" | "hoch";
-export type AppRole = "superadmin" | "admin" | "mitarbeiter";
+/**
+ * Die Rollen des Hauses.
+ *
+ * Frueher hiessen sie superadmin/admin/mitarbeiter. Das beschrieb
+ * Rechte, nicht Menschen - und wer im Haus "Admin" ist, war nie klar.
+ * Jetzt stehen die Rollen fuer Funktionen: Geschaeftsfuehrung,
+ * Qualitaetsmanagement, Mitarbeitende. Der Superadmin bleibt als das,
+ * was er ist: der Schluessel fuer alles, unabhaengig von jeder
+ * Einstellung.
+ */
+export type AppRole = "superadmin" | "gf" | "qm" | "user";
+
+/** Die Bereiche, deren Sichtbarkeit sich je Rolle steuern laesst. */
+export type Bereich =
+  | "mein_tag"
+  | "pool"
+  | "verteilt"
+  | "uebersicht"
+  | "verwaltung"
+  | "asana";
+
+export const BEREICH_LABEL: Record<Bereich, string> = {
+  mein_tag: "Mein Tag",
+  pool: "Aufgabenpool",
+  verteilt: "Verteilt",
+  uebersicht: "Übersicht",
+  verwaltung: "Verwaltung",
+  asana: "Asana (Geschäftsführung)",
+};
+
+export const ROLLE_LABEL: Record<AppRole, string> = {
+  superadmin: "Superadmin",
+  gf: "Geschäftsführung",
+  qm: "Qualitätsmanagement",
+  user: "Mitarbeiter",
+};
+
+/** Sichtbarkeit je Rolle und Bereich, wie sie in der Datenbank steht. */
+export type Bereichsrechte = Record<string, Record<string, boolean>>;
+
+/**
+ * Darf diese Rolle den Bereich sehen?
+ *
+ * Der Superadmin fragt gar nicht erst - er sieht alles, immer. Sonst
+ * koennte eine falsch gesetzte Zeile den letzten Zugang zur Verwaltung
+ * zusperren, und dann hilft nur noch die Datenbank.
+ */
+export function darfSehen(
+  rolle: AppRole,
+  bereich: Bereich,
+  rechte: Bereichsrechte,
+): boolean {
+  if (rolle === "superadmin") return true;
+  return rechte[rolle]?.[bereich] ?? false;
+}
 export type TaskSource = "manuell" | "email" | "onoffice" | "qm";
 
 export type NotifyKind =

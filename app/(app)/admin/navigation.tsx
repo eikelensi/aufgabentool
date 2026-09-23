@@ -12,6 +12,7 @@ const PUNKTE = [
   { href: "/admin/protokoll", label: "Protokolle", icon: "📋" },
   // Nachschlagewerkzeug, kein Arbeitsplatz: was in onOffice wirklich
   // steht, sieht man hier - aber nicht im Tagesmenue.
+  { href: "/admin/rollen", label: "Rollen", icon: "🔑" },
   { href: "/admin/onoffice", label: "onOffice-Eingang", icon: "🔌" },
   { href: "/admin/handbuch", label: "Handbuch", icon: "📖" },
 ];

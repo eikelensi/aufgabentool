@@ -293,7 +293,7 @@ export function StoreProvider({
         initials: profil.fullName.slice(0, 2).toUpperCase(),
       };
 
-    const isAdmin = me.role === "admin" || me.role === "superadmin";
+    const isAdmin = me.role === "gf" || me.role === "superadmin";
 
     const profileById = (id: string | null) => profiles.find((p) => p.id === id);
     const categoryById = (id: string | null) => categories.find((c) => c.id === id);

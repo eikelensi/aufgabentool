@@ -14,7 +14,7 @@ import {
   type Ergebnis,
   type SyncMeldung,
 } from "./aktionen";
-import type { AppRole } from "@/lib/types";
+import { ROLLE_LABEL, type AppRole } from "@/lib/types";
 
 export interface NutzerZeile {
   id: string;
@@ -28,12 +28,6 @@ export interface NutzerZeile {
   invitedAt: string | null;
   hatSichAngemeldet: boolean;
 }
-
-const ROLLE_LABEL: Record<AppRole, string> = {
-  superadmin: "Superadmin",
-  admin: "Admin",
-  mitarbeiter: "Mitarbeiter",
-};
 
 function Meldung({ ergebnis }: { ergebnis: Ergebnis | null }) {
   if (!ergebnis) return null;
@@ -115,9 +109,10 @@ export function EinladenFormular({ darfSuperadmin }: { darfSuperadmin: boolean }
               <label className="mb-1 block text-xs font-medium" htmlFor="role">
                 Rolle
               </label>
-              <select id="role" name="role" className="field" defaultValue="mitarbeiter">
-                <option value="mitarbeiter">Mitarbeiter – sieht eigene Aufgaben und den Pool</option>
-                <option value="admin">Admin – sieht alles, darf umverteilen</option>
+              <select id="role" name="role" className="field" defaultValue="user">
+                <option value="user">Mitarbeiter – eigene Aufgaben und der Pool</option>
+                <option value="qm">Qualitätsmanagement – dazu Übersicht und Verwaltung</option>
+                <option value="gf">Geschäftsführung – alles, einschließlich Asana</option>
                 {darfSuperadmin ? (
                   <option value="superadmin">Superadmin – zusätzlich alle Einstellungen</option>
                 ) : null}
@@ -218,8 +213,9 @@ export function NutzerTabelle({
                           fuehreAus(() => rolleAendern(n.id, e.target.value as AppRole))
                         }
                       >
-                        <option value="mitarbeiter">Mitarbeiter</option>
-                        <option value="admin">Admin</option>
+                        <option value="user">Mitarbeiter</option>
+                        <option value="qm">Qualitätsmanagement</option>
+                        <option value="gf">Geschäftsführung</option>
                         {darfSuperadmin ? <option value="superadmin">Superadmin</option> : null}
                       </select>
                     )}

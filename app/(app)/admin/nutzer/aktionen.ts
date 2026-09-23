@@ -27,7 +27,7 @@ export interface Ergebnis {
   linkZumWeitergeben?: string;
 }
 
-const ROLLEN: AppRole[] = ["superadmin", "admin", "mitarbeiter"];
+const ROLLEN: AppRole[] = ["superadmin", "gf", "qm", "user"];
 
 /** Basisadresse fuer Mail-Links - im Betrieb die echte Domain. */
 async function basisAdresse(): Promise<string> {

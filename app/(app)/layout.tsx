@@ -12,6 +12,7 @@ import Shell from "@/components/Shell";
 import { aktuellesProfil } from "@/lib/supabase/profil";
 import { supabaseServer } from "@/lib/supabase/server";
 import { istVoreinstellung, sicherePalette, themaCss } from "@/lib/design/farben";
+import type { Bereichsrechte } from "@/lib/types";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profil = await aktuellesProfil();
@@ -30,6 +31,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .from("app_settings")
     .select("theme_light, theme_dark")
     .maybeSingle();
+  // Welche Rolle welchen Bereich sieht. Eine Tabelle, die jeder lesen
+  // darf - was man sieht, ist kein Geheimnis; geaendert wird sie nur in
+  // der Verwaltung.
+  const { data: bereiche } = await supabase
+    .from("rollen_bereiche")
+    .select("role, bereich, sichtbar");
+
+  const rechte: Bereichsrechte = {};
+  for (const z of bereiche ?? []) {
+    (rechte[z.role] ??= {})[z.bereich] = z.sichtbar;
+  }
+
   const hell = sicherePalette("hell", einst?.theme_light);
   const dunkel = sicherePalette("dunkel", einst?.theme_dark);
 
@@ -62,7 +75,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <StoreProvider profil={profil}>
       {eigeneFarben ? <style dangerouslySetInnerHTML={{ __html: eigeneFarben }} /> : null}
-      <Shell profil={profil}>{children}</Shell>
+      <Shell profil={profil} rechte={rechte}>
+        {children}
+      </Shell>
     </StoreProvider>
   );
 }

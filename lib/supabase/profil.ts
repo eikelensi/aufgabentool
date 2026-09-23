@@ -43,7 +43,7 @@ export async function aktuellesProfil(): Promise<AngemeldetesProfil | null> {
 }
 
 export function istAdmin(profil: AngemeldetesProfil | null): boolean {
-  return profil?.role === "admin" || profil?.role === "superadmin";
+  return profil?.role === "gf" || profil?.role === "superadmin";
 }
 
 /**

@@ -25,7 +25,7 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type app_role      as enum ('superadmin', 'admin', 'mitarbeiter');
+  create type app_role      as enum ('superadmin', 'admin', 'mitarbeiter', 'gf', 'qm', 'user');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -72,7 +72,7 @@ create table if not exists public.profiles (
   id                uuid primary key references auth.users(id) on delete cascade,
   email             citext not null unique,
   full_name         text   not null,
-  role              app_role not null default 'mitarbeiter',
+  role              app_role not null default 'user',
   -- Verknüpfung in onOffice, z.B. "Lensinger, Eike (EL)"
   onoffice_user_id  text,
   onoffice_username text,
@@ -197,6 +197,15 @@ alter table public.task_notes
   add column if not exists onoffice_pushed_at timestamptz,
   add column if not exists onoffice_error     text;
 create index if not exists task_notes_task_idx on public.task_notes (task_id, created_at desc);
+
+-- Welche Rolle welchen Bereich im Menue sieht. Superadmin steht nicht
+-- drin: er sieht immer alles.
+create table if not exists public.rollen_bereiche (
+  role     app_role not null,
+  bereich  text not null,
+  sichtbar boolean not null default true,
+  primary key (role, bereich)
+);
 
 -- Benachrichtigungen im Tool (Chatsymbol). Getrennt von notifications_log,
 -- das die verschickten E-Mails protokolliert.
