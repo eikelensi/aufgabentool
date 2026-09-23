@@ -37,6 +37,14 @@ export const ROLLE_LABEL: Record<AppRole, string> = {
   user: "Mitarbeiter",
 };
 
+/** Eine Spalte des Asana-Boards. */
+export interface AsanaSpalte {
+  gid: string;
+  name: string;
+  sortOrder: number;
+  istPool: boolean;
+}
+
 /** Sichtbarkeit je Rolle und Bereich, wie sie in der Datenbank steht. */
 export type Bereichsrechte = Record<string, Record<string, boolean>>;
 
@@ -209,6 +217,10 @@ export interface Task {
   history: StatusHistoryEntry[];
   attachments: Attachment[];
   notes: TaskNote[];
+  /** In welchem Bereich die Aufgabe lebt. */
+  bereich: "task" | "asana";
+  asanaTaskGid?: string | null;
+  asanaSectionGid?: string | null;
   /**
    * Warum die Aufgabe zurueck in den Pool ging, und von wem. Bleibt
    * stehen, bis sie sich jemand zieht - wer sie uebernimmt, soll wissen,

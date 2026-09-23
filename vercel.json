@@ -12,6 +12,10 @@
     {
       "path": "/api/sync/anhaenge",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/sync/asana",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

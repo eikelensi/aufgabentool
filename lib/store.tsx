@@ -18,6 +18,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   aufgabeZurZeile,
   einstellungenZurZeile,
+  zuAsanaSpalte,
   zuAufgabe,
   zuBenachrichtigung,
   zuEinstellungen,
@@ -30,6 +31,7 @@ import {
 import { ALLOWED_EXTENSIONS } from "./data";
 import type {
   AppSettings,
+  AsanaSpalte,
   BrokerContact,
   Category,
   EmailTemplate,
@@ -43,6 +45,7 @@ import type {
 
 const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
+  bereich, asana_task_gid, asana_section_gid,
   broker_contact_id, onoffice_bearbeiter_id, is_pool, is_private, visible_from, due_date,
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
   onoffice_assignee, onoffice_responsible,
@@ -77,6 +80,10 @@ interface StoreValue {
   isAdmin: boolean;
 
   neuLaden: () => Promise<void>;
+
+  /** Der Bereich der Geschaeftsfuehrung: Spalten und Karten. */
+  asanaSpalten: AsanaSpalte[];
+  asanaTasks: Task[];
 
   /** Was diese Person im Chatsymbol sieht, neueste zuerst. */
   meldungen: Meldung[];
@@ -151,12 +158,13 @@ export function StoreProvider({
   const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
   const [settings, setSettings] = useState<AppSettings>(zuEinstellungen(null));
   const [meldungen, setMeldungen] = useState<Meldung[]>([]);
+  const [asanaSpalten, setAsanaSpalten] = useState<AsanaSpalte[]>([]);
 
   const neuLaden = useCallback(async () => {
     const sb = supabaseBrowser();
     setFehler(null);
 
-    const [a, p, k, ka, v, e, n, m] = await Promise.all([
+    const [a, p, k, ka, v, e, n, m, as] = await Promise.all([
       sb
         .from("tasks")
         .select(AUFGABE_SPALTEN)
@@ -177,6 +185,11 @@ export function StoreProvider({
         .select("id, task_id, note_id, kind, titel, text, created_at, read_at")
         .order("created_at", { ascending: false })
         .limit(100),
+      sb
+        .from("asana_sections")
+        .select("gid, name, sort_order, ist_pool")
+        .eq("sichtbar", true)
+        .order("sort_order"),
     ]);
 
     const ersterFehler = [a.error, p.error, k.error, ka.error, v.error, e.error].find(Boolean);
@@ -192,6 +205,7 @@ export function StoreProvider({
     if (n.data) setNotifications(n.data.map(zuBenachrichtigung));
     // Die Zeilen sind durch RLS schon auf die eigene Person begrenzt.
     if (m.data) setMeldungen(m.data.map(zuMeldung));
+    if (as.data) setAsanaSpalten(as.data.map(zuAsanaSpalte));
 
     setBereit(true);
   }, []);
@@ -309,6 +323,11 @@ export function StoreProvider({
 
     /** Tagesgeschaeft: sichtbar ab Startdatum, Erledigtes nur kurz. */
     const visibleTasks = tasks.filter((t) => {
+      // Der Bereich der Geschaeftsfuehrung hat sein eigenes Board. In
+      // den Listen des Tagesgeschaefts hat er nichts zu suchen -
+      // erst, wenn eine Aufgabe in den Pool abgegeben wurde, und dann
+      // steht ihr Bereich ohnehin wieder auf "task".
+      if (t.bereich === "asana") return false;
       if (t.visibleFrom > heute) return false;
       if (t.status === "erledigt" && t.completedAt) {
         return new Date(t.completedAt).getTime() > grenze;
@@ -939,6 +958,11 @@ export function StoreProvider({
       categoryById,
       brokerById,
       kollegeNachKuerzel,
+      // Die beiden Bereiche teilen sich eine Tabelle, aber keine
+      // Ansicht: eine Aufgabe der Geschaeftsfuehrung hat in "Mein Tag"
+      // nichts verloren, solange sie nicht abgegeben wurde.
+      asanaSpalten,
+      asanaTasks: tasks.filter((t) => t.bereich === "asana"),
       meldungen,
       ungelesen: meldungen.filter((m) => !m.readAt).length,
       addNote,
@@ -955,6 +979,7 @@ export function StoreProvider({
     templates,
     notifications,
     meldungen,
+    asanaSpalten,
     settings,
     profil,
     neuLaden,

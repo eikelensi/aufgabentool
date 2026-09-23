@@ -5,6 +5,7 @@
  */
 import type {
   AppSettings,
+  AsanaSpalte,
   Attachment,
   BrokerContact,
   Category,
@@ -84,6 +85,15 @@ export function zuAnhang(row: any): Attachment {
   };
 }
 
+export function zuAsanaSpalte(row: any): AsanaSpalte {
+  return {
+    gid: row.gid,
+    name: row.name,
+    sortOrder: row.sort_order ?? 100,
+    istPool: Boolean(row.ist_pool),
+  };
+}
+
 export function zuNotiz(row: any): TaskNote {
   return {
     id: row.id,
@@ -144,6 +154,9 @@ export function zuAufgabe(row: any): Task {
         note: h.note ?? undefined,
       }))
       .sort((a: any, b: any) => (a.at < b.at ? 1 : -1)),
+    bereich: row.bereich ?? "task",
+    asanaTaskGid: row.asana_task_gid ?? null,
+    asanaSectionGid: row.asana_section_gid ?? null,
     attachments: (row.task_attachments ?? []).map(zuAnhang),
     notes: (row.task_notes ?? [])
       .map(zuNotiz)
