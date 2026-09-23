@@ -302,6 +302,7 @@ create table if not exists public.app_settings (
   attachment_max_mb        integer not null default 25,   -- Obergrenze je Datei
   attachment_push_onoffice boolean not null default true, -- Anhänge nach onOffice spiegeln
   sync_push_inhalt         boolean not null default true, -- Betreff/Text/Frist/Prio zurückschreiben
+  sync_push_neu            boolean not null default true, -- neue Aufgaben in onOffice anlegen
   attachment_default_art   text    not null default 'Dokument',
   workday_start_hour       integer not null default 7,
   timezone                 text not null default 'Europe/Berlin',

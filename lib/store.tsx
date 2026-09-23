@@ -530,12 +530,35 @@ export function StoreProvider({
       };
 
       const { data, error } = await sb.from("tasks").insert(zeile).select("id").single();
-      await neuLaden();
 
       if (error) {
+        await neuLaden();
         setFehler(error.message);
         return null;
       }
+
+      // Gleich auch drueben anlegen. Sonst sucht der Bearbeiter die
+      // Aufgabe in onOffice und findet sie nicht - und beim naechsten
+      // Abgleich kaeme sie auch nicht von selbst, denn sie existiert
+      // dort ja gar nicht. Private Aufgaben lehnt die Route selbst ab.
+      if (data?.id && !input.isPrivate) {
+        try {
+          const res = await fetch("/api/onoffice/anlegen", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId: data.id }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.status === 207 && json?.meldung) setFehler(json.meldung);
+        } catch {
+          setFehler(
+            "Die Aufgabe ist angelegt, onOffice war aber gerade nicht erreichbar – " +
+              "dort fehlt sie noch.",
+          );
+        }
+      }
+
+      await neuLaden();
       return data?.id ?? null;
     }
 

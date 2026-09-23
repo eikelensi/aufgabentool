@@ -25,6 +25,7 @@ export interface Schalterstand {
   bearbeiter: boolean;
   status: boolean;
   inhalt: boolean;
+  anlegen: boolean;
 }
 
 const FELD = {
@@ -32,6 +33,7 @@ const FELD = {
   bearbeiter: "sync_push_assignee",
   status: "sync_push_status",
   inhalt: "sync_push_inhalt",
+  anlegen: "sync_push_neu",
 } as const;
 
 const KLARTEXT: Record<keyof typeof FELD, string> = {
@@ -39,6 +41,7 @@ const KLARTEXT: Record<keyof typeof FELD, string> = {
   bearbeiter: "Bearbeiter zurückschreiben",
   status: "Status zurückschreiben",
   inhalt: "Betreff, Text, Frist und Priorität zurückschreiben",
+  anlegen: "Neue Aufgaben in onOffice anlegen",
 };
 
 export async function schalterSetzen(

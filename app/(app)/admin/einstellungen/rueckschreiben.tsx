@@ -23,7 +23,10 @@ export default function Rueckschreiben({ stand }: { stand: Schalterstand }) {
 
   const gesperrt = stand.nurLesen;
 
-  const setze = (welcher: "nurLesen" | "bearbeiter" | "status" | "inhalt", an: boolean) =>
+  const setze = (
+    welcher: "nurLesen" | "bearbeiter" | "status" | "inhalt" | "anlegen",
+    an: boolean,
+  ) =>
     starte(async () => setErgebnis(await schalterSetzen(welcher, an)));
 
   return (
@@ -114,6 +117,25 @@ export default function Rueckschreiben({ stand }: { stand: Schalterstand }) {
               trotzdem nicht: bei diesen Feldern führt onOffice, der nächste
               Abgleich holt den alten Stand zurück. Entweder beides oder
               keines.
+            </span>
+          </span>
+        </label>
+
+        <label className="line flex items-start gap-2.5 rounded-md border p-2.5 text-xs">
+          <input
+            type="checkbox"
+            checked={stand.anlegen}
+            disabled={laeuft || gesperrt}
+            onChange={(e) => setze("anlegen", e.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span>
+            <strong>Neue Aufgaben anlegen.</strong> Was hier entsteht, entsteht
+            auch in onOffice – mit Bearbeiter und Verantwortung.
+            <span className="muted mt-1 block leading-relaxed">
+              Ohne das bleibt eine hier angelegte Aufgabe für immer unsichtbar
+              für alle, die in onOffice arbeiten. Private Aufgaben gehen nie
+              hinüber, egal wie dieser Haken steht.
             </span>
           </span>
         </label>
