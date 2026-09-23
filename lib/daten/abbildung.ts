@@ -9,10 +9,12 @@ import type {
   BrokerContact,
   Category,
   EmailTemplate,
+  Meldung,
   NotificationEntry,
   NotifyKind,
   Profile,
   Task,
+  TaskNote,
   TaskPriority,
   TaskStatus,
 } from "@/lib/types";
@@ -82,6 +84,31 @@ export function zuAnhang(row: any): Attachment {
   };
 }
 
+export function zuNotiz(row: any): TaskNote {
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    authorId: row.author_id,
+    body: row.body,
+    createdAt: row.created_at,
+    onofficePushedAt: row.onoffice_pushed_at ?? null,
+    onofficeError: row.onoffice_error ?? null,
+  };
+}
+
+export function zuMeldung(row: any): Meldung {
+  return {
+    id: row.id,
+    taskId: row.task_id ?? null,
+    noteId: row.note_id ?? null,
+    kind: row.kind,
+    titel: row.titel,
+    text: row.text ?? undefined,
+    createdAt: row.created_at,
+    readAt: row.read_at ?? null,
+  };
+}
+
 export function zuAufgabe(row: any): Task {
   return {
     id: row.id,
@@ -118,6 +145,9 @@ export function zuAufgabe(row: any): Task {
       }))
       .sort((a: any, b: any) => (a.at < b.at ? 1 : -1)),
     attachments: (row.task_attachments ?? []).map(zuAnhang),
+    notes: (row.task_notes ?? [])
+      .map(zuNotiz)
+      .sort((a: any, b: any) => (a.createdAt < b.createdAt ? -1 : 1)),
     poolGrund: row.pool_grund ?? null,
     poolZurueckAm: row.pool_zurueck_am ?? null,
     poolZurueckVon: row.pool_zurueck_von ?? null,

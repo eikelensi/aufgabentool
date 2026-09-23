@@ -78,6 +78,42 @@ export const SYNC_LABEL: Record<AttachmentSync, string> = {
   fehler: "Fehler",
 };
 
+/**
+ * Eine Notiz an einer Aufgabe.
+ *
+ * Frueher war das ein einzelnes Feld, das die naechste Notiz
+ * ueberschrieb. Jetzt ein Verlauf: wer eine Aufgabe zurueckgibt oder
+ * eine Rueckfrage stellt, soll den Faden nachlesen koennen.
+ */
+export interface TaskNote {
+  id: string;
+  taskId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  /** Wann die Notiz im Kommentarfeld der onOffice-Aufgabe landete. */
+  onofficePushedAt?: string | null;
+  onofficeError?: string | null;
+}
+
+/**
+ * Was im Chatsymbol auftaucht.
+ *
+ * Nicht zu verwechseln mit NotificationEntry: das ist das Protokoll der
+ * verschickten E-Mails. Hier geht es um das, was eine Person im Tool
+ * noch nicht gelesen hat.
+ */
+export interface Meldung {
+  id: string;
+  taskId: string | null;
+  noteId: string | null;
+  kind: string;
+  titel: string;
+  text?: string;
+  createdAt: string;
+  readAt: string | null;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -118,6 +154,7 @@ export interface Task {
   position: number | null;
   history: StatusHistoryEntry[];
   attachments: Attachment[];
+  notes: TaskNote[];
   /**
    * Warum die Aufgabe zurueck in den Pool ging, und von wem. Bleibt
    * stehen, bis sie sich jemand zieht - wer sie uebernimmt, soll wissen,

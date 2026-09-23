@@ -21,6 +21,7 @@ import {
   zuAufgabe,
   zuBenachrichtigung,
   zuEinstellungen,
+  zuMeldung,
   zuKategorie,
   zuKollege,
   zuProfil,
@@ -32,6 +33,7 @@ import type {
   BrokerContact,
   Category,
   EmailTemplate,
+  Meldung,
   NotificationEntry,
   NotifyKind,
   Profile,
@@ -49,7 +51,8 @@ const AUFGABE_SPALTEN = `
   escalation_7d_sent_at,
   task_status_history ( created_at, from_status, to_status, note, changed_by ),
   task_attachments ( id, file_name, mime_type, size_bytes, origin, uploaded_by,
-                     onoffice_file_id, sync_state, sync_error, created_at, storage_path )
+                     onoffice_file_id, sync_state, sync_error, created_at, storage_path ),
+  task_notes ( id, task_id, author_id, body, created_at, onoffice_pushed_at, onoffice_error )
 `;
 
 export interface Ergebnis {
@@ -74,6 +77,13 @@ interface StoreValue {
   isAdmin: boolean;
 
   neuLaden: () => Promise<void>;
+
+  /** Was diese Person im Chatsymbol sieht, neueste zuerst. */
+  meldungen: Meldung[];
+  ungelesen: number;
+  addNote: (taskId: string, body: string) => Promise<Ergebnis>;
+  meldungGelesen: (id: string) => Promise<void>;
+  alleMeldungenGelesen: () => Promise<void>;
 
   moveTask: (taskId: string, status: TaskStatus, note?: string) => Promise<Ergebnis>;
   claimTask: (taskId: string) => Promise<Ergebnis>;
@@ -140,12 +150,13 @@ export function StoreProvider({
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
   const [settings, setSettings] = useState<AppSettings>(zuEinstellungen(null));
+  const [meldungen, setMeldungen] = useState<Meldung[]>([]);
 
   const neuLaden = useCallback(async () => {
     const sb = supabaseBrowser();
     setFehler(null);
 
-    const [a, p, k, ka, v, e, n] = await Promise.all([
+    const [a, p, k, ka, v, e, n, m] = await Promise.all([
       sb
         .from("tasks")
         .select(AUFGABE_SPALTEN)
@@ -161,6 +172,11 @@ export function StoreProvider({
         .select("id, task_id, kind, recipient, recipient_name, subject, body, provider, status, dedupe_key, created_at, tasks ( title )")
         .order("created_at", { ascending: false })
         .limit(200),
+      sb
+        .from("notifications")
+        .select("id, task_id, note_id, kind, titel, text, created_at, read_at")
+        .order("created_at", { ascending: false })
+        .limit(100),
     ]);
 
     const ersterFehler = [a.error, p.error, k.error, ka.error, v.error, e.error].find(Boolean);
@@ -174,6 +190,8 @@ export function StoreProvider({
     if (e.data) setSettings(zuEinstellungen(e.data));
     // Das Protokoll sehen nur Admins - ein Fehler hier ist kein Problem.
     if (n.data) setNotifications(n.data.map(zuBenachrichtigung));
+    // Die Zeilen sind durch RLS schon auf die eigene Person begrenzt.
+    if (m.data) setMeldungen(m.data.map(zuMeldung));
 
     setBereit(true);
   }, []);
@@ -225,6 +243,41 @@ export function StoreProvider({
       clearInterval(takt);
     };
   }, [neuLaden]);
+
+  /**
+   * Sofort mitbekommen, wenn jemand etwas schreibt.
+   *
+   * Der Minutentakt oben reicht fuer Aufgaben, nicht fuer ein Gespraech:
+   * wer eine Rueckfrage stellt, wartet nicht eine Minute auf das rote
+   * Zeichen. Postgres meldet die neue Zeile selbst, gefiltert auf die
+   * eigene Person - wir haengen sie nur vorne an.
+   *
+   * Faellt die Verbindung aus, ist nichts verloren: der naechste
+   * Ladevorgang holt dieselben Zeilen.
+   */
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    const kanal = sb
+      .channel(`meldungen:${profil.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${profil.id}`,
+        },
+        (nachricht) => {
+          const neue = zuMeldung(nachricht.new);
+          setMeldungen((alt2) => (alt2.some((x) => x.id === neue.id) ? alt2 : [neue, ...alt2]));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void sb.removeChannel(kanal);
+    };
+  }, [profil.id]);
 
   const value = useMemo<StoreValue>(() => {
     const sb = supabaseBrowser();
@@ -564,6 +617,45 @@ export function StoreProvider({
       return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }
 
+    /**
+     * Eine Notiz an eine Aufgabe schreiben.
+     *
+     * Wer benachrichtigt wird, entscheidet die Datenbank: ein Trigger
+     * legt fuer Ersteller und Bearbeiter je eine Meldung an - nur nicht
+     * fuer den, der gerade schreibt. Im Browser waere das falsch
+     * aufgehoben, er duerfte gar keine Zeilen fuer andere anlegen.
+     */
+    async function addNote(taskId: string, body: string): Promise<Ergebnis> {
+      const text = body.trim();
+      if (!text) return { ok: false, error: "Eine leere Notiz hilft niemandem." };
+
+      const { error } = await sb
+        .from("task_notes")
+        .insert({ task_id: taskId, author_id: profil.id, body: text });
+
+      if (error) return { ok: false, error: error.message };
+
+      await neuLaden();
+      return { ok: true };
+    }
+
+    async function meldungGelesen(id: string): Promise<void> {
+      const jetzt = new Date().toISOString();
+      // Zuerst auf dem Bildschirm, dann in der Datenbank: der Zaehler
+      // soll beim Aufklappen sofort stimmen.
+      setMeldungen((alt2) => alt2.map((m) => (m.id === id ? { ...m, readAt: jetzt } : m)));
+      await sb.from("notifications").update({ read_at: jetzt }).eq("id", id);
+    }
+
+    async function alleMeldungenGelesen(): Promise<void> {
+      const jetzt = new Date().toISOString();
+      const offen = meldungen.filter((m) => !m.readAt).map((m) => m.id);
+      if (!offen.length) return;
+
+      setMeldungen((alt2) => alt2.map((m) => (m.readAt ? m : { ...m, readAt: jetzt })));
+      await sb.from("notifications").update({ read_at: jetzt }).in("id", offen);
+    }
+
     async function deleteTask(taskId: string): Promise<Ergebnis> {
       const { error } = await sb.from("tasks").delete().eq("id", taskId);
       await neuLaden();
@@ -824,6 +916,11 @@ export function StoreProvider({
       categoryById,
       brokerById,
       kollegeNachKuerzel,
+      meldungen,
+      ungelesen: meldungen.filter((m) => !m.readAt).length,
+      addNote,
+      meldungGelesen,
+      alleMeldungenGelesen,
     };
   }, [
     bereit,
@@ -834,6 +931,7 @@ export function StoreProvider({
     categories,
     templates,
     notifications,
+    meldungen,
     settings,
     profil,
     neuLaden,

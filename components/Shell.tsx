@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { NewTaskDialog } from "./dialogs";
+import Meldungen from "./Meldungen";
 import type { AppRole } from "@/lib/types";
 
 export interface ShellProfil {
@@ -231,6 +232,10 @@ export default function Shell({
       <main className="mx-auto max-w-[1500px] px-4 py-5">{children}</main>
 
       {newTask ? <NewTaskDialog onClose={() => setNewTask(false)} /> : null}
+
+      {/* Steht ueber allem und ist trotzdem still, solange nichts
+          anliegt. */}
+      <Meldungen />
     </div>
   );
 }

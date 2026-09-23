@@ -192,7 +192,27 @@ create table if not exists public.task_notes (
   is_status_note boolean not null default false,
   created_at  timestamptz not null default now()
 );
+-- Spiegelung ins Kommentarfeld der onOffice-Aufgabe
+alter table public.task_notes
+  add column if not exists onoffice_pushed_at timestamptz,
+  add column if not exists onoffice_error     text;
 create index if not exists task_notes_task_idx on public.task_notes (task_id, created_at desc);
+
+-- Benachrichtigungen im Tool (Chatsymbol). Getrennt von notifications_log,
+-- das die verschickten E-Mails protokolliert.
+create table if not exists public.notifications (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  task_id    uuid references public.tasks(id) on delete cascade,
+  note_id    uuid references public.task_notes(id) on delete cascade,
+  kind       text not null default 'notiz',
+  titel      text not null,
+  text       text,
+  created_at timestamptz not null default now(),
+  read_at    timestamptz
+);
+create index if not exists notifications_offen_idx
+  on public.notifications (user_id, created_at desc) where read_at is null;
 
 create table if not exists public.task_status_history (
   id          uuid primary key default gen_random_uuid(),

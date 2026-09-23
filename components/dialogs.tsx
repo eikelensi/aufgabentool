@@ -397,6 +397,108 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   );
 }
 
+/**
+ * Der Gespraechsfaden an einer Aufgabe.
+ *
+ * Bewusst wie ein Chat und nicht wie ein Formularfeld: eine Rueckfrage
+ * ist ein Wechsel, kein Eintrag. Wer schreibt, benachrichtigt damit
+ * Ersteller und Bearbeiter - das erledigt die Datenbank, nicht diese
+ * Ansicht.
+ *
+ * Eigene Notizen stehen rechts, fremde links. Das ist keine Spielerei:
+ * man sieht auf einen Blick, wer zuletzt am Zug war.
+ */
+function NotizFaden({ task }: { task: Task }) {
+  const { addNote, profileById, me } = useStore();
+  const [text, setText] = useState("");
+  const [laeuft, setLaeuft] = useState(false);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const senden = async () => {
+    if (!text.trim()) return;
+    setLaeuft(true);
+    const res = await addNote(task.id, text);
+    setLaeuft(false);
+    if (!res.ok) {
+      setFehler(res.error ?? "Die Notiz ließ sich nicht speichern.");
+      return;
+    }
+    setText("");
+    setFehler(null);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-baseline gap-2">
+        <h3 className="text-xs font-semibold">Notizen</h3>
+        <span className="muted text-[11px]">
+          {task.notes.length === 0
+            ? "noch keine"
+            : `${task.notes.length} ${task.notes.length === 1 ? "Eintrag" : "Einträge"}`}
+        </span>
+      </div>
+
+      {task.notes.length > 0 ? (
+        <ul className="flex max-h-[280px] flex-col gap-2 overflow-y-auto pr-1">
+          {task.notes.map((n) => {
+            const wer = profileById(n.authorId);
+            const eigene = n.authorId === me.id;
+            return (
+              <li
+                key={n.id}
+                className={`flex items-start gap-2 ${eigene ? "flex-row-reverse" : ""}`}
+              >
+                <Avatar profile={wer} size={24} />
+                <div
+                  className="line max-w-[80%] rounded-lg border px-2.5 py-1.5"
+                  style={{ background: eigene ? "var(--ok-bg)" : "var(--panel-2)" }}
+                >
+                  <div className="muted mb-0.5 flex flex-wrap gap-2 text-[10px]">
+                    <span className="font-semibold">{wer?.fullName ?? "Unbekannt"}</span>
+                    <span>{formatDateTime(n.createdAt)}</span>
+                  </div>
+                  <p className="text-xs leading-relaxed whitespace-pre-wrap">{n.body}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
+      <div className="flex items-end gap-2">
+        <textarea
+          className="field min-h-[60px] flex-1"
+          placeholder="Notiz schreiben – Ersteller und Bearbeiter bekommen sie angezeigt"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter schickt ab, Umschalt+Enter macht einen Absatz. So
+            // schreibt man in jedem Chat, und so erwartet man es hier.
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void senden();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={senden}
+          disabled={laeuft || !text.trim()}
+        >
+          {laeuft ? "…" : "Senden"}
+        </button>
+      </div>
+
+      {fehler ? (
+        <p className="text-[11px]" style={{ color: "var(--err-fg)" }}>
+          {fehler}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Aufgabendetail mit Statushistorie                                   */
 /* ------------------------------------------------------------------ */
@@ -905,6 +1007,10 @@ export function TaskDetailDialog({
 
       <div className="mb-4">
         <AttachmentSection task={task} />
+      </div>
+
+      <div className="mb-4">
+        <NotizFaden task={task} />
       </div>
 
       <h3 className="mb-2 text-xs font-semibold">Statushistorie</h3>
