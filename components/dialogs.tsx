@@ -408,7 +408,7 @@ export function TaskDetailDialog({
   onClose: () => void;
 }) {
   const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, isAdmin,
-    updateTask, profiles, brokers, tasks } = useStore();
+    updateTask, profiles, brokers, categories, tasks } = useStore();
   const [noteFor, setNoteFor] = useState(false);
   const [poolFor, setPoolFor] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
@@ -695,7 +695,35 @@ export function TaskDetailDialog({
           Bewusst NICHT auf Admins begrenzt: wer an einer Aufgabe
           arbeitet, weiss am besten, fuer wen - und muss das eintragen
           koennen, ohne zu fragen. */}
-      <div className="mb-4">
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        {/* Die Kategorie gehoert hierher und nicht nur ins Anlegen-Fenster:
+            fast jede Aufgabe kommt aus onOffice und wird gar nicht hier
+            angelegt. Ohne dieses Feld liesse sich der groesste Teil des
+            Bestands nie einordnen.
+
+            Rein lokal - onOffice kennt keine Kategorien und
+            ueberschreibt sie beim Abgleich deshalb auch nicht. */}
+        <Field
+          label="Kategorie"
+          hint="Nur im Tool. Sortiert die Übersicht und wird von onOffice nicht überschrieben."
+        >
+          <select
+            className="field"
+            value={task.categoryId ?? ""}
+            onChange={(e) => updateTask(task.id, { categoryId: e.target.value || null })}
+          >
+            <option value="">– keine –</option>
+            {categories
+              .filter((c) => c.isActive || c.id === task.categoryId)
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+          </select>
+        </Field>
+
         <Field
           label="Auftrag von (Makler)"
           hint="Wer die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Geht nicht nach onOffice – Makler arbeiten nicht im Tool."
