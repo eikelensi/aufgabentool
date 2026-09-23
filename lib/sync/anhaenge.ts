@@ -22,6 +22,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
 import { dateiWegBekannt, ladeDatei, pushFileToTask } from "@/lib/onoffice/files";
 import { taskFileIds } from "@/lib/onoffice/relations";
+import { readTaskFieldNames } from "@/lib/onoffice/tasks";
 
 /** Wie viele Dateien ein Lauf hoechstens hoch- bzw. herunterlaedt. */
 const PRO_LAUF_HIN = 10;
@@ -298,6 +299,44 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
   }
 }
 
+/**
+ * Einmal nachsehen, welche Felder eine Aufgabe in diesem Mandanten hat.
+ *
+ * Vorbereitung fuer die Notizen: die Doku kennt ein Feld "Kommentar",
+ * ob es hier eingerichtet ist, sagt sie nicht. Das Ergebnis steht danach
+ * im Protokoll und die Abfrage wiederholt sich nicht - sie haengt nur
+ * mit im Dateijob, weil der ohnehin alle fuenf Minuten laeuft.
+ */
+async function einmaligFelderNotieren(): Promise<void> {
+  const sb = supabaseAdmin();
+
+  const { data: schon } = await sb
+    .from("onoffice_sync_log")
+    .select("id")
+    .eq("resource", "fields")
+    .limit(1);
+
+  if (schon?.length) return;
+
+  try {
+    const felder = await readTaskFieldNames();
+    await sb.from("onoffice_sync_log").insert({
+      direction: "pull",
+      resource: "fields",
+      ok: true,
+      message: `${felder.length} Felder am Modul Aufgabe`,
+      payload: { felder },
+    });
+  } catch (err) {
+    await sb.from("onoffice_sync_log").insert({
+      direction: "pull",
+      resource: "fields",
+      ok: false,
+      message: `Feldliste nicht lesbar: ${(err as Error).message}`,
+    });
+  }
+}
+
 /** Beide Richtungen, mit Protokolleintrag. */
 export async function syncAnhaenge(): Promise<AnhangErgebnis> {
   const ergebnis = leer();
@@ -309,6 +348,7 @@ export async function syncAnhaenge(): Promise<AnhangErgebnis> {
 
   await spiegleHin(ergebnis);
   await holeZurueck(ergebnis);
+  await einmaligFelderNotieren();
 
   const teile = [
     `${ergebnis.hochgeladen} nach onOffice`,

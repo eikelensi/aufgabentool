@@ -256,3 +256,33 @@ export async function modifyTask(
     parameters: { data: fields },
   });
 }
+
+/**
+ * Welche Felder hat eine Aufgabe in DIESEM Mandanten?
+ *
+ * Die Dokumentation nennt unter anderem "Kommentar". Ob ein Feld im
+ * Mandanten wirklich eingerichtet ist, sagt sie nicht - und genau daran
+ * ist frueher schon eine Annahme gescheitert. Also fragen statt raten.
+ */
+export async function readTaskFieldNames(): Promise<string[]> {
+  const res = await call({
+    action: "get",
+    resourceType: "fields",
+    resourceId: "",
+    parameters: { labels: true, language: "DEU", modules: ["task"] },
+  });
+
+  const namen = new Set<string>();
+  for (const record of res.records as OnOfficeRecord[]) {
+    for (const [schluessel, wert] of Object.entries(elements(record))) {
+      // Die Antwort ist nach Modul gruppiert; die Feldnamen sind die
+      // Schluessel der inneren Objekte.
+      if (wert && typeof wert === "object" && !Array.isArray(wert)) {
+        for (const feld of Object.keys(wert as Record<string, unknown>)) namen.add(feld);
+      } else if (schluessel !== "modul" && schluessel !== "module") {
+        namen.add(schluessel);
+      }
+    }
+  }
+  return [...namen].sort();
+}
