@@ -23,11 +23,12 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
 
-export type Anlass = "bearbeiter" | "status";
+export type Anlass = "bearbeiter" | "status" | "inhalt";
 
 const SCHALTER: Record<Anlass, string> = {
   bearbeiter: "sync_push_assignee",
   status: "sync_push_status",
+  inhalt: "sync_push_inhalt",
 };
 
 export interface Sperre {
@@ -49,7 +50,7 @@ export async function pruefeSchreibsperre(anlass: Anlass): Promise<Sperre> {
   // Stelle keine gute Idee.
   const { data, error } = await sb
     .from("app_settings")
-    .select("sync_read_only, sync_push_assignee, sync_push_status")
+    .select("sync_read_only, sync_push_assignee, sync_push_status, sync_push_inhalt")
     .maybeSingle();
 
   if (error || !data) {
@@ -78,7 +79,9 @@ export async function pruefeSchreibsperre(anlass: Anlass): Promise<Sperre> {
       grund:
         anlass === "status"
           ? "Statuswechsel werden derzeit nicht nach onOffice übertragen."
-          : "Das Eintragen des Bearbeiters ist derzeit abgeschaltet.",
+          : anlass === "inhalt"
+            ? "Änderungen an Betreff, Text, Frist und Priorität werden derzeit nicht nach onOffice übertragen."
+            : "Das Eintragen des Bearbeiters ist derzeit abgeschaltet.",
     };
   }
 

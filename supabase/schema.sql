@@ -281,6 +281,7 @@ create table if not exists public.app_settings (
   done_hide_after_hours    integer not null default 24,   -- Ausblendfrist erledigter Aufgaben
   attachment_max_mb        integer not null default 25,   -- Obergrenze je Datei
   attachment_push_onoffice boolean not null default true, -- Anhänge nach onOffice spiegeln
+  sync_push_inhalt         boolean not null default true, -- Betreff/Text/Frist/Prio zurückschreiben
   attachment_default_art   text    not null default 'Dokument',
   workday_start_hour       integer not null default 7,
   timezone                 text not null default 'Europe/Berlin',

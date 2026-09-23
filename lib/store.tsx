@@ -524,6 +524,42 @@ export function StoreProvider({
         }
       }
 
+      // Betreff, Text, Frist und Prioritaet fuehrt onOffice. Wer sie nur
+      // hier aendert, sieht die Aenderung fuenf Minuten lang - dann holt
+      // der Abgleich den alten Stand zurueck. Also gleich mitschreiben.
+      const inhaltFelder: string[] = [];
+      if (patch.title !== undefined && patch.title !== vorher?.title) {
+        inhaltFelder.push("titel");
+      }
+      if (
+        patch.description !== undefined &&
+        (patch.description ?? "") !== (vorher?.description ?? "")
+      ) {
+        inhaltFelder.push("beschreibung");
+      }
+      if (patch.dueDate !== undefined && (patch.dueDate ?? null) !== (vorher?.dueDate ?? null)) {
+        inhaltFelder.push("faelligkeit");
+      }
+      if (patch.priority !== undefined && patch.priority !== vorher?.priority) {
+        inhaltFelder.push("prioritaet");
+      }
+
+      if (inhaltFelder.length && vorher?.onofficeTaskId) {
+        try {
+          const res = await fetch("/api/onoffice/aufgabe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId, felder: inhaltFelder }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.status === 207 && json?.meldung) hinweis = json.meldung;
+        } catch {
+          hinweis =
+            "Die Änderung steht im Tool, onOffice war aber gerade nicht erreichbar – " +
+            "dort gilt weiter der alte Stand.";
+        }
+      }
+
       await neuLaden();
       return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }

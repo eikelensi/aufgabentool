@@ -26,7 +26,7 @@ export default async function EinstellungenSeite() {
     ladeAnbindung(),
     sb
       .from("app_settings")
-      .select("sync_read_only, sync_push_assignee, sync_push_status")
+      .select("sync_read_only, sync_push_assignee, sync_push_status, sync_push_inhalt")
       .maybeSingle(),
   ]);
 
@@ -40,6 +40,7 @@ export default async function EinstellungenSeite() {
           nurLesen: schalter?.sync_read_only !== false,
           bearbeiter: schalter?.sync_push_assignee === true,
           status: schalter?.sync_push_status === true,
+          inhalt: schalter?.sync_push_inhalt === true,
         }}
       />
       <EinstellungenFormular anbindung={anbindung} />

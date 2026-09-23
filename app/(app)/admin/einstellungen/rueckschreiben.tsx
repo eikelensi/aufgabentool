@@ -23,7 +23,7 @@ export default function Rueckschreiben({ stand }: { stand: Schalterstand }) {
 
   const gesperrt = stand.nurLesen;
 
-  const setze = (welcher: "nurLesen" | "bearbeiter" | "status", an: boolean) =>
+  const setze = (welcher: "nurLesen" | "bearbeiter" | "status" | "inhalt", an: boolean) =>
     starte(async () => setErgebnis(await schalterSetzen(welcher, an)));
 
   return (
@@ -93,6 +93,27 @@ export default function Rueckschreiben({ stand }: { stand: Schalterstand }) {
               Übertragen wird deshalb nur, wenn sich der Status in unseren
               Begriffen wirklich geändert hat – eine zurückgestellte Aufgabe
               wird nicht stillschweigend auf „Nicht begonnen“ zurückgesetzt.
+            </span>
+          </span>
+        </label>
+
+        <label className="line flex items-start gap-2.5 rounded-md border p-2.5 text-xs">
+          <input
+            type="checkbox"
+            checked={stand.inhalt}
+            disabled={laeuft || gesperrt}
+            onChange={(e) => setze("inhalt", e.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span>
+            <strong>Betreff, Text, Frist und Priorität übertragen.</strong> Wer
+            eine Aufgabe im Tool bearbeitet, ändert sie damit auch in onOffice.
+            <span className="muted mt-1 block leading-relaxed">
+              Der tiefste der drei Eingriffe – hier wird der Inhalt eines
+              fremden Datensatzes überschrieben. Ohne ihn hält eine Bearbeitung
+              trotzdem nicht: bei diesen Feldern führt onOffice, der nächste
+              Abgleich holt den alten Stand zurück. Entweder beides oder
+              keines.
             </span>
           </span>
         </label>

@@ -414,6 +414,18 @@ export function TaskDetailDialog({
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
 
+  // Bearbeiten ist ein eigener Zustand, kein dauerhaft offenes Formular:
+  // die Aufgabe wird hundertmal gelesen und einmal geaendert. Wer liest,
+  // soll Text sehen und keine Eingabefelder.
+  const [bearbeitet, setBearbeitet] = useState(false);
+  const [entwurf, setEntwurf] = useState({
+    title: "",
+    description: "",
+    dueDate: "",
+    visibleFrom: "",
+    priority: "normal" as TaskPriority,
+  });
+
   // Immer den aktuellen Stand aus dem Store zeigen, damit neu hochgeladene
   // Dateien sofort in der Liste stehen.
   const task = tasks.find((t) => t.id === taskProp.id) ?? taskProp;
@@ -451,6 +463,64 @@ export function TaskDetailDialog({
   };
 
 
+  const beginneBearbeitung = () => {
+    setFehler(null);
+    setEntwurf({
+      title: task.title,
+      description: task.description ?? "",
+      dueDate: task.dueDate ?? "",
+      visibleFrom: task.visibleFrom ?? "",
+      priority: task.priority,
+    });
+    setBearbeitet(true);
+  };
+
+  /**
+   * Speichern schickt nur, was sich wirklich geaendert hat.
+   *
+   * Nicht aus Sparsamkeit: jedes Feld, das mitgeschickt wird, landet
+   * auch in onOffice. Wer nur den Text korrigiert, soll dort nicht
+   * nebenbei die Frist neu setzen.
+   */
+  const speichere = async () => {
+    const titel = entwurf.title.trim();
+    if (!titel) {
+      setFehler("Ohne Betreff geht es nicht – das Feld ist auch in onOffice Pflicht.");
+      return;
+    }
+
+    const patch: Partial<Task> = {};
+    if (titel !== task.title) patch.title = titel;
+    if (entwurf.description.trim() !== (task.description ?? "")) {
+      patch.description = entwurf.description.trim() || undefined;
+    }
+    if ((entwurf.dueDate || null) !== (task.dueDate ?? null)) {
+      patch.dueDate = entwurf.dueDate || null;
+    }
+    if ((entwurf.visibleFrom || null) !== (task.visibleFrom ?? null)) {
+      patch.visibleFrom = entwurf.visibleFrom || undefined;
+    }
+    if (entwurf.priority !== task.priority) patch.priority = entwurf.priority;
+
+    if (Object.keys(patch).length === 0) {
+      setBearbeitet(false);
+      return;
+    }
+
+    setLaeuft(true);
+    const res = await updateTask(task.id, patch);
+    setLaeuft(false);
+
+    // ok mit Text heisst: hier gespeichert, drueben nicht angekommen.
+    // Das Fenster bleibt offen, damit der Satz gelesen wird.
+    if (!res.ok) {
+      setFehler(res.error ?? "Die Änderung ließ sich nicht speichern.");
+      return;
+    }
+    setBearbeitet(false);
+    setFehler(res.error ?? null);
+  };
+
   if (noteFor) return <NoteDialog task={task} onClose={onClose} />;
   if (poolFor) return <PoolDialog task={task} onClose={onClose} />;
 
@@ -475,6 +545,12 @@ export function TaskDetailDialog({
             Quelle: {task.source === "email" ? "E-Mail" : task.source === "qm" ? "QM" : "onOffice"}
           </span>
         ) : null}
+
+        {!bearbeitet ? (
+          <button type="button" className="btn ml-auto" onClick={beginneBearbeitung}>
+            ✎ Bearbeiten
+          </button>
+        ) : null}
       </div>
 
       {/* Betreff und Beschreibung standen vorher beide ohne
@@ -486,6 +562,89 @@ export function TaskDetailDialog({
           benannt, wie die Felder in onOffice heissen. Den Betreff noch
           einmal gross zu wiederholen waere doppelt gewesen - die
           Beschriftung allein macht schon klar, was man liest. */}
+      {bearbeitet ? (
+        <div className="mb-4 space-y-3">
+          <Field label="Betreff *">
+            <input
+              className="field"
+              value={entwurf.title}
+              autoFocus
+              onChange={(e) => setEntwurf((v) => ({ ...v, title: e.target.value }))}
+            />
+          </Field>
+
+          <Field label="Aufgabenbeschreibung">
+            <textarea
+              className="field min-h-[120px]"
+              value={entwurf.description}
+              onChange={(e) => setEntwurf((v) => ({ ...v, description: e.target.value }))}
+            />
+          </Field>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Priorität">
+              <select
+                className="field"
+                value={entwurf.priority}
+                onChange={(e) =>
+                  setEntwurf((v) => ({ ...v, priority: e.target.value as TaskPriority }))
+                }
+              >
+                <option value="hoch">Hoch</option>
+                <option value="normal">Normal</option>
+                <option value="niedrig">Niedrig</option>
+              </select>
+            </Field>
+
+            <Field label="Fälligkeit">
+              <input
+                type="date"
+                className="field"
+                value={entwurf.dueDate}
+                onChange={(e) => setEntwurf((v) => ({ ...v, dueDate: e.target.value }))}
+              />
+            </Field>
+
+            <Field label="Sichtbar ab" hint="Nur im Tool.">
+              <input
+                type="date"
+                className="field"
+                value={entwurf.visibleFrom}
+                onChange={(e) => setEntwurf((v) => ({ ...v, visibleFrom: e.target.value }))}
+              />
+            </Field>
+          </div>
+
+          {/* Gesagt werden muss es, bevor jemand tippt: bei diesen
+              Feldern fuehrt onOffice, die Aenderung geht also dorthin
+              zurueck. Wer das nicht weiss, korrigiert hier einen
+              Betreff und aendert ungewollt den im CRM. */}
+          {task.onofficeTaskId ? (
+            <p className="muted text-[11px] leading-relaxed">
+              Betreff, Beschreibung, Priorität und Fälligkeit werden auch in der
+              onOffice-Aufgabe {task.onofficeTaskId} geändert – dort führen diese Felder.
+              „Sichtbar ab“ und die Kategorie bleiben hier.
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn btn-primary" onClick={speichere} disabled={laeuft}>
+              {laeuft ? "Speichert…" : "Speichern"}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setBearbeitet(false);
+                setFehler(null);
+              }}
+              disabled={laeuft}
+            >
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="mb-4 space-y-3">
         <div>
           <h3 className="muted mb-1 text-[11px] font-semibold tracking-wide uppercase">
@@ -517,6 +676,7 @@ export function TaskDetailDialog({
           )}
         </div>
       </div>
+      )}
 
       <dl className="mb-4 grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
         <Row label="Bearbeiter">

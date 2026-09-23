@@ -24,18 +24,21 @@ export interface Schalterstand {
   nurLesen: boolean;
   bearbeiter: boolean;
   status: boolean;
+  inhalt: boolean;
 }
 
 const FELD = {
   nurLesen: "sync_read_only",
   bearbeiter: "sync_push_assignee",
   status: "sync_push_status",
+  inhalt: "sync_push_inhalt",
 } as const;
 
 const KLARTEXT: Record<keyof typeof FELD, string> = {
   nurLesen: "Hauptschalter „nur lesen“",
   bearbeiter: "Bearbeiter zurückschreiben",
   status: "Status zurückschreiben",
+  inhalt: "Betreff, Text, Frist und Priorität zurückschreiben",
 };
 
 export async function schalterSetzen(
