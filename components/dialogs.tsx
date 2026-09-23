@@ -184,7 +184,10 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   const { createTask, addAttachments, categories, profiles, brokers, isAdmin, me } = useStore();
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [description, setDescription] = useState(prefill?.description ?? "");
-  const [categoryId, setCategoryId] = useState<string>(categories[0]?.id ?? "");
+  // Bewusst leer, nicht die erste Kategorie: eine Vorauswahl, die niemand
+  // getroffen hat, wird uebersehen und mitgespeichert. Dann steht an der
+  // Aufgabe "Social Media", weil das oben in der Liste stand.
+  const [categoryId, setCategoryId] = useState<string>("");
   const [priority, setPriority] = useState<TaskPriority>("normal");
   const [assignee, setAssignee] = useState<string>(isAdmin ? "__pool" : `p:${me.id}`);
   const [brokerContactId, setBroker] = useState<string>("");
