@@ -1,16 +1,28 @@
 /**
  * Notizen nach onOffice bringen.
  *
- * Der geplante Weg war das Feld "Kommentar" - die Dokumentation kennt
- * es. Die Feldabfrage im Mandanten der 4waendekanzlei kennt es nicht:
- * zweiundzwanzig Felder, kein Kommentar. Bleibt das einzige Textfeld,
- * das eine Aufgabe dort hat: "Aufgabe", also die Beschreibung.
+ * Zwei Wege, und der erste ist der richtige:
  *
- * Damit sich beides vertraegt, bekommt der Notizteil eine Marke. Was
- * darunter steht, gehoert dem Tool; was darueber steht, ist die
- * Beschreibung und wird beim Abgleich zurueckgelesen. Ohne diese
- * Trennung waeren die Notizen beim naechsten Lauf Teil der
- * Beschreibung - und beim uebernaechsten doppelt.
+ *  1. Das Feld "Kommentar". In der Oberflaeche ist das der
+ *     Kommentarstrang unter der Aufgabe - dort, wo "Schreibe einen
+ *     Kommentar" steht. Die Feldkonfiguration des Mandanten fuehrt es
+ *     nicht auf (zweiundzwanzig Felder, kein Kommentar), die
+ *     Dokumentation zu "Modify Tasks" dagegen schon. Ein Feld, das
+ *     nicht in der Konfiguration steht, kann trotzdem schreibbar sein:
+ *     es ist kein Datensatzfeld, sondern ein Strang. Also probieren
+ *     wir es - und schreiben dabei nur die NEUE Notiz, denn ein Strang
+ *     haengt an, er wird nicht ersetzt.
+ *
+ *  2. Nimmt der Mandant das Feld nicht, bleibt das einzige Textfeld
+ *     einer Aufgabe: "Aufgabe", also die Beschreibung. Dort haengt der
+ *     ganze Verlauf unter einer Marke. Was darunter steht, gehoert dem
+ *     Tool; was darueber steht, ist die Beschreibung und wird beim
+ *     Abgleich zurueckgelesen. Ohne diese Trennung waeren die Notizen
+ *     beim naechsten Lauf Teil der Beschreibung - und beim
+ *     uebernaechsten doppelt.
+ *
+ * Welcher Weg trug, merkt sich der Prozess: ein Fehlversuch je Notiz
+ * reicht.
  */
 
 import { modifyTask } from "./tasks";
@@ -50,6 +62,12 @@ export interface NotizErgebnis {
  * Robustere - wer drueben im Text herumeditiert, bekommt beim
  * naechsten Mal wieder den vollstaendigen Stand.
  */
+/**
+ * Ob der Kommentarstrang in diesem Mandanten beschreibbar ist.
+ * null = noch nicht ausprobiert.
+ */
+let kommentarGeht: boolean | null = null;
+
 export async function schreibeNotizen(taskId: string): Promise<NotizErgebnis> {
   const sb = supabaseAdmin();
 
@@ -83,6 +101,48 @@ export async function schreibeNotizen(taskId: string): Promise<NotizErgebnis> {
     const wer = (n.profiles as unknown as { full_name?: string } | null)?.full_name ?? "Unbekannt";
     return `[${datum(n.created_at)} · ${wer}]\n${String(n.body).trim()}`;
   });
+
+  // Weg 1: der Kommentarstrang. Nur die neueste Notiz - alles andere
+  // steht dort schon.
+  if (kommentarGeht !== false) {
+    const neueste = notizen[notizen.length - 1];
+    const wer =
+      (neueste.profiles as unknown as { full_name?: string } | null)?.full_name ?? "Unbekannt";
+
+    try {
+      await modifyTask(aufgabe.onoffice_task_id, {
+        Kommentar: `${String(neueste.body).trim()}\n\n— ${wer}, ${datum(neueste.created_at)} (Aufgabentool)`,
+      });
+
+      kommentarGeht = true;
+
+      await sb
+        .from("task_notes")
+        .update({ onoffice_pushed_at: new Date().toISOString(), onoffice_error: null })
+        .eq("task_id", taskId)
+        .is("onoffice_pushed_at", null);
+
+      await sb.from("onoffice_sync_log").insert({
+        direction: "push",
+        resource: "task",
+        reference: aufgabe.onoffice_task_id,
+        ok: true,
+        message: `Notiz als Kommentar hinterlegt: ${aufgabe.title}`,
+      });
+
+      return { uebertragen: true, meldung: "Als Kommentar in onOffice hinterlegt." };
+    } catch (err) {
+      // Einmal reicht: ab jetzt gleich der zweite Weg.
+      kommentarGeht = false;
+      await sb.from("onoffice_sync_log").insert({
+        direction: "push",
+        resource: "task",
+        reference: aufgabe.onoffice_task_id,
+        ok: false,
+        message: `Kommentarfeld nicht beschreibbar, weiche auf die Beschreibung aus: ${(err as Error).message}`,
+      });
+    }
+  }
 
   const text = `${ohneNotizen(aufgabe.description)}\n\n${NOTIZ_MARKE}\n${zeilen.join("\n\n")}`.trim();
 

@@ -110,28 +110,67 @@ export function istAbgeschlossen(onofficeStatus: unknown): boolean {
 }
 
 /**
- * Prio: in onOffice ist 1 die hoechste Stufe. Alles bis einschliesslich
- * der Schwelle gilt bei uns als "Hoch", darueber als "Normal".
+ * Prio: in onOffice ist 1 die hoechste Stufe.
+ *
+ * Aus der Oberflaeche abgelesen (24.09.2026): 1 hoechste, 2 hoch,
+ * 3 normal, 4 niedrig, 5 niedrigste. Alles bis einschliesslich der
+ * Schwelle gilt bei uns als "Hoch", darueber als "Normal" - die
+ * Schwelle liegt deshalb bei 2 und nicht bei 1: was drueben "hoch"
+ * heisst, soll hier nicht als normal ankommen.
  */
 export function toOurPriority(onofficePrio: unknown): TaskPriority {
-  const threshold = Number(process.env.ONOFFICE_PRIO_HOCH_BIS ?? "1");
+  const threshold = Number(process.env.ONOFFICE_PRIO_HOCH_BIS ?? "2");
   const prio = Number(onofficePrio);
   if (!Number.isFinite(prio) || prio === 0) return "normal";
   return prio <= threshold ? "hoch" : "normal";
 }
 
 export function toOnofficePriority(priority: TaskPriority): string {
+  // Das Tool kennt nur hoch und normal - drueben gibt es fuenf Stufen.
+  // Wir treffen die beiden, die gemeint sind, und lassen die uebrigen
+  // in Ruhe.
   return priority === "hoch"
-    ? (process.env.ONOFFICE_PRIO_HOCH_BIS ?? "1")
+    ? (process.env.ONOFFICE_PRIO_HOCH ?? "2")
     : (process.env.ONOFFICE_PRIO_NORMAL ?? "3");
 }
+
+/**
+ * Die Aufgabenarten dieses Mandanten, aus der Oberflaeche abgelesen
+ * (24.09.2026). onOffice verlangt beim Anlegen eine Zahl; welche es
+ * gibt, sagt weder die Doku noch die Feldkonfiguration.
+ *
+ * Ein Teil davon deckt sich mit den Kategorien des Tools - "360 Grad
+ * Tour", "Titelbild erstellen". Daraus liesse sich eine Zuordnung
+ * bauen, damit eine Aufgabe drueben nicht pauschal als To Do landet.
+ */
+export const ONOFFICE_AUFGABENARTEN: Record<string, string> = {
+  "167": "To Do",
+  "249": "Rückrufwunsch",
+  "279": "Löschauftrag",
+  "281": "Unterlagen anfordern",
+  "283": "Anrufen",
+  "285": "Termin vereinbaren",
+  "333": "360 Grad Tour versenden",
+  "335": "Kundendaten anlegen",
+  "337": "Titelbild erstellen",
+  "339": "Unterlagen verarbeiten",
+  "341": "Erinnerung (WV)",
+  "345": "Rückruf",
+  "417": "Personalthemen",
+  "441": "Akquise",
+  "651": "Video / Foto Auftrag",
+  "657": "Teamboard",
+};
 
 /**
  * Felder, die wir beim Lesen anfordern. Einzeln gegen den Mandanten
  * getestet (scripts/feldtest.mjs, 16.09.2026): diese 18 nimmt die
  * Leseabfrage an. ABGELEHNT werden "Nr", "newValue", "hochgeladenAm" und
  * "tags" - sie stehen in der Feldkonfiguration, nicht aber im data-Block.
- * "Kommentar" existiert im Mandanten gar nicht.
+ * "Kommentar" steht nicht in der Feldkonfiguration - beim SCHREIBEN
+ * nimmt die Schnittstelle es laut Doku trotzdem an: es ist der
+ * Kommentarstrang der Oberflaeche, kein Datensatzfeld. Siehe
+ * lib/onoffice/notizen.ts.
  */
 export const TASK_FIELDS = [
   "Betreff",
