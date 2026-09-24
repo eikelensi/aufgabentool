@@ -319,13 +319,21 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     return ergebnis;
   }
 
-  // completed_since=now liefert die offenen Aufgaben plus das, was
-  // gerade fertig wurde. Alles andere ist Vergangenheit.
+  // completed_since grenzt ein, wie weit zurueck Erledigtes mitkommt -
+  // offene Aufgaben kommen immer.
+  //
+  // "now" waere zu scharf: eine Karte, die vor zehn Minuten in Asana
+  // abgehakt wurde, faellt dann aus dem Abruf, und das Tool erfaehrt
+  // nie, dass sie fertig ist. Vierzehn Tage sind weit genug, um jedes
+  // Abhaken mitzubekommen, und eng genug, um die
+  // zweihundertneunundsechzig Altlasten drueben zu lassen.
+  const seit = new Date(Date.now() - 14 * 864e5).toISOString();
+
   let aufgaben: AsanaAufgabe[] = [];
   try {
     aufgaben = await rufAlle<AsanaAufgabe>(`/projects/${projektGid()}/tasks`, {
       opt_fields: AUFGABEN_FELDER,
-      completed_since: "now",
+      completed_since: seit,
     });
   } catch (err) {
     ergebnis.fehler.push(`Abruf aus Asana fehlgeschlagen: ${(err as Error).message}`);
@@ -338,12 +346,12 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
   const gids = aufgaben.map((a) => a.gid);
   const bekannt = new Map<
     string,
-    { id: string; asana_modified_at: string | null; bereich: string }
+    { id: string; asana_modified_at: string | null; bereich: string; status: string; is_pool: boolean }
   >();
   if (gids.length) {
     const { data } = await sb
       .from("tasks")
-      .select("id, asana_task_gid, asana_modified_at, bereich")
+      .select("id, asana_task_gid, asana_modified_at, bereich, status, is_pool")
       .in("asana_task_gid", gids);
     for (const t of data ?? []) {
       if (t.asana_task_gid) {
@@ -351,6 +359,8 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
           id: t.id,
           asana_modified_at: t.asana_modified_at,
           bereich: t.bereich,
+          status: t.status,
+          is_pool: Boolean(t.is_pool),
         });
       }
     }
@@ -383,7 +393,33 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     // Abgleich sie nicht mehr an - sonst zoege er sie dem Kollegen,
     // der sie sich gerade gezogen hat, wieder aus der Hand.
     if (vorhanden?.bereich === "task") {
-      // Eine Ausnahme: die Kommentare holen wir weiter. Wer in Asana
+      // Zwei Ausnahmen. Die erste: Erledigt gilt ueberall.
+      //
+      // Wird die Karte in Asana abgehakt - egal ob in der Pool-Spalte
+      // oder woanders -, ist die Arbeit erledigt. Dann darf die
+      // Aufgabe nicht weiter im Aufgabenpool liegen und jemanden
+      // einladen, sie sich zu ziehen. Also raus aus dem Pool und
+      // abgehakt.
+      if (aufgabe.completed && vorhanden.status !== "erledigt") {
+        try {
+          const { error } = await sb
+            .from("tasks")
+            .update({
+              status: "erledigt",
+              is_pool: false,
+              completed_at: aufgabe.completed_at ?? new Date().toISOString(),
+              asana_modified_at: aufgabe.modified_at ?? null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", vorhanden.id);
+          if (error) throw new Error(error.message);
+          ergebnis.aktualisiert++;
+        } catch (err) {
+          ergebnis.fehler.push(`Abhaken von ${aufgabe.name}: ${(err as Error).message}`);
+        }
+      }
+
+      // Die zweite: die Kommentare holen wir weiter. Wer in Asana
       // etwas zu einer abgegebenen Aufgabe schreibt, schreibt es dem
       // Kollegen, der sie jetzt hat - das darf nicht im Board der
       // Geschaeftsfuehrung haengenbleiben.
