@@ -30,6 +30,7 @@ export interface ShellProfil {
  * geraten, nicht gelesen.
  */
 const NAV: { href: string; label: string; icon: string; bereich: Bereich }[] = [
+  { href: "/dashboard", label: "Dashboard", icon: "📈", bereich: "dashboard" },
   { href: "/", label: "Mein Tag", icon: "☀️", bereich: "mein_tag" },
   { href: "/pool", label: "Aufgabenpool", icon: "📥", bereich: "pool" },
   { href: "/verteilt", label: "Verteilt", icon: "↗️", bereich: "verteilt" },

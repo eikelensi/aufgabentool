@@ -14,6 +14,7 @@ export type AppRole = "superadmin" | "gf" | "qm" | "user";
 
 /** Die Bereiche, deren Sichtbarkeit sich je Rolle steuern laesst. */
 export type Bereich =
+  | "dashboard"
   | "mein_tag"
   | "pool"
   | "verteilt"
@@ -23,6 +24,7 @@ export type Bereich =
   | "asana";
 
 export const BEREICH_LABEL: Record<Bereich, string> = {
+  dashboard: "Dashboard",
   mein_tag: "Mein Tag",
   pool: "Aufgabenpool",
   verteilt: "Verteilt",

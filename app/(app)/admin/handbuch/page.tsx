@@ -368,7 +368,30 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={11} titel="Eine Aufgabe bearbeiten">
+      <Abschnitt nummer={11} titel="Das Dashboard">
+        <p>
+          Der erste Menüpunkt, sichtbar ab dem Qualitätsmanagement, zeigt zwei
+          Blicke auf dieselbe Arbeit.
+        </p>
+        <p>
+          <strong>Aktueller Tag</strong>: oben in der Mitte, wie viele Aufgaben
+          gerade im Pool liegen; darunter je Mitarbeiter zwei Kacheln – aktuelle
+          Aufgaben und Aufgaben in Rückstellung.
+        </p>
+        <p>
+          <strong>Woche</strong>: Eingang und Ausgang des Pools, dazu je
+          Mitarbeiter, wie viele Aufgaben er erhalten, zurückgestellt und
+          bearbeitet hat. Man kann wochenweise zurückblättern; vorwärts nicht,
+          die laufende Woche ist das Ende.
+        </p>
+        <p className="muted">
+          Gezählt werden Ereignisse, nicht Bestände: eine Aufgabe, die Montag
+          erledigt und Mittwoch wieder geöffnet wurde, steht am Montag als
+          bearbeitet. Private Aufgaben zählen nirgends mit.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={12} titel="Eine Aufgabe bearbeiten">
         <p>
           Im Aufgabenfenster öffnet <strong>✎ Bearbeiten</strong> die Felder:
           Betreff, Beschreibung, Priorität, Fälligkeit und Sichtbar-ab. Die
@@ -386,7 +409,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={12} titel="Notizen und Nachrichten">
+      <Abschnitt nummer={13} titel="Notizen und Nachrichten">
         <p>
           Jede Aufgabe hat einen <strong>Notizverlauf</strong> – eigene Notizen
           rechts, fremde links, Enter schickt ab. Wer schreibt, benachrichtigt
@@ -411,7 +434,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={13} titel="Der Asana-Bereich (Geschäftsführung)">
+      <Abschnitt nummer={14} titel="Der Asana-Bereich (Geschäftsführung)">
         <p>
           Der Menüpunkt <strong>Asana</strong> spiegelt das Projekt „Buchhaltung
           und HR“: {asanaSpalten.length} Spalten, Karten mit Titel, Text,
@@ -443,7 +466,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={14} titel="Archiv">
+      <Abschnitt nummer={15} titel="Archiv">
         <p>
           Erledigtes verschwindet nach <strong>{ausblenden} Stunden</strong> aus
           dem Tagesgeschäft und liegt danach unter <strong>Archiv</strong> – nach
@@ -456,7 +479,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={15} titel="Was nach onOffice geschrieben wird">
+      <Abschnitt nummer={16} titel="Was nach onOffice geschrieben wird">
         <p>
           Der Abgleich läuft alle zwei Minuten in beide Richtungen. Was das Tool
           drüben verändern darf, steht unter Verwaltung → Einstellungen und ist
@@ -484,7 +507,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={16} titel="Objekt und Kunde verknüpfen">
+      <Abschnitt nummer={17} titel="Objekt und Kunde verknüpfen">
         <p>
           Beim Anlegen nehmen zwei Felder eine <strong>Objektnummer</strong> und
           eine <strong>Kundennummer</strong>. Beides ist erlaubt – die Aufgabe
@@ -502,7 +525,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={17} titel="Die Begrüßung beim Anmelden">
+      <Abschnitt nummer={18} titel="Die Begrüßung beim Anmelden">
         <p>
           Nach jedem Anmelden erscheint ein kurzes Fenster: der eigene Name, die
           offenen Aufgaben, die offenen Rückfragen und wie viel im Pool liegt.
@@ -515,7 +538,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={18} titel="Was sich am Tool ändert">
+      <Abschnitt nummer={19} titel="Was sich am Tool ändert">
         <p>
           Jede Änderung am Tool selbst – neue Funktionen und behobene Fehler –
           steht unter <strong>Verwaltung → Protokolle → Am System geändert</strong>,

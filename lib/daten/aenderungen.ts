@@ -25,6 +25,12 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
+    titel: "Dashboard mit Tages- und Wochenzahlen",
+    text: "Neuer erster Menüpunkt, sichtbar ab dem Qualitätsmanagement: aktuelle Aufgaben und Rückstellungen je Mitarbeiter, der Pool-Stand oben in der Mitte, und eine Wochenansicht mit Pool-Ein- und -Ausgang und den Zahlen je Mitarbeiter. Wochenweise zurückblättern.",
+    bereich: "Dashboard",
+  },
+  {
+    datum: "2026-09-24",
     titel: "Begrüßung beim Anmelden",
     text: "Nach jedem Anmelden erscheint ein kurzes Fenster mit Namen, offenen Aufgaben, offenen Rückfragen und der Zahl der Aufgaben im Pool. Wer angemeldet bleibt, sieht es einmal am Tag.",
     bereich: "Alle Seiten",
