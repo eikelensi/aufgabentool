@@ -483,9 +483,40 @@ export function StoreProvider({
         }
       }
 
+      // Die Begruendung gehoert in den Gespraechsfaden, nicht nur in
+      // ein Feld: dort steht sie neben allem anderen, was zu dieser
+      // Aufgabe gesagt wurde, benachrichtigt Ersteller und Bearbeiter
+      // und laesst sich spaeter nachlesen. Im Feld allein waere sie
+      // nach der naechsten Rueckfrage ueberschrieben.
+      if (status === "in_bearbeitung" && status !== aufgabe.status) {
+        const grund = (note ?? aufgabe.inProgressNote ?? "").trim();
+        if (grund) {
+          const { error: notizFehler } = await sb.from("task_notes").insert({
+            task_id: taskId,
+            author_id: profil.id,
+            body: `Rückfragen offen: ${grund}`,
+            is_status_note: true,
+          });
+
+          // Und weiter nach onOffice in den Kommentarstrang. Asana
+          // bekommt gleich unten seinen eigenen Vermerk.
+          if (!notizFehler && aufgabe.onofficeTaskId && !aufgabe.isPrivate) {
+            void fetch("/api/onoffice/notiz", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ taskId }),
+            }).catch(() => undefined);
+          }
+        }
+      }
+
       if (aufgabe.asanaTaskGid && status !== aufgabe.status) {
         if (status === "erledigt") vermerkeInAsana(aufgabe, "erledigt");
-        else if (aufgabe.status === "erledigt") vermerkeInAsana(aufgabe, "geoeffnet");
+        else if (status === "in_bearbeitung") {
+          // Der Grund ist das Wichtigste daran: "Rueckfragen offen"
+          // allein sagt niemandem, worauf gewartet wird.
+          vermerkeInAsana(aufgabe, "rueckfrage", (note ?? aufgabe.inProgressNote ?? "").trim());
+        } else if (aufgabe.status === "erledigt") vermerkeInAsana(aufgabe, "geoeffnet");
       }
 
       // Kommt die Aufgabe aus Asana - auch wenn sie laengst abgegeben
@@ -518,22 +549,14 @@ export function StoreProvider({
      */
     function vermerkeInAsana(
       aufgabe: Task | undefined,
-      anlass: "verteilt" | "pool" | "erledigt" | "geoeffnet",
+      anlass: "verteilt" | "pool" | "erledigt" | "geoeffnet" | "rueckfrage",
       grund?: string,
     ) {
       if (!aufgabe?.asanaTaskGid) return;
       void fetch("/api/asana/vermerk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          taskId: aufgabe.id,
-          anlass,
-          grund,
-          // Beim Uebernehmen loescht das Tool den Pool-Vermerk. Ob die
-          // Aufgabe schon einmal zurueckkam, weiss also nur noch der
-          // Stand von vorhin - und der steht hier.
-          erneut: Boolean(aufgabe.poolZurueckAm),
-        }),
+        body: JSON.stringify({ taskId: aufgabe.id, anlass, grund }),
       }).catch(() => undefined);
     }
 

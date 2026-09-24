@@ -25,7 +25,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-export type Anlass = "verteilt" | "pool" | "erledigt" | "geoeffnet";
+export type Anlass = "verteilt" | "pool" | "erledigt" | "geoeffnet" | "rueckfrage";
 
 function jetzt(): string {
   return new Date().toLocaleString("de-DE", {
@@ -41,16 +41,10 @@ export async function POST(request: Request) {
   const profil = await aktuellesProfil();
   if (!profil) return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
 
-  const { taskId, anlass, grund, erneut: erneutVomAufrufer } = (await request
-    .json()
-    .catch(() => ({}))) as {
+  const { taskId, anlass, grund } = (await request.json().catch(() => ({}))) as {
     taskId?: string;
     anlass?: Anlass;
     grund?: string;
-    /** War die Aufgabe schon einmal im Pool? Der Aufrufer weiss das
-     *  noch; in der Datenbank ist der Vermerk beim Uebernehmen
-     *  bereits geloescht. */
-    erneut?: boolean;
   };
 
   if (!taskId || !anlass) {
@@ -84,17 +78,18 @@ export async function POST(request: Request) {
     bearbeiter = wer?.full_name ?? bearbeiter;
   }
 
-  // "Erneut verteilt" nur, wenn die Aufgabe schon einmal zurueckkam -
-  // sonst liest es sich, als haette es eine Vorgeschichte, die es
-  // nicht gibt.
-  const erneut = erneutVomAufrufer ?? Boolean(aufgabe.pool_zurueck_am);
-
+  // Immer "Verteilt an" - ob es das erste oder das dritte Mal ist,
+  // sieht man an den Vermerken darueber. Ein Wort, das sich aendert,
+  // macht die Chronik schwerer lesbar, nicht leichter.
   const texte: Record<Anlass, string> = {
-    verteilt: `${erneut ? "Erneut verteilt" : "Aufgabe verteilt"} an: ${bearbeiter} — ${jetzt()}`,
+    verteilt: `Verteilt an: ${bearbeiter} — ${jetzt()}`,
     pool: `Zurückgespielt in den Pool durch ${profil.fullName} — ${jetzt()}${
       grund?.trim() ? `\nBegründung: ${grund.trim()}` : ""
     }`,
     erledigt: `Erledigt durch ${profil.fullName} am ${jetzt()}`,
+    rueckfrage: `Rückfragen offen — gemeldet von ${profil.fullName}, ${jetzt()}${
+      grund?.trim() ? `\nGrund: ${grund.trim()}` : ""
+    }`,
     geoeffnet: `Wieder geöffnet durch ${profil.fullName} — ${jetzt()}`,
   };
 
