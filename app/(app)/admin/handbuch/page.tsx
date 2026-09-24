@@ -66,7 +66,7 @@ export default async function HandbuchSeite() {
     sb.from("categories").select("name, color, is_active").order("sort_order"),
     sb
       .from("profiles")
-      .select("full_name, role, is_active, onoffice_display_name")
+      .select("full_name, role, is_active, onoffice_display_name, trichter_aktiv, trichter_grenze")
       .order("role")
       .order("full_name"),
     sb.from("broker_contacts").select("display_name, email, is_active").order("display_name"),
@@ -87,6 +87,7 @@ export default async function HandbuchSeite() {
 
   const aktiveNutzer = (nutzer.data ?? []).filter((n) => n.is_active);
   const mitOnoffice = aktiveNutzer.filter((n) => n.onoffice_display_name);
+  const mitTrichter = aktiveNutzer.filter((n) => n.trichter_aktiv);
   const aktiveKollegen = (kollegen.data ?? []).filter((k) => k.is_active);
   const aktiveKategorien = (kategorien.data ?? []).filter((k) => k.is_active);
   const aktiveVorlagen = (vorlagen.data ?? []).filter((v) => v.is_active);
@@ -206,8 +207,15 @@ export default async function HandbuchSeite() {
 
       <Abschnitt nummer={3} titel="Priorität und Kategorien">
         <p>
-          Zwei Prioritäten: <strong>Normal</strong> und <strong>Hoch</strong>.
-          Hoch wird rot dargestellt.
+          Drei Prioritäten: <strong>Hoch</strong>, <strong>Normal</strong> und{" "}
+          <strong>Niedrig</strong>. Hoch wird rot dargestellt, Niedrig mit einem
+          Pfeil nach unten.
+        </p>
+        <p className="muted">
+          onOffice kennt fünf Stufen. Eins und zwei kommen hier als Hoch an, drei
+          als Normal, vier und fünf als Niedrig; zurück geschrieben werden
+          entsprechend zwei, drei und fünf. Die Priorität entscheidet auch über
+          die Reihenfolge im Trichter (Abschnitt 12).
         </p>
         <p>
           Kategorien sind frei konfigurierbar und werden <em>nicht</em> nach
@@ -376,7 +384,8 @@ export default async function HandbuchSeite() {
         <p>
           <strong>Aktueller Tag</strong>: oben in der Mitte, wie viele Aufgaben
           gerade im Pool liegen; darunter je Mitarbeiter zwei Kacheln – aktuelle
-          Aufgaben und Aufgaben in Rückstellung.
+          Aufgaben und Aufgaben in Rückstellung. Auf derselben Kachel sitzt der
+          Schalter für den Trichter (Abschnitt 12).
         </p>
         <p>
           <strong>Woche</strong>: Eingang und Ausgang des Pools, dazu je
@@ -391,7 +400,56 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={12} titel="Eine Aufgabe bearbeiten">
+      <Abschnitt nummer={12} titel="Der Trichter (Dosierung je Mitarbeiter)">
+        <p>
+          Der Trichter ist eine Einstellung <em>je Person</em> und steht im
+          Dashboard unter <strong>Aktueller Tag</strong> auf der Kachel des
+          Mitarbeiters. Umstellen dürfen ihn Qualitätsmanagement und
+          Geschäftsführung, der Mitarbeiter selbst nicht.
+        </p>
+        <p>
+          <strong>Aus</strong> (die Voreinstellung): alles, was zugeteilt wird,
+          erscheint sofort in „Mein Tag“. <strong>An</strong>: der Mitarbeiter
+          sieht höchstens die eingestellte Zahl an Aufgaben. Werden ihm zwanzig
+          zugeteilt und die Grenze steht auf fünf, liegen fünf auf dem Board und
+          fünfzehn warten im Hintergrund. Schließt er eine ab, rückt die nächste
+          nach.
+        </p>
+        <p>
+          Zugeteilt sind sie trotzdem alle – auch in onOffice steht er bei allen
+          zwanzig als Bearbeiter. Der Trichter regelt nur, was auf dem Board
+          liegt, nicht, wem die Arbeit gehört. Wie viele warten, steht auf der
+          Dashboard-Kachel und als Hinweis in „Mein Tag“.
+        </p>
+        <p>
+          <strong>Die Reihenfolge</strong> bestimmt zuerst die Priorität, dann
+          die Fälligkeit, dann wie lange etwas schon wartet. Aufgaben mit{" "}
+          <strong>hoher Priorität warten nie</strong> – sie gehen sofort durch,
+          auch wenn das Board voll ist. Dasselbe gilt für alles, was heute oder
+          morgen fällig ist, und für Aufgaben, die sich jemand selbst aus dem
+          Pool zieht: wer sich etwas nimmt, wird nicht ausgebremst.
+        </p>
+        <p className="muted">
+          Eine Aufgabe in <strong>{STATUS_LABEL.in_bearbeitung}</strong> belegt
+          nur einen halben Platz. Wer auf eine Rückmeldung von außen wartet, soll
+          dafür nicht den halben Tag blockiert sein – bei einer Grenze von fünf
+          liegen dann also mehr als fünf Karten auf dem Board.
+        </p>
+        <p className="muted">
+          Wird der Trichter ausgeschaltet, werden alle wartenden Aufgaben sofort
+          freigegeben. Es geht nichts verloren, es wird nur nichts mehr
+          zurückgehalten. Aktuell {mitTrichter.length === 0
+            ? "ist der Trichter bei niemandem eingeschaltet"
+            : mitTrichter.length === 1
+              ? `ist der Trichter bei einer Person eingeschaltet (${mitTrichter[0].full_name}, Grenze ${mitTrichter[0].trichter_grenze ?? 5})`
+              : `ist der Trichter bei ${mitTrichter.length} Personen eingeschaltet: ${mitTrichter
+                  .map((n) => `${n.full_name} (${n.trichter_grenze ?? 5})`)
+                  .join(", ")}`}
+          .
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={13} titel="Eine Aufgabe bearbeiten">
         <p>
           Im Aufgabenfenster öffnet <strong>✎ Bearbeiten</strong> die Felder:
           Betreff, Beschreibung, Priorität, Fälligkeit und Sichtbar-ab. Die
@@ -409,7 +467,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={13} titel="Notizen und Nachrichten">
+      <Abschnitt nummer={14} titel="Notizen und Nachrichten">
         <p>
           Jede Aufgabe hat einen <strong>Notizverlauf</strong> – eigene Notizen
           rechts, fremde links, Enter schickt ab. Wer schreibt, benachrichtigt
@@ -434,7 +492,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={14} titel="Der Asana-Bereich (Geschäftsführung)">
+      <Abschnitt nummer={15} titel="Der Asana-Bereich (Geschäftsführung)">
         <p>
           Der Menüpunkt <strong>Asana</strong> spiegelt das Projekt „Buchhaltung
           und HR“: {asanaSpalten.length} Spalten, Karten mit Titel, Text,
@@ -466,7 +524,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={15} titel="Archiv">
+      <Abschnitt nummer={16} titel="Archiv">
         <p>
           Erledigtes verschwindet nach <strong>{ausblenden} Stunden</strong> aus
           dem Tagesgeschäft und liegt danach unter <strong>Archiv</strong> – nach
@@ -479,7 +537,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={16} titel="Was nach onOffice geschrieben wird">
+      <Abschnitt nummer={17} titel="Was nach onOffice geschrieben wird">
         <p>
           Der Abgleich läuft alle zwei Minuten in beide Richtungen. Was das Tool
           drüben verändern darf, steht unter Verwaltung → Einstellungen und ist
@@ -507,7 +565,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={17} titel="Objekt und Kunde verknüpfen">
+      <Abschnitt nummer={18} titel="Objekt und Kunde verknüpfen">
         <p>
           Beim Anlegen nehmen zwei Felder eine <strong>Objektnummer</strong> und
           eine <strong>Kundennummer</strong>. Beides ist erlaubt – die Aufgabe
@@ -525,7 +583,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={18} titel="Die Begrüßung beim Anmelden">
+      <Abschnitt nummer={19} titel="Die Begrüßung beim Anmelden">
         <p>
           Nach jedem Anmelden erscheint ein kurzes Fenster: der eigene Name, die
           offenen Aufgaben, die offenen Rückfragen und wie viel im Pool liegt.
@@ -538,7 +596,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={19} titel="Was sich am Tool ändert">
+      <Abschnitt nummer={20} titel="Was sich am Tool ändert">
         <p>
           Jede Änderung am Tool selbst – neue Funktionen und behobene Fehler –
           steht unter <strong>Verwaltung → Protokolle → Am System geändert</strong>,

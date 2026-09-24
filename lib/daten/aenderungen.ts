@@ -25,6 +25,18 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
+    titel: "Trichter: Aufgaben dosiert zuteilen",
+    text: "Im Dashboard lässt sich je Mitarbeiter ein Trichter einschalten. Wer zwanzig Aufgaben bekommt, sieht dann nur die eingestellte Zahl – schließt er eine ab, rückt die nächste nach. Zugeteilt sind trotzdem alle, auch in onOffice. Hohe Priorität, alles bis morgen Fällige und selbst aus dem Pool Gezogenes geht immer sofort durch.",
+    bereich: "Dashboard, Mein Tag",
+  },
+  {
+    datum: "2026-09-24",
+    titel: "Dritte Priorität: Niedrig",
+    text: "Neben Hoch und Normal gibt es jetzt Niedrig. onOffice kennt fünf Stufen; eins und zwei kommen als Hoch an, drei als Normal, vier und fünf als Niedrig. Im Trichter rücken niedrige Aufgaben zuletzt nach.",
+    bereich: "Alle Aufgaben",
+  },
+  {
+    datum: "2026-09-24",
     titel: "Dashboard mit Tages- und Wochenzahlen",
     text: "Neuer erster Menüpunkt, sichtbar ab dem Qualitätsmanagement: aktuelle Aufgaben und Rückstellungen je Mitarbeiter, der Pool-Stand oben in der Mitte, und eine Wochenansicht mit Pool-Ein- und -Ausgang und den Zahlen je Mitarbeiter. Wochenweise zurückblättern.",
     bereich: "Dashboard",

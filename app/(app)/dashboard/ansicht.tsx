@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui";
+import type { Profile } from "@/lib/types";
 
 /**
  * Das Dashboard: zwei Blicke auf dieselbe Arbeit.
@@ -66,8 +67,91 @@ function Kachel({
   );
 }
 
+/**
+ * Der Trichter einer Person.
+ *
+ * Die Grenze zaehlt Aufgaben, nicht Punkte: "4" heisst vier offene
+ * Aufgaben gleichzeitig. Intern zaehlt die Datenbank doppelt, damit
+ * eine zurueckgestellte Aufgabe nur einen halben Platz belegt - wer
+ * auf eine Rueckmeldung wartet, soll dafuer nicht den ganzen Tag
+ * blockiert sein. Das muss hier niemand wissen.
+ */
+function Trichter({ person, wartend }: { person: Profile; wartend: number }) {
+  const { trichterSetzen } = useStore();
+  const [grenze, setGrenze] = useState(String(person.trichterGrenze ?? 5));
+  const [laeuft, setLaeuft] = useState(false);
+  const aktiv = Boolean(person.trichterAktiv);
+
+  // Stellt jemand anders die Grenze um, soll das Feld mitgehen -
+  // solange hier nicht gerade getippt wird.
+  useEffect(() => {
+    if (!laeuft) setGrenze(String(person.trichterGrenze ?? 5));
+  }, [person.trichterGrenze, laeuft]);
+
+  const setze = async (werte: { aktiv?: boolean; grenze?: number }) => {
+    setLaeuft(true);
+    await trichterSetzen(person.id, werte);
+    setLaeuft(false);
+  };
+
+  const uebernehmen = () => {
+    const zahl = Number(grenze);
+    if (!Number.isFinite(zahl) || zahl < 1) {
+      setGrenze(String(person.trichterGrenze ?? 5));
+      return;
+    }
+    const geklemmt = Math.max(1, Math.min(50, Math.round(zahl)));
+    setGrenze(String(geklemmt));
+    if (geklemmt !== (person.trichterGrenze ?? 5)) void setze({ grenze: geklemmt });
+  };
+
+  return (
+    <div className="line mt-2 border-t pt-2">
+      <label className="flex items-center gap-2 text-[11px]">
+        <input
+          type="checkbox"
+          checked={aktiv}
+          disabled={laeuft}
+          onChange={(e) => void setze({ aktiv: e.target.checked })}
+        />
+        <span className="font-medium">Trichter</span>
+        {aktiv ? (
+          <>
+            <span className="muted">– zeigt höchstens</span>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={grenze}
+              disabled={laeuft}
+              onChange={(e) => setGrenze(e.target.value)}
+              onBlur={uebernehmen}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+              className="field w-14 px-1.5 py-0.5 text-center text-[11px]"
+            />
+            <span className="muted">Aufgaben</span>
+          </>
+        ) : (
+          <span className="muted">– alles geht direkt durch</span>
+        )}
+      </label>
+
+      <p className="muted mt-1 text-[10px] leading-tight">
+        {aktiv
+          ? wartend > 0
+            ? `${wartend} ${wartend === 1 ? "Aufgabe wartet" : "Aufgaben warten"} im Hintergrund – die nächste rückt nach, sobald hier eine fertig wird.`
+            : "Nichts im Hintergrund – alles Zugeteilte ist sichtbar."
+          : "Alle zugeteilten Aufgaben sind sofort sichtbar."}
+        {aktiv ? " Hohe Priorität geht immer sofort durch." : ""}
+      </p>
+    </div>
+  );
+}
+
 export default function DashboardAnsicht() {
-  const { bereit, visibleTasks, profiles } = useStore();
+  const { bereit, visibleTasks, profiles, me, wartendeJePerson } = useStore();
   const [tab, setTab] = useState<"heute" | "woche">("heute");
   const [verschiebung, setVerschiebung] = useState(0);
   const [zeilen, setZeilen] = useState<WochenZeile[]>([]);
@@ -105,6 +189,9 @@ export default function DashboardAnsicht() {
   // Der Store fuehrt nur aktive Profile - wer abgeschaltet ist, taucht
   // hier gar nicht erst auf.
   const aktive = profiles;
+  // Die Dosierung ist Sache derer, die verteilen. Wer das Dashboard nur
+  // liest, sieht die Kacheln - aber keine Schalter.
+  const darfTrichtern = ["superadmin", "gf", "qm"].includes(me.role);
 
   if (!bereit) return <p className="muted text-xs">Lade…</p>;
 
@@ -169,6 +256,9 @@ export default function DashboardAnsicht() {
                     <Kachel zahl={offen} text="aktuelle Aufgaben" />
                     <Kachel zahl={rueck} text="in Rückstellung" ton={rueck > 0 ? "warn" : undefined} />
                   </div>
+                  {darfTrichtern ? (
+                    <Trichter person={p} wartend={wartendeJePerson(p.id)} />
+                  ) : null}
                 </section>
               );
             })}

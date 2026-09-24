@@ -47,7 +47,7 @@ import type {
 
 const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
-  bereich, asana_task_gid, asana_section_gid, asana_assignee_gid,
+  bereich, asana_task_gid, asana_section_gid, asana_assignee_gid, wartet,
   broker_contact_id, onoffice_bearbeiter_id, is_pool, is_private, visible_from, due_date,
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id,
   onoffice_address_no, source,
@@ -112,6 +112,16 @@ interface StoreValue {
   ) => Promise<Ergebnis>;
   /** Eine Karte innerhalb ihrer Liste an eine andere Stelle setzen. */
   sortiere: (taskId: string, vorTaskId: string | null, inListe: Task[]) => Promise<Ergebnis>;
+
+  /** Wie viele eigene Aufgaben hinter dem Trichter warten. */
+  wartendeEigene: number;
+  /** Wartende je Person - fuer das Dashboard. */
+  wartendeJePerson: (personId: string) => number;
+  /** Trichter einer Person umstellen (QM und Geschaeftsfuehrung). */
+  trichterSetzen: (
+    userId: string,
+    werte: { aktiv?: boolean; grenze?: number },
+  ) => Promise<Ergebnis>;
 
   /** Was diese Person im Chatsymbol sieht, neueste zuerst. */
   meldungen: Meldung[];
@@ -199,7 +209,7 @@ export function StoreProvider({
         .select(AUFGABE_SPALTEN)
         .order("position", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false }),
-      sb.from("profiles").select("id, email, full_name, role, onoffice_display_name, onoffice_username, color, is_active").order("full_name"),
+      sb.from("profiles").select("id, email, full_name, role, onoffice_display_name, onoffice_username, color, is_active, trichter_aktiv, trichter_grenze").order("full_name"),
       sb.from("broker_contacts").select("id, display_name, short_code, email, is_active").eq("is_active", true).order("display_name"),
       sb.from("categories").select("id, name, color, sort_order, is_active").order("sort_order"),
       sb.from("email_templates").select("key, label, subject, body, is_active"),
@@ -394,6 +404,9 @@ export function StoreProvider({
       // erst, wenn eine Aufgabe in den Pool abgegeben wurde, und dann
       // steht ihr Bereich ohnehin wieder auf "task".
       if (t.bereich === "asana") return false;
+      // Hinter dem Trichter: zugewiesen, aber noch nicht freigegeben.
+      // Genau darum geht es - sie soll niemand sehen, bis Platz ist.
+      if (t.wartet) return false;
       if (t.visibleFrom > heute) return false;
       if (t.status === "erledigt" && t.completedAt) {
         return new Date(t.completedAt).getTime() > grenze;
@@ -875,6 +888,24 @@ export function StoreProvider({
       return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }
 
+    async function trichterSetzen(
+      userId: string,
+      werte: { aktiv?: boolean; grenze?: number },
+    ): Promise<Ergebnis> {
+      try {
+        const res = await fetch("/api/trichter", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, ...werte }),
+        });
+        const json = await res.json().catch(() => ({}));
+        await neuLaden();
+        return res.ok ? { ok: true } : { ok: false, error: json.fehler };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    }
+
     async function meldungGelesen(id: string): Promise<void> {
       const jetzt = new Date().toISOString();
       // Zuerst auf dem Bildschirm, dann in der Datenbank: der Zaehler
@@ -1276,6 +1307,13 @@ export function StoreProvider({
       asanaVerschieben,
       asanaZuteilen,
       sortiere,
+      wartendeEigene: tasks.filter(
+        (t) => t.wartet && t.assigneeId === profil.id && t.status !== "erledigt",
+      ).length,
+      wartendeJePerson: (personId: string) =>
+        tasks.filter((t) => t.wartet && t.assigneeId === personId && t.status !== "erledigt")
+          .length,
+      trichterSetzen,
       meldungen,
       ungelesen: meldungen.filter((m) => !m.readAt).length,
       addNote,

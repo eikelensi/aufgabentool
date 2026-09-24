@@ -1,5 +1,24 @@
 export type TaskStatus = "offen" | "in_bearbeitung" | "erledigt";
-export type TaskPriority = "normal" | "hoch";
+/**
+ * Drei Stufen, und jede hat eine Aufgabe:
+ *  - hoch:    ueberspringt den Trichter, geht sofort an die Person
+ *  - normal:  der Regelfall
+ *  - niedrig: wartet, bis nichts Dringenderes da ist
+ */
+export type TaskPriority = "hoch" | "normal" | "niedrig";
+
+export const PRIO_LABEL: Record<TaskPriority, string> = {
+  hoch: "Hoch",
+  normal: "Normal",
+  niedrig: "Niedrig",
+};
+
+/** Kleiner ist wichtiger - so sortiert die Warteschlange. */
+export const PRIO_RANG: Record<TaskPriority, number> = {
+  hoch: 1,
+  normal: 2,
+  niedrig: 3,
+};
 /**
  * Die Rollen des Hauses.
  *
@@ -85,6 +104,10 @@ export type NotifyKind =
   | "aufgabe_in_pool";
 
 export interface Profile {
+  /** Trichter: sieht diese Person nur eine begrenzte Zahl Aufgaben? */
+  trichterAktiv?: boolean;
+  /** Wie viele gleichzeitig - intern das Doppelte in Punkten. */
+  trichterGrenze?: number;
   id: string;
   fullName: string;
   email: string;
@@ -236,6 +259,8 @@ export interface Task {
   asanaTaskGid?: string | null;
   asanaSectionGid?: string | null;
   asanaAssigneeGid?: string | null;
+  /** Zugewiesen, aber hinter dem Trichter - fuer den Bearbeiter unsichtbar. */
+  wartet: boolean;
   /**
    * Warum die Aufgabe zurueck in den Pool ging, und von wem. Bleibt
    * stehen, bis sie sich jemand zieht - wer sie uebernimmt, soll wissen,

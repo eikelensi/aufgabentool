@@ -18,6 +18,13 @@
  *  - und wenn er scheitert, bleibt die Uebernahme im Tool trotzdem
  *    bestehen. Ein Ausfall der Schnittstelle darf niemanden daran
  *    hindern, seine Arbeit zu uebernehmen.
+ *
+ * Und eine Sache, die man leicht falsch machen wuerde: der Bearbeiter
+ * wird auch dann geschrieben, wenn die Aufgabe hinter dem Trichter
+ * WARTET. Das muss so. onOffice fuehrt bei diesem Feld - stuende dort
+ * niemand, holte der naechste Abgleich die Aufgabe prompt wieder in den
+ * Pool und die Zuteilung waere weg. Der Trichter regelt, was jemand auf
+ * seinem Board sieht, nicht, wem die Arbeit gehoert.
  */
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";

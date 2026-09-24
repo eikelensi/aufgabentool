@@ -33,7 +33,18 @@ export function Avatar({ profile, size = 26 }: { profile?: Profile; size?: numbe
 }
 
 export function PriorityChip({ priority }: { priority: TaskPriority }) {
+  // Normal ist der Regelfall und bekommt kein Zeichen: ein Etikett, das
+  // an jeder zweiten Karte klebt, sagt nichts mehr.
   if (priority === "normal") return null;
+
+  if (priority === "niedrig") {
+    return (
+      <span className="chip" style={{ background: "var(--panel-2)", color: "var(--muted)" }}>
+        ▼ Niedrig
+      </span>
+    );
+  }
+
   return (
     <span className="chip" style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}>
       ▲ Hoch

@@ -48,6 +48,8 @@ export function zuProfil(row: any): Profile {
     onofficeUsername: row.onoffice_display_name ?? row.onoffice_username ?? "",
     color: row.color || farbeAus(row.id),
     initials: initialen(row.full_name ?? row.email ?? ""),
+    trichterAktiv: Boolean(row.trichter_aktiv),
+    trichterGrenze: row.trichter_grenze ?? 5,
   };
 }
 
@@ -169,6 +171,7 @@ export function zuAufgabe(row: any): Task {
     asanaTaskGid: row.asana_task_gid ?? null,
     asanaSectionGid: row.asana_section_gid ?? null,
     asanaAssigneeGid: row.asana_assignee_gid ?? null,
+    wartet: Boolean(row.wartet),
     attachments: (row.task_attachments ?? []).map(zuAnhang),
     notes: (row.task_notes ?? [])
       .map(zuNotiz)

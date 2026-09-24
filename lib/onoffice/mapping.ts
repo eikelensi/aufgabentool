@@ -119,19 +119,21 @@ export function istAbgeschlossen(onofficeStatus: unknown): boolean {
  * heisst, soll hier nicht als normal ankommen.
  */
 export function toOurPriority(onofficePrio: unknown): TaskPriority {
-  const threshold = Number(process.env.ONOFFICE_PRIO_HOCH_BIS ?? "2");
+  // Fuenf Stufen drueben, drei hier: die beiden oberen sind "hoch",
+  // die beiden unteren "niedrig", die Mitte bleibt die Mitte.
+  const hochBis = Number(process.env.ONOFFICE_PRIO_HOCH_BIS ?? "2");
+  const niedrigAb = Number(process.env.ONOFFICE_PRIO_NIEDRIG_AB ?? "4");
   const prio = Number(onofficePrio);
   if (!Number.isFinite(prio) || prio === 0) return "normal";
-  return prio <= threshold ? "hoch" : "normal";
+  if (prio <= hochBis) return "hoch";
+  if (prio >= niedrigAb) return "niedrig";
+  return "normal";
 }
 
 export function toOnofficePriority(priority: TaskPriority): string {
-  // Das Tool kennt nur hoch und normal - drueben gibt es fuenf Stufen.
-  // Wir treffen die beiden, die gemeint sind, und lassen die uebrigen
-  // in Ruhe.
-  return priority === "hoch"
-    ? (process.env.ONOFFICE_PRIO_HOCH ?? "2")
-    : (process.env.ONOFFICE_PRIO_NORMAL ?? "3");
+  if (priority === "hoch") return process.env.ONOFFICE_PRIO_HOCH ?? "2";
+  if (priority === "niedrig") return process.env.ONOFFICE_PRIO_NIEDRIG ?? "4";
+  return process.env.ONOFFICE_PRIO_NORMAL ?? "3";
 }
 
 /**

@@ -10,7 +10,8 @@ import { EmptyState } from "@/components/ui";
 import type { Task, TaskStatus } from "@/lib/types";
 
 export default function MeinTagPage() {
-  const { bereit, me, visibleTasks, moveTask, claimTask, sortiere } = useStore();
+  const { bereit, me, visibleTasks, moveTask, claimTask, sortiere, wartendeEigene } =
+    useStore();
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [detail, setDetail] = useState<Task | null>(null);
   const [noteFor, setNoteFor] = useState<Task | null>(null);
@@ -81,6 +82,24 @@ export default function MeinTagPage() {
           </div>
         )}
       </section>
+
+      {/* Der Trichter arbeitet still: was noch nicht dran ist, steht
+          gar nicht erst auf dem Board. Verschwiegen wird es trotzdem
+          nicht - sonst wirkt der leere Tisch wie ein Versehen. */}
+      {wartendeEigene > 0 ? (
+        <p
+          className="line mb-3 rounded-lg border px-3 py-2 text-[11px] leading-relaxed"
+          style={{ background: "var(--info-bg)", color: "var(--info-fg)" }}
+        >
+          <strong>
+            {wartendeEigene === 1
+              ? "Eine weitere Aufgabe wartet auf dich."
+              : `${wartendeEigene} weitere Aufgaben warten auf dich.`}
+          </strong>{" "}
+          Sie sind dir schon zugeteilt, kommen aber erst nach und nach auf dein
+          Board – die nächste rückt nach, sobald du eine hier abschließt.
+        </p>
+      ) : null}
 
       <Filters value={filter} onChange={setFilter} showAssignee={false} />
 

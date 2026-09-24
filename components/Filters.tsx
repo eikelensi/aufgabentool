@@ -106,6 +106,7 @@ export default function Filters({
         <option value="">Jede Priorität</option>
         <option value="hoch">Nur Hoch</option>
         <option value="normal">Nur Normal</option>
+        <option value="niedrig">Nur Niedrig</option>
       </select>
       <select
         className="field"

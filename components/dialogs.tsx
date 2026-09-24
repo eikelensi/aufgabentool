@@ -284,8 +284,9 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
             value={priority}
             onChange={(e) => setPriority(e.target.value as TaskPriority)}
           >
+            <option value="hoch">Hoch – überspringt die Warteschlange</option>
             <option value="normal">Normal</option>
-            <option value="hoch">Hoch (rot)</option>
+            <option value="niedrig">Niedrig – wartet, bis Luft ist</option>
           </select>
         </Field>
 
