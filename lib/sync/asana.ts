@@ -382,7 +382,32 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     // steht in Asana weiter in der Pool-Spalte, aber hier fasst der
     // Abgleich sie nicht mehr an - sonst zoege er sie dem Kollegen,
     // der sie sich gerade gezogen hat, wieder aus der Hand.
-    if (vorhanden?.bereich === "task") continue;
+    if (vorhanden?.bereich === "task") {
+      // Eine Ausnahme: die Kommentare holen wir weiter. Wer in Asana
+      // etwas zu einer abgegebenen Aufgabe schreibt, schreibt es dem
+      // Kollegen, der sie jetzt hat - das darf nicht im Board der
+      // Geschaeftsfuehrung haengenbleiben.
+      const veraendertDrueben =
+        (aufgabe.modified_at ?? "") !== (vorhanden.asana_modified_at ?? "");
+
+      if (veraendertDrueben) {
+        try {
+          ergebnis.kommentare += await holeKommentare(
+            aufgabe.gid,
+            vorhanden.id,
+            verzeichnis,
+            ersatzAutor,
+          );
+          await sb
+            .from("tasks")
+            .update({ asana_modified_at: aufgabe.modified_at ?? null })
+            .eq("id", vorhanden.id);
+        } catch (err) {
+          ergebnis.fehler.push(`Kommentare zu ${aufgabe.name}: ${(err as Error).message}`);
+        }
+      }
+      continue;
+    }
 
     // Unveraendert? Dann nichts schreiben. Das ist nicht Sparsamkeit um
     // ihrer selbst willen: jede geschriebene Zeile meldet sich per

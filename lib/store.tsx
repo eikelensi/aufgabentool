@@ -805,11 +805,25 @@ export function StoreProvider({
 
       if (error) return { ok: false, error: error.message };
 
-      // Gleich nach drueben. onOffice hat kein Kommentarfeld, also
-      // haengt der Notizverlauf unter der Beschreibung - siehe
-      // lib/onoffice/notizen.
       const aufgabe = tasks.find((t) => t.id === taskId);
       let hinweis: string | undefined;
+
+      // Auch nach Asana - und zwar bei JEDER Aufgabe mit Asana-Nummer,
+      // auch den abgegebenen im Pool. Gerade bei denen ist die
+      // Rueckmeldung das Wichtigste: in Asana steht die Karte in der
+      // Pool-Spalte, und wer dort nachsieht, soll lesen, was der
+      // Kollege dazu geschrieben hat.
+      if (aufgabe?.asanaTaskGid && !aufgabe.isPrivate) {
+        void fetch("/api/asana/notiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId }),
+        }).catch(() => undefined);
+      }
+
+      // Gleich nach drueben. onOffice hat kein Kommentarfeld in der
+      // Feldliste, aber den Kommentarstrang - siehe
+      // lib/onoffice/notizen.
       if (aufgabe?.onofficeTaskId && !aufgabe.isPrivate) {
         try {
           const res = await fetch("/api/onoffice/notiz", {
