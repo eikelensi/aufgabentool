@@ -10,6 +10,7 @@
 
 import { createTask } from "@/lib/onoffice/tasks";
 import { findeKunde, findeObjekt } from "@/lib/onoffice/records";
+import { verknuepfeAufgabe } from "@/lib/onoffice/relations";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { TaskPriority, TaskStatus } from "@/lib/types";
@@ -174,6 +175,17 @@ export async function legeInOnofficeAn(
       relatedAddressId: addressId ?? undefined,
     });
 
+    // Die Verknuepfungen noch einmal ausdruecklich setzen. Beim
+    // Anlegen gehen sie als Beigabe mit - beim Objekt kam das an, beim
+    // Kunden nicht, stillschweigend. Also der dokumentierte Weg
+    // hinterher, und ein Merker, damit der Abgleich weiss, dass es
+    // erledigt ist.
+    let verknuepft: string | null = null;
+    if (estateId || addressId) {
+      const rel = await verknuepfeAufgabe(nummer, { estateId, addressId });
+      if (rel.fehler.length === 0) verknuepft = new Date().toISOString();
+    }
+
     await sb
       .from("tasks")
       .update({
@@ -181,6 +193,7 @@ export async function legeInOnofficeAn(
         onoffice_assignee: bearbeiter || null,
         onoffice_responsible: verantwortung || null,
         onoffice_synced_at: new Date().toISOString(),
+        onoffice_verknuepft_am: verknuepft,
       })
       .eq("id", aufgabe.id);
 
@@ -231,6 +244,53 @@ export async function legeInOnofficeAn(
  * Fehlschlag von selbst - und niemand muss eine Aufgabe von Hand noch
  * einmal anfassen, weil die Schnittstelle einmal gehustet hat.
  */
+/**
+ * Verknuepfungen nachziehen, die beim Anlegen nicht ankamen.
+ *
+ * Betrifft alles, was eine Aufgabennummer und eine Objekt- oder
+ * Kunden-ID hat, aber keinen Merker - also auch die Aufgaben, die
+ * heute Nacht ohne Kundenverknuepfung entstanden sind. Wenige pro
+ * Lauf, denn jede kostet einen Aufruf.
+ */
+export async function zieheVerknuepfungenNach(grenze = 5): Promise<{
+  verknuepft: number;
+  fehler: string[];
+}> {
+  const sb = supabaseAdmin();
+  const fehler: string[] = [];
+
+  const sperre = await pruefeSchreibsperre("anlegen");
+  if (!sperre.erlaubt) return { verknuepft: 0, fehler };
+
+  const { data: offen } = await sb
+    .from("tasks")
+    .select("id, title, onoffice_task_id, onoffice_estate_id, onoffice_address_id")
+    .not("onoffice_task_id", "is", null)
+    .is("onoffice_verknuepft_am", null)
+    .or("onoffice_estate_id.not.is.null,onoffice_address_id.not.is.null")
+    .limit(grenze);
+
+  let verknuepft = 0;
+  for (const a of offen ?? []) {
+    const rel = await verknuepfeAufgabe(a.onoffice_task_id as string, {
+      estateId: a.onoffice_estate_id ? String(a.onoffice_estate_id) : null,
+      addressId: a.onoffice_address_id ? String(a.onoffice_address_id) : null,
+    });
+
+    if (rel.fehler.length === 0) {
+      await sb
+        .from("tasks")
+        .update({ onoffice_verknuepft_am: new Date().toISOString() })
+        .eq("id", a.id);
+      verknuepft++;
+    } else {
+      fehler.push(`${a.title}: ${rel.fehler.join("; ")}`);
+    }
+  }
+
+  return { verknuepft, fehler };
+}
+
 export async function legeFehlendeAn(grenze = 10): Promise<{
   angelegt: number;
   fehler: string[];

@@ -212,8 +212,11 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
   if (input.isPrivate) data.Privat = 1;
 
   const parameters: Record<string, unknown> = { data };
-  if (input.relatedEstateId) parameters.relatedEstateId = String(input.relatedEstateId);
-  if (input.relatedAddressId) parameters.relatedAddressId = String(input.relatedAddressId);
+  // Die Doku sagt INTEGER, und wir haben Zeichenketten geschickt.
+  // Beim Objekt nahm onOffice es hin, beim Kunden nicht - ohne Fehler,
+  // die Verknuepfung fehlte einfach.
+  if (input.relatedEstateId) parameters.relatedEstateId = Number(input.relatedEstateId);
+  if (input.relatedAddressId) parameters.relatedAddressId = Number(input.relatedAddressId);
 
   const res = await call({ action: "create", resourceType: "task", parameters });
   const record = (res.records as OnOfficeRecord[])[0];

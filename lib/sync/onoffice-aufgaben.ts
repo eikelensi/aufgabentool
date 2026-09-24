@@ -21,7 +21,7 @@ import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
 import { istAbgeschlossen } from "@/lib/onoffice/mapping";
 import { ohneNotizen } from "@/lib/onoffice/notizen";
 import { erfasseAnhangIds } from "@/lib/sync/anhaenge";
-import { legeFehlendeAn } from "@/lib/sync/onoffice-neu";
+import { legeFehlendeAn, zieheVerknuepfungenNach } from "@/lib/sync/onoffice-neu";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export interface NameMitAnzahl {
@@ -330,6 +330,15 @@ export async function synchronisiereAufgaben(
     for (const f of fehler.slice(0, 5)) ergebnis.hinweise.push(f);
   } catch (err) {
     ergebnis.hinweise.push(`Nachtragen fehlgeschlagen: ${(err as Error).message}`);
+  }
+
+  // Und die Verknuepfungen, die beim Anlegen nicht ankamen.
+  try {
+    const { verknuepft, fehler } = await zieheVerknuepfungenNach();
+    if (verknuepft) ergebnis.hinweise.push(`${verknuepft} Verknüpfung(en) nachgezogen.`);
+    for (const f of fehler.slice(0, 5)) ergebnis.hinweise.push(f);
+  } catch (err) {
+    ergebnis.hinweise.push(`Verknüpfen fehlgeschlagen: ${(err as Error).message}`);
   }
 
   // Dateien: nur die Nummern, ein Aufruf fuer alle Aufgaben des Laufs.

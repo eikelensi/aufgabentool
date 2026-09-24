@@ -158,3 +158,46 @@ export async function elternVonDatei(fileId: string | number): Promise<{
 
   return { estateIds, addressIds, taskIds, fehler };
 }
+
+/**
+ * Objekt und Kunde an eine Aufgabe haengen - ausdruecklich, nicht nur
+ * als Beigabe beim Anlegen.
+ *
+ * Beim Anlegen nimmt onOffice relatedEstateId und relatedAddressId
+ * entgegen. Beim Objekt kam die Verknuepfung auch an; beim Kunden
+ * nicht, stillschweigend, ohne Fehler. Das ist der zweite Anlauf und
+ * der dokumentierte Weg: die Relation selbst anlegen.
+ *
+ * Idempotent, soweit onOffice das zulaesst: eine Relation, die schon
+ * besteht, wird nicht doppelt.
+ */
+export async function verknuepfeAufgabe(
+  taskId: string | number,
+  ziele: { estateId?: string | null; addressId?: string | null },
+): Promise<{ estate: boolean; address: boolean; fehler: string[] }> {
+  const fehler: string[] = [];
+  const ergebnis = { estate: false, address: false, fehler };
+
+  const setze = async (urn: string, kindId: string): Promise<boolean> => {
+    try {
+      await call({
+        action: "create",
+        resourceType: "relation",
+        parameters: {
+          relationtype: urn,
+          parentid: [String(taskId)],
+          childid: [String(kindId)],
+        },
+      });
+      return true;
+    } catch (err) {
+      fehler.push(`${urn.split(":").pop()}: ${(err as Error).message}`);
+      return false;
+    }
+  };
+
+  if (ziele.estateId) ergebnis.estate = await setze(REL.estate, ziele.estateId);
+  if (ziele.addressId) ergebnis.address = await setze(REL.address, ziele.addressId);
+
+  return ergebnis;
+}
