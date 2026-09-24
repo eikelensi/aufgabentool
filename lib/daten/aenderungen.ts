@@ -25,6 +25,18 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
+    titel: "Aus „Übersicht“ wird „Team“",
+    text: "Der Menüpunkt heißt jetzt Team und steht direkt hinter dem Dashboard, vor „Mein Tag“. Die Ansicht nach Mitarbeitenden ist deutlich kompakter: Karten wurden zu Zeilen, jede Zelle zeigt drei statt vier – damit passen alle Mitarbeitenden auf einen Blick auf den Bildschirm. Alles zu einer Aufgabe steht weiterhin im Aufgabenfenster.",
+    bereich: "Team",
+  },
+  {
+    datum: "2026-09-24",
+    titel: "Ab QM startet die Anwendung im Dashboard",
+    text: "Wer verteilt und beobachtet, will zuerst wissen, wo die Arbeit liegt. Qualitätsmanagement und Geschäftsführung landen nach dem Anmelden im Dashboard, alle anderen in „Mein Tag“. Beide Seiten bleiben über das Menü erreichbar.",
+    bereich: "Alle Seiten",
+  },
+  {
+    datum: "2026-09-24",
     titel: "Trichter: Aufgaben dosiert zuteilen",
     text: "Im Dashboard lässt sich je Mitarbeiter ein Trichter einschalten. Wer zwanzig Aufgaben bekommt, sieht dann nur die eingestellte Zahl – schließt er eine ab, rückt die nächste nach. Zugeteilt sind trotzdem alle, auch in onOffice. Hohe Priorität, alles bis morgen Fällige und selbst aus dem Pool Gezogenes geht immer sofort durch.",
     bereich: "Dashboard, Mein Tag",

@@ -17,9 +17,11 @@ Next.js 15, React 19, Tailwind CSS 4. Keine weiteren Abhängigkeiten, kein Build
 
 | Route | Inhalt |
 | --- | --- |
-| `/` | Mein Tag: Aufgabeneingang/Pool oben, darunter Board Offen · In Bearbeitung · Erledigt |
+| `/` | Weiche: ab Qualitätsmanagement ins Dashboard, sonst nach `/mein-tag` |
+| `/dashboard` | Tages- und Wochenzahlen, Trichter je Mitarbeiter (ab QM) |
+| `/mein-tag` | Mein Tag: Aufgabeneingang/Pool oben, darunter Board Offen · Rückfragen offen · Erledigt |
 | `/pool` | Aufgabenpool mit „Übernehmen“ und Demo-Posteingang (Aufgabe aus E-Mail) |
-| `/uebersicht` | Admin: Tagesübersicht nach Mitarbeitenden, Einzelansicht, Kategorienansicht |
+| `/team` | Alle Mitarbeitenden nebeneinander, Einzelansicht, Kategorienansicht (früher „Übersicht“) |
 | `/admin` | Kategorien, Fristen, Versandweg, E-Mail-Vorlagen, onOffice-Status, Cron-Simulation |
 | `/protokoll` | Mail-Protokoll mit Dedupe-Schlüssel |
 

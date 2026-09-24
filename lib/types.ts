@@ -47,7 +47,9 @@ export const BEREICH_LABEL: Record<Bereich, string> = {
   mein_tag: "Mein Tag",
   pool: "Aufgabenpool",
   verteilt: "Verteilt",
-  uebersicht: "Übersicht",
+  // Der Schluessel heisst weiter "uebersicht" - er steht so in der
+  // Tabelle rollen_bereiche. Sichtbar ist nur der Name.
+  uebersicht: "Team",
   verwaltung: "Verwaltung",
   archiv: "Archiv",
   asana: "Asana (Geschäftsführung)",

@@ -31,11 +31,11 @@ export interface ShellProfil {
  */
 const NAV: { href: string; label: string; icon: string; bereich: Bereich }[] = [
   { href: "/dashboard", label: "Dashboard", icon: "📈", bereich: "dashboard" },
-  { href: "/", label: "Mein Tag", icon: "☀️", bereich: "mein_tag" },
+  { href: "/team", label: "Team", icon: "👥", bereich: "uebersicht" },
+  { href: "/mein-tag", label: "Mein Tag", icon: "☀️", bereich: "mein_tag" },
   { href: "/pool", label: "Aufgabenpool", icon: "📥", bereich: "pool" },
   { href: "/verteilt", label: "Verteilt", icon: "↗️", bereich: "verteilt" },
   { href: "/asana", label: "Asana", icon: "🗂️", bereich: "asana" },
-  { href: "/uebersicht", label: "Übersicht", icon: "📊", bereich: "uebersicht" },
   { href: "/archiv", label: "Archiv", icon: "📦", bereich: "archiv" },
   { href: "/admin", label: "Verwaltung", icon: "⚙️", bereich: "verwaltung" },
 ];
@@ -125,8 +125,10 @@ export default function Shell({
               haesslicher als eine, aber ehrlicher. */}
           <nav className="flex flex-wrap items-center gap-1">
             {nav.map((n) => {
-              const active =
-                n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
+              // "/" ist nur die Weiche und traegt keinen eigenen
+              // Menuepunkt mehr; wer dort landet, ist eine Umleitung
+              // spaeter auf seiner Startseite.
+              const active = pathname.startsWith(n.href);
               return (
                 <Link
                   key={n.href}

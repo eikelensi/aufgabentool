@@ -25,7 +25,7 @@ export const metadata = { title: "Handbuch – Aufgabentool" };
 const ROLLE_TEXT: Record<string, string> = {
   superadmin: "sieht und darf alles, auch die Einstellungen – immer, unabhängig von jeder Einstellung",
   gf: "sieht alle Aufgaben, darf umverteilen und verwalten, dazu den Asana-Bereich",
-  qm: "sieht alle Aufgaben und die Übersicht",
+  qm: "sieht alle Aufgaben, das Dashboard und den Team-Bereich",
   user: "sieht die eigenen Aufgaben und den Pool",
 };
 
@@ -397,6 +397,13 @@ export default async function HandbuchSeite() {
           Gezählt werden Ereignisse, nicht Bestände: eine Aufgabe, die Montag
           erledigt und Mittwoch wieder geöffnet wurde, steht am Montag als
           bearbeitet. Private Aufgaben zählen nirgends mit.
+        </p>
+        <p className="muted">
+          Ab dem Qualitätsmanagement <strong>startet die Anwendung hier</strong>:
+          wer verteilt und beobachtet, will zuerst wissen, wo die Arbeit liegt.
+          Alle anderen starten in „Mein Tag“. Erreichbar sind beide Seiten für
+          jeden, der sie sehen darf – die Startseite ist eine Weiche, keine
+          Sperre.
         </p>
       </Abschnitt>
 

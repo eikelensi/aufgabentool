@@ -111,7 +111,7 @@ export function EinladenFormular({ darfSuperadmin }: { darfSuperadmin: boolean }
               </label>
               <select id="role" name="role" className="field" defaultValue="user">
                 <option value="user">Mitarbeiter – eigene Aufgaben und der Pool</option>
-                <option value="qm">Qualitätsmanagement – dazu Übersicht und Verwaltung</option>
+                <option value="qm">Qualitätsmanagement – dazu Dashboard, Team und Verwaltung</option>
                 <option value="gf">Geschäftsführung – alles, einschließlich Asana</option>
                 {darfSuperadmin ? (
                   <option value="superadmin">Superadmin – zusätzlich alle Einstellungen</option>

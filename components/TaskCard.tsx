@@ -11,6 +11,7 @@ export default function TaskCard({
   onDragStart,
   showAssignee = false,
   compact = false,
+  winzig = false,
   action,
 }: {
   task: Task;
@@ -18,6 +19,14 @@ export default function TaskCard({
   onDragStart?: (t: Task) => void;
   showAssignee?: boolean;
   compact?: boolean;
+  /**
+   * Eine Zeile statt einer Karte - fuer den Team-Bereich, wo zwoelf
+   * Spalten nebeneinander stehen. Hier zaehlt nicht, was an einer
+   * Aufgabe alles dranhaengt, sondern wie viele davon jemand hat und
+   * ob etwas brennt. Alles Weitere steht einen Klick entfernt im
+   * Aufgabenfenster.
+   */
+  winzig?: boolean;
   action?: React.ReactNode;
 }) {
   const { categoryById, profileById, brokerById, kollegeNachKuerzel, settings } = useStore();
@@ -26,6 +35,79 @@ export default function TaskCard({
   const broker = brokerById(task.brokerContactId);
   const age = daysSince(task.createdAt);
   const overdue = task.dueDate ? task.dueDate < new Date().toISOString().slice(0, 10) : false;
+
+  const ziehen = {
+    draggable: Boolean(onDragStart),
+    onDragStart: (e: React.DragEvent) => {
+      e.dataTransfer.setData("text/plain", task.id);
+      e.dataTransfer.effectAllowed = "move";
+      onDragStart?.(task);
+    },
+  };
+
+  if (winzig) {
+    return (
+      <article
+        {...ziehen}
+        onClick={() => onOpen(task)}
+        title={task.title}
+        className={`panel ${task.priority === "hoch" ? "card-hoch" : ""} cursor-pointer px-1.5 py-1 text-left transition hover:border-[color:var(--color-ci-400)]`}
+        style={{ background: "var(--panel)" }}
+      >
+        <div className="flex items-center gap-1.5">
+          {category ? (
+            <span
+              aria-hidden
+              title={category.name}
+              className="shrink-0"
+              style={{ width: 6, height: 6, borderRadius: 99, background: category.color }}
+            />
+          ) : null}
+          <span className="min-w-0 flex-1 truncate text-[12px] leading-tight font-medium">
+            {task.title}
+          </span>
+          {showAssignee ? <Avatar profile={assignee} size={16} /> : null}
+        </div>
+
+        {/* Zweite Zeile nur, wenn es etwas zu sagen gibt. Eine leere
+            Zeile kostet bei zwanzig Karten mehr Platz als sie wert ist. */}
+        {task.priority !== "normal" ||
+        task.dueDate ||
+        task.isPrivate ||
+        task.attachments.length > 0 ||
+        task.onofficeTaskId ? (
+          <div className="muted mt-0.5 flex items-center gap-1.5 text-[10px] leading-none">
+            {task.priority === "hoch" ? (
+              <span style={{ color: "var(--err-fg)", fontWeight: 700 }} title="Hohe Priorität">
+                ▲
+              </span>
+            ) : task.priority === "niedrig" ? (
+              <span title="Niedrige Priorität">▼</span>
+            ) : null}
+            {task.onofficeTaskId ? <span>#{task.onofficeTaskId}</span> : null}
+            {task.dueDate ? (
+              <span
+                style={
+                  overdue && task.status !== "erledigt"
+                    ? { color: "var(--err-fg)", fontWeight: 700 }
+                    : undefined
+                }
+              >
+                {formatDate(task.dueDate)}
+              </span>
+            ) : null}
+            {task.attachments.length > 0 ? <span>📎{task.attachments.length}</span> : null}
+            {task.isPrivate ? <span title="Privat">🔒</span> : null}
+            {task.status === "offen" && !task.isPrivate && age >= settings.escalationDays ? (
+              <span style={{ color: "var(--err-fg)", fontWeight: 700 }} title={`${age} Tage offen`}>
+                ⚠︎{age}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </article>
+    );
+  }
 
   return (
     <article

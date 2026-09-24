@@ -265,9 +265,9 @@ export async function aufgabenSynchronisieren(seit?: string): Promise<SyncMeldun
   try {
     const r = await synchronisiereAufgaben({ seit });
     revalidatePath("/admin/nutzer");
-    revalidatePath("/");
+    revalidatePath("/mein-tag");
     revalidatePath("/pool");
-    revalidatePath("/uebersicht");
+    revalidatePath("/team");
 
     const teile = r.erkundung
       ? [

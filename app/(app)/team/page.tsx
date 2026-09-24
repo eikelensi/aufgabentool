@@ -14,9 +14,18 @@ type Tab = "tag" | "person" | "kategorie";
 
 const STATUSES: TaskStatus[] = ["offen", "in_bearbeitung", "erledigt"];
 
-export default function UebersichtPage() {
-  const { bereit, isAdmin, visibleTasks, profiles, categories, moveTask, updateTask, verschiebe } =
-    useStore();
+export default function TeamPage() {
+  const {
+    bereit,
+    isAdmin,
+    visibleTasks,
+    profiles,
+    categories,
+    moveTask,
+    updateTask,
+    verschiebe,
+    wartendeJePerson,
+  } = useStore();
   const [tab, setTab] = useState<Tab>("tag");
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   // Kein profiles[0].id: beim ersten Rendern ist die Liste noch leer.
@@ -57,11 +66,11 @@ export default function UebersichtPage() {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">Übersicht</h1>
+        <h1 className="text-lg font-semibold">Team</h1>
         <div className="flex gap-1">
           {(
             [
-              ["tag", "Tagesübersicht nach Mitarbeitenden"],
+              ["tag", "Nach Mitarbeitenden"],
               ["person", "Einzelansicht"],
               ["kategorie", "Nach Kategorien"],
             ] as [Tab, string][]
@@ -86,8 +95,8 @@ export default function UebersichtPage() {
 
       {tab === "tag" ? (
         <div className="scroll-x">
-          <div style={{ minWidth: 900 }}>
-            <div className="mb-1.5 grid gap-2" style={{ gridTemplateColumns: "170px repeat(3, 1fr)" }}>
+          <div style={{ minWidth: 820 }}>
+            <div className="mb-1 grid gap-1.5" style={{ gridTemplateColumns: "148px repeat(3, 1fr)" }}>
               <div />
               {STATUSES.map((s) => (
                 <div key={s} className="muted px-1 text-[11px] font-semibold uppercase tracking-wide">
@@ -115,8 +124,9 @@ export default function UebersichtPage() {
                 key={p.id}
                 label={p.fullName}
                 sub={ROLLE_LABEL[p.role as AppRole] ?? "Mitarbeiter"}
-                avatar={<Avatar profile={p} size={22} />}
+                avatar={<Avatar profile={p} size={18} />}
                 tasks={tasks.filter((t) => t.assigneeId === p.id)}
+                wartend={wartendeJePerson(p.id)}
                 assigneeId={p.id}
                 over={over}
                 setOver={setOver}
@@ -130,7 +140,9 @@ export default function UebersichtPage() {
             Karten lassen sich zwischen Status <em>und</em> zwischen Mitarbeitenden ziehen – so wird bei
             Krankheit oder Ausfall in einem Zug neu verteilt. Mit den Pfeilen bringst du sie
             innerhalb einer Spalte in deine eigene Reihenfolge; die bleibt erhalten. Jede Zelle
-            zeigt die ersten vier Karten – der Rest klappt auf Klick auf.
+            zeigt die ersten drei – der Rest klappt auf Klick auf. Die Zeilen sind
+            bewusst knapp: hier soll man zählen können, nicht lesen. Alles zu einer
+            Aufgabe steht im Aufgabenfenster.
           </p>
         </div>
       ) : null}
@@ -199,6 +211,7 @@ function Lane({
   sub,
   avatar,
   tasks,
+  wartend = 0,
   assigneeId,
   over,
   setOver,
@@ -210,6 +223,8 @@ function Lane({
   sub: string;
   avatar?: React.ReactNode;
   tasks: Task[];
+  /** Hinter dem Trichter zugeteilt, aber noch nicht freigegeben. */
+  wartend?: number;
   assigneeId: string | null;
   over: string | null;
   setOver: (v: string | null) => void;
@@ -224,21 +239,33 @@ function Lane({
    *
    * Bei zwoelf Mitarbeitenden mit je zwanzig Aufgaben ist die
    * Uebersicht keine mehr - man scrollt Minuten, um die letzte Zeile zu
-   * sehen. Vier Karten je Zelle reichen, um zu erkennen, wer womit
+   * sehen. Drei Zeilen je Zelle reichen, um zu erkennen, wer womit
    * beschaeftigt ist; der Rest ist einen Klick entfernt.
+   *
+   * Aus demselben Grund sind die Karten hier nur Zeilen (winzig): auf
+   * einen Blick soll man ZAEHLEN koennen, nicht lesen.
    */
-  const GRENZE = 4;
+  const GRENZE = 3;
   const [offen, setOffen] = useState<Record<string, boolean>>({});
 
   return (
-    <div className="mb-2 grid gap-2" style={{ gridTemplateColumns: "170px repeat(3, 1fr)" }}>
-      <div className="panel flex items-center gap-2 p-2" style={{ background: "var(--panel-2)" }}>
+    <div className="mb-1.5 grid gap-1.5" style={{ gridTemplateColumns: "148px repeat(3, 1fr)" }}>
+      <div className="panel flex items-center gap-1.5 p-1.5" style={{ background: "var(--panel-2)" }}>
         {avatar}
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium">{label}</p>
-          <p className="muted text-[11px]">
+          <p className="truncate text-[12px] leading-tight font-medium">{label}</p>
+          <p className="muted text-[10px] leading-tight">
             {sub} · {tasks.filter((t) => t.status !== "erledigt").length} aktiv
           </p>
+          {/* Wartende Aufgaben stehen in keiner Spalte - sonst waere der
+              Trichter nur eine andere Art, sie doch zu zeigen. Die Zahl
+              gehoert trotzdem hierher: wer verteilt, muss wissen, dass
+              hinter den drei sichtbaren noch fuenfzehn liegen. */}
+          {wartend > 0 ? (
+            <p className="text-[10px] leading-tight" style={{ color: "var(--info-fg)" }}>
+              + {wartend} im Trichter
+            </p>
+          ) : null}
         </div>
       </div>
       {STATUSES.map((s) => {
@@ -261,20 +288,20 @@ function Lane({
               const id = e.dataTransfer.getData("text/plain");
               if (id) onDrop(id, assigneeId, s);
             }}
-            className={`panel min-h-[64px] space-y-1.5 p-1.5 ${over === cellKey ? "dropzone-active" : ""}`}
+            className={`panel min-h-[44px] space-y-1 p-1 ${over === cellKey ? "dropzone-active" : ""}`}
             style={{
               background: "var(--panel-2)",
               // Aufgeklappt bleibt die Zelle in ihrer Zeile und scrollt
               // in sich - sonst schoebe eine lange Spalte die ganze
               // Tabelle auseinander.
-              maxHeight: aufgeklappt ? 420 : undefined,
+              maxHeight: aufgeklappt ? 320 : undefined,
               overflowY: aufgeklappt ? "auto" : undefined,
             }}
           >
             {sichtbare.map((t, i) => (
               <div key={t.id} className="flex items-stretch gap-1">
                 <div className="min-w-0 flex-1">
-                  <TaskCard task={t} onOpen={onOpen} onDragStart={() => undefined} compact />
+                  <TaskCard task={t} onOpen={onOpen} onDragStart={() => undefined} winzig />
                 </div>
                 {/* Eigene Reihenfolge: Ziehen verschiebt zwischen Status und
                     Mitarbeitenden, die Pfeile ordnen innerhalb der Spalte. */}
@@ -282,7 +309,7 @@ function Lane({
                   <button
                     type="button"
                     className="btn btn-ghost"
-                    style={{ padding: "0 0.25rem", fontSize: 10, lineHeight: 1.2 }}
+                    style={{ padding: "0 0.2rem", fontSize: 9, lineHeight: 1.1 }}
                     disabled={i === 0}
                     title="Nach oben"
                     aria-label={`„${t.title}“ nach oben`}
@@ -296,7 +323,7 @@ function Lane({
                   <button
                     type="button"
                     className="btn btn-ghost"
-                    style={{ padding: "0 0.25rem", fontSize: 10, lineHeight: 1.2 }}
+                    style={{ padding: "0 0.2rem", fontSize: 9, lineHeight: 1.1 }}
                     disabled={i === items.length - 1}
                     title="Nach unten"
                     aria-label={`„${t.title}“ nach unten`}

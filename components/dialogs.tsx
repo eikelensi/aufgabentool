@@ -1055,7 +1055,7 @@ export function TaskDetailDialog({
             ueberschreibt sie beim Abgleich deshalb auch nicht. */}
         <Field
           label="Kategorie"
-          hint="Nur im Tool. Sortiert die Übersicht und wird von onOffice nicht überschrieben."
+          hint="Nur im Tool. Sortiert den Team-Bereich und wird von onOffice nicht überschrieben."
         >
           <select
             className="field"
