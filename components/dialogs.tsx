@@ -217,7 +217,12 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
       source: prefill?.source ?? "manuell",
     });
     if (!newId) return;
-    if (files.length) await addAttachments(newId, files);
+
+    // Das Fenster geht zu, sobald die Aufgabe steht. Dateien laufen
+    // danach weiter - ein Upload von zehn Megabyte darf niemanden vor
+    // einem offenen Formular festhalten, und die Anhaenge erscheinen
+    // an der Aufgabe, sobald sie oben sind.
+    if (files.length) void addAttachments(newId, files);
     onClose();
   };
 

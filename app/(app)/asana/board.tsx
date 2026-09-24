@@ -240,9 +240,9 @@ export default function AsanaBoard() {
           onClose={() => setNeueIn(null)}
           onAnlegen={async (werte) => {
             const res = await asanaAnlegen(werte);
-            // Gleich nachfragen: die Karte steht schon im Board, aber
-            // Zustaendigkeit und Spalte liest der Abgleich genauer als
-            // wir beim Anlegen raten koennen.
+            // Nachfragen, aber ohne darauf zu warten: die Karte steht
+            // schon im Board, der Abgleich ergaenzt nur noch, was wir
+            // beim Anlegen nicht wissen konnten.
             if (res.ok) void holen();
             return res;
           }}

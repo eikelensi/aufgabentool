@@ -699,28 +699,28 @@ export function StoreProvider({
         return null;
       }
 
-      // Gleich auch drueben anlegen. Sonst sucht der Bearbeiter die
-      // Aufgabe in onOffice und findet sie nicht - und beim naechsten
-      // Abgleich kaeme sie auch nicht von selbst, denn sie existiert
-      // dort ja gar nicht. Private Aufgaben lehnt die Route selbst ab.
+      // Gleich auch drueben anlegen - aber NEBENHER, ohne darauf zu
+      // warten. onOffice braucht dafuer eine bis drei Sekunden, und in
+      // dieser Zeit stand das Anlegen-Fenster offen und niemand wusste,
+      // ob der Klick angekommen ist. Wer zehn Aufgaben hintereinander
+      // eintraegt, verliert so eine halbe Minute ans Zusehen.
+      //
+      // Das ist gefahrlos, weil der Abgleich jede Minute nachtraegt,
+      // was hier entstanden ist und drueben fehlt: ein Fehlschlag
+      // heilt von selbst, statt eine Meldung zu brauchen.
       if (data?.id && !input.isPrivate) {
-        try {
-          const res = await fetch("/api/onoffice/anlegen", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ taskId: data.id }),
-          });
-          const json = await res.json().catch(() => ({}));
-          if (res.status === 207 && json?.meldung) setFehler(json.meldung);
-        } catch {
-          setFehler(
-            "Die Aufgabe ist angelegt, onOffice war aber gerade nicht erreichbar – " +
-              "dort fehlt sie noch.",
-          );
-        }
+        void fetch("/api/onoffice/anlegen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId: data.id }),
+        })
+          .then(() => neuLaden())
+          .catch(() => undefined);
       }
 
-      await neuLaden();
+      // Auch das Nachladen nicht abwarten: die Karte erscheint, sobald
+      // sie da ist - Postgres meldet die neue Zeile ohnehin.
+      void neuLaden();
       return data?.id ?? null;
     }
 
@@ -998,7 +998,8 @@ export function StoreProvider({
           body: JSON.stringify(werte),
         });
         const json = await res.json().catch(() => ({}));
-        await neuLaden();
+        // Nicht abwarten: die Antwort steht, die Karte kommt gleich.
+        void neuLaden();
         return res.ok ? { ok: true } : { ok: false, error: json.fehler };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
