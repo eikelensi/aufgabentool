@@ -99,7 +99,10 @@ export async function schreibeNotizen(taskId: string): Promise<NotizErgebnis> {
 
   const zeilen = notizen.map((n) => {
     const wer = (n.profiles as unknown as { full_name?: string } | null)?.full_name ?? "Unbekannt";
-    return `[${datum(n.created_at)} · ${wer}]\n${String(n.body).trim()}`;
+    // Auch hier der Name voran. Das Datum bleibt, weil dieser Weg
+    // keinen eigenen Zeitstempel hat - der Text steht ja mitten in
+    // der Beschreibung.
+    return `[${datum(n.created_at)}] ${wer}: ${String(n.body).trim()}`;
   });
 
   // Weg 1: der Kommentarstrang. Nur die neueste Notiz - alles andere
@@ -110,8 +113,12 @@ export async function schreibeNotizen(taskId: string): Promise<NotizErgebnis> {
       (neueste.profiles as unknown as { full_name?: string } | null)?.full_name ?? "Unbekannt";
 
     try {
+      // Name voran, dann der Inhalt. Im Kommentarstrang von onOffice
+      // steht der Zeitstempel ohnehin daneben - was fehlt, ist der
+      // Mensch, denn geschrieben hat es formal immer der
+      // Schnittstellenbenutzer.
       await modifyTask(aufgabe.onoffice_task_id, {
-        Kommentar: `${String(neueste.body).trim()}\n\n— ${wer}, ${datum(neueste.created_at)} (Aufgabentool)`,
+        Kommentar: `${wer}: ${String(neueste.body).trim()}`,
       });
 
       kommentarGeht = true;
