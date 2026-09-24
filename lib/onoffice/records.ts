@@ -75,6 +75,90 @@ export async function readAddress(addressId: string | number): Promise<AddressRe
   };
 }
 
+/**
+ * Eine eingetippte Nummer zu einer Objekt-ID machen.
+ *
+ * Was Menschen "Objektnummer" nennen, ist in onOffice dreierlei: die
+ * Maklernummer (objektnr_extern), die interne Nummer und die
+ * Datensatz-ID. Wer eine Zahl eintippt, meint irgendeine davon - also
+ * probieren wir der Reihe nach, statt ihn raten zu lassen, welche.
+ */
+export async function findeObjekt(nummer: string): Promise<string | null> {
+  const wert = nummer.trim();
+  if (!wert) return null;
+
+  for (const feld of ["objektnr_extern", "objektnr_intern"]) {
+    try {
+      const res = await call({
+        action: "read",
+        resourceType: "estate",
+        parameters: {
+          data: ["Id"],
+          filter: { [feld]: [{ op: "=", val: wert }] },
+          listlimit: 1,
+        },
+      });
+      const record = (res.records as OnOfficeRecord[])[0];
+      if (record?.id) return String(record.id);
+    } catch {
+      // Ein Feld, das dieser Mandant nicht kennt, ist kein Fehler -
+      // dann eben das naechste.
+    }
+  }
+
+  // Zuletzt: die Zahl ist schon die ID.
+  if (/^\d+$/.test(wert)) {
+    try {
+      const res = await call({
+        action: "read",
+        resourceType: "estate",
+        parameters: { data: ["Id"], filter: { Id: [{ op: "=", val: wert }] }, listlimit: 1 },
+      });
+      if ((res.records as OnOfficeRecord[])[0]?.id) return wert;
+    } catch {
+      /* dann eben nicht */
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Dasselbe fuer Kunden: Kundennummer oder Datensatz-ID.
+ *
+ * Die Eingabe darf auch "ADR-11482" lauten - der Teil vor der Zahl
+ * wird weggeworfen, weil ihn niemand konsequent gleich schreibt.
+ */
+export async function findeKunde(nummer: string): Promise<string | null> {
+  const wert = nummer.trim().replace(/^[A-Za-zÄÖÜäöü-]+[\s-]*/, "").trim() || nummer.trim();
+  if (!wert) return null;
+
+  for (const feld of ["KdNr", "Kundennummer"]) {
+    try {
+      const res = await call({
+        action: "read",
+        resourceType: "address",
+        parameters: {
+          data: ["KdNr"],
+          filter: { [feld]: [{ op: "=", val: wert }] },
+          listlimit: 1,
+        },
+      });
+      const record = (res.records as OnOfficeRecord[])[0];
+      if (record?.id) return String(record.id);
+    } catch {
+      /* Feld gibt es hier nicht */
+    }
+  }
+
+  if (/^\d+$/.test(wert)) {
+    const geprueft = await readAddress(wert).catch(() => null);
+    if (geprueft) return wert;
+  }
+
+  return null;
+}
+
 /** Deeplink in die onOffice-Oberfläche, für die Aufgabenkarte. */
 export function estateDeeplink(estateId: string): string {
   return `https://smart.onoffice.de/smart/smart.php#estate/${encodeURIComponent(estateId)}`;

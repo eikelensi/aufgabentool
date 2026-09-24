@@ -9,6 +9,7 @@
  */
 
 import { createTask } from "@/lib/onoffice/tasks";
+import { findeKunde, findeObjekt } from "@/lib/onoffice/records";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { TaskPriority, TaskStatus } from "@/lib/types";
@@ -76,7 +77,7 @@ export async function legeInOnofficeAn(
     .select(
       `id, title, description, status, priority, due_date, visible_from, is_private,
        assignee_id, creator_id, onoffice_task_id, onoffice_bearbeiter_id,
-       onoffice_estate_id, onoffice_address_id`,
+       onoffice_estate_id, onoffice_address_id, onoffice_estate_no`,
     )
     .eq("id", taskId)
     .maybeSingle();
@@ -111,6 +112,40 @@ export async function legeInOnofficeAn(
   }
   const verantwortung = await onofficeName(aufgabe.creator_id);
 
+  // Die eingetippte Objekt- oder Kundennummer in eine ID uebersetzen.
+  // Ohne diesen Schritt wird die Aufgabe drueben angelegt und haengt
+  // an nichts - und genau die Verknuepfung ist der Grund, warum man
+  // die Nummer ueberhaupt eintippt.
+  let estateId = aufgabe.onoffice_estate_id ? String(aufgabe.onoffice_estate_id) : null;
+  let addressId = aufgabe.onoffice_address_id ? String(aufgabe.onoffice_address_id) : null;
+  const nummer = (aufgabe.onoffice_estate_no ?? "").trim();
+
+  if (!estateId && nummer) {
+    try {
+      estateId = await findeObjekt(nummer);
+    } catch {
+      /* dann ohne Objekt */
+    }
+  }
+
+  // Dasselbe Feld nimmt auch eine Kundennummer: wer "ADR-11482"
+  // eintippt, meint keinen Objektbezug. Nur suchen, wenn sich die
+  // Nummer nicht als Objekt gefunden hat.
+  if (!estateId && !addressId && nummer) {
+    try {
+      addressId = await findeKunde(nummer);
+    } catch {
+      /* dann ohne Kunden */
+    }
+  }
+
+  if (estateId !== (aufgabe.onoffice_estate_id ?? null) || addressId !== (aufgabe.onoffice_address_id ?? null)) {
+    await sb
+      .from("tasks")
+      .update({ onoffice_estate_id: estateId, onoffice_address_id: addressId })
+      .eq("id", aufgabe.id);
+  }
+
   try {
     const nummer = await createTask({
       subject: aufgabe.title,
@@ -122,8 +157,8 @@ export async function legeInOnofficeAn(
       responsibility: verantwortung || undefined,
       startDate: aufgabe.visible_from ?? undefined,
       deadline: aufgabe.due_date ?? undefined,
-      relatedEstateId: aufgabe.onoffice_estate_id ?? undefined,
-      relatedAddressId: aufgabe.onoffice_address_id ?? undefined,
+      relatedEstateId: estateId ?? undefined,
+      relatedAddressId: addressId ?? undefined,
     });
 
     await sb
@@ -142,7 +177,7 @@ export async function legeInOnofficeAn(
       reference: nummer,
       ok: true,
       message: `Aufgabe in onOffice angelegt: ${aufgabe.title}`,
-      payload: { durch, bearbeiter, verantwortung },
+      payload: { durch, bearbeiter, verantwortung, estateId, addressId, nummer },
     });
 
     return {

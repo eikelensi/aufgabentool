@@ -19,6 +19,7 @@
 
 import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
 import { istAbgeschlossen } from "@/lib/onoffice/mapping";
+import { ohneNotizen } from "@/lib/onoffice/notizen";
 import { erfasseAnhangIds } from "@/lib/sync/anhaenge";
 import { legeFehlendeAn } from "@/lib/sync/onoffice-neu";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -259,7 +260,10 @@ export async function synchronisiereAufgaben(
 
     const zeile: Record<string, unknown> = {
       title: aufgabe.subject || "(ohne Betreff)",
-      description: aufgabe.description || null,
+      // Der Notizblock am Ende der Beschreibung gehoert dem Tool und
+      // steht hier schon in task_notes - er darf nicht als
+      // Beschreibung zurueckkommen, sonst steht er bald doppelt.
+      description: ohneNotizen(aufgabe.description) || null,
       status: aufgabe.status,
       priority: aufgabe.priority,
       assignee_id: bearbeiterId ?? null,

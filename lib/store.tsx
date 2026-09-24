@@ -753,8 +753,29 @@ export function StoreProvider({
 
       if (error) return { ok: false, error: error.message };
 
+      // Gleich nach drueben. onOffice hat kein Kommentarfeld, also
+      // haengt der Notizverlauf unter der Beschreibung - siehe
+      // lib/onoffice/notizen.
+      const aufgabe = tasks.find((t) => t.id === taskId);
+      let hinweis: string | undefined;
+      if (aufgabe?.onofficeTaskId && !aufgabe.isPrivate) {
+        try {
+          const res = await fetch("/api/onoffice/notiz", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.status === 207 && json?.meldung && !String(json.meldung).startsWith("Keine")) {
+            hinweis = json.meldung;
+          }
+        } catch {
+          hinweis = "Die Notiz steht im Tool, onOffice war aber gerade nicht erreichbar.";
+        }
+      }
+
       await neuLaden();
-      return { ok: true };
+      return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }
 
     async function meldungGelesen(id: string): Promise<void> {
