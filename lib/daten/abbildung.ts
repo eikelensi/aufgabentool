@@ -150,9 +150,13 @@ export function zuAufgabe(row: any): Task {
     onofficeTaskId: row.onoffice_task_id ?? null,
     onofficeAssignee: row.onoffice_assignee ?? null,
     onofficeResponsible: row.onoffice_responsible ?? null,
+    onofficeEstateId: row.onoffice_estate_id ?? undefined,
+    // Zur Anzeige die Nummer, ersatzweise die ID: ohne diesen Rueckfall
+    // stand bei frisch geholten Verknuepfungen gar nichts da, solange
+    // die Nummer noch nicht aufgeloest war.
     onofficeEstateNo: row.onoffice_estate_no ?? row.onoffice_estate_id ?? undefined,
     onofficeAddressId: row.onoffice_address_id ?? undefined,
-    onofficeAddressNo: row.onoffice_address_no ?? undefined,
+    onofficeAddressNo: row.onoffice_address_no ?? row.onoffice_address_id ?? undefined,
     source: row.source,
     inProgressNote: row.in_progress_note ?? undefined,
     createdAt: row.created_at,

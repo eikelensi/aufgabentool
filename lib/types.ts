@@ -243,9 +243,22 @@ export interface Task {
    */
   onofficeAssignee?: string | null;
   onofficeResponsible?: string | null;
+  /**
+   * Objekt und Kunde: je Datensatz eine ID und eine Nummer.
+   *
+   * Die ID ist die Datensatznummer in onOffice - damit wird
+   * verknuepft und verlinkt. Die NUMMER ist, was im Haus benutzt wird
+   * (Objektnummer, Kundennummer) - damit wird gesucht und darueber
+   * gesprochen. Beides zu verwechseln kostet einen halben Tag: ein
+   * Deeplink mit der Objektnummer fuehrt auf ein fremdes Objekt oder
+   * ins Leere.
+   *
+   * Objekt UND Kunde, nicht entweder oder: eine Aufgabe kann an
+   * beidem haengen.
+   */
+  onofficeEstateId?: string;
   onofficeEstateNo?: string;
   onofficeAddressId?: string;
-  /** Eingetippte Kundennummer - die ID steht in onofficeAddressId. */
   onofficeAddressNo?: string;
   source: TaskSource;
   inProgressNote?: string;

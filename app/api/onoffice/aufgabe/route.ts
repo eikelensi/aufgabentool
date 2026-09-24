@@ -18,7 +18,7 @@
  */
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
+import { aktuellesProfil, darfAlles } from "@/lib/supabase/profil";
 import { modifyTask } from "@/lib/onoffice/tasks";
 import { toOnofficePriority } from "@/lib/onoffice/mapping";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   if (!aufgabe) return NextResponse.json({ fehler: "Aufgabe nicht gefunden." }, { status: 404 });
 
   const darf =
-    aufgabe.assignee_id === profil.id || aufgabe.creator_id === profil.id || istAdmin(profil);
+    aufgabe.assignee_id === profil.id || aufgabe.creator_id === profil.id || darfAlles(profil);
   if (!darf) return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
 
   if (!aufgabe.onoffice_task_id) {

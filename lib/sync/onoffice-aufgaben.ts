@@ -21,7 +21,11 @@ import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
 import { istAbgeschlossen } from "@/lib/onoffice/mapping";
 import { ohneNotizen } from "@/lib/onoffice/notizen";
 import { erfasseAnhangIds } from "@/lib/sync/anhaenge";
-import { legeFehlendeAn, zieheVerknuepfungenNach } from "@/lib/sync/onoffice-neu";
+import {
+  holeVerknuepfungen,
+  legeFehlendeAn,
+  zieheVerknuepfungenNach,
+} from "@/lib/sync/onoffice-neu";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export interface NameMitAnzahl {
@@ -53,6 +57,8 @@ export interface SyncErgebnis {
   erkundung: boolean;
   /** Neu entdeckte Dateien an den geholten Aufgaben (Inhalte folgen). */
   anhaengeErfasst: number;
+  /** Objekt- oder Kundenverknuepfungen, die aus onOffice nachgetragen wurden. */
+  verknuepfungenGeholt: number;
   fehler: string[];
   hinweise: string[];
   seit: string;
@@ -155,6 +161,7 @@ export async function synchronisiereAufgaben(
     // meldet danach stumm null Aufgaben.
     erkundung: verzeichnis.anzahl === 0,
     anhaengeErfasst: 0,
+    verknuepfungenGeholt: 0,
     fehler: [],
     hinweise: [],
     seit,
@@ -286,8 +293,13 @@ export async function synchronisiereAufgaben(
       onoffice_art_raw: aufgabe.rawArt || null,
       onoffice_assignee: aufgabe.processor || null,
       onoffice_responsible: aufgabe.responsibility || null,
-      onoffice_estate_id: aufgabe.relatedEstateId ?? null,
-      onoffice_address_id: aufgabe.relatedAddressId ?? null,
+      // KEIN onoffice_estate_id / onoffice_address_id an dieser Stelle.
+      // Die Felder kamen aus dem Aufgabendatensatz - und der gibt sie
+      // nicht her: relatedEstateId ist in onOffice ein Eingabewert
+      // beim Anlegen, kein Feld. Der Leseaufruf fragte es gar nicht
+      // mit ab, also stand hier bei JEDEM Lauf null - und hat eine
+      // von Hand eingetragene Verknuepfung wieder geloescht. Gefuellt
+      // wird weiter unten aus den Relationen (holeVerknuepfungen).
       in_progress_note: notiz,
       updated_at: new Date().toISOString(),
     };
@@ -351,6 +363,21 @@ export async function synchronisiereAufgaben(
     for (const f of fehler) ergebnis.hinweise.push(f);
   } catch (err) {
     ergebnis.hinweise.push(`Dateien nicht erfasst: ${(err as Error).message}`);
+  }
+
+  // Objekt und Kunde: die Verknuepfungen liegen nicht in den Feldern
+  // der Aufgabe, sondern in den Relationen. Zwei Aufrufe fuer den
+  // ganzen Lauf - siehe holeVerknuepfungen, dort steht auch, warum
+  // das vorher nie ankam.
+  try {
+    const { gefuellt, fehler } = await holeVerknuepfungen(angefasst);
+    ergebnis.verknuepfungenGeholt = gefuellt;
+    if (gefuellt) {
+      ergebnis.hinweise.push(`${gefuellt} Objekt-/Kundenverknüpfung(en) aus onOffice geholt.`);
+    }
+    for (const f of fehler.slice(0, 5)) ergebnis.hinweise.push(f);
+  } catch (err) {
+    ergebnis.hinweise.push(`Verknüpfungen nicht geholt: ${(err as Error).message}`);
   }
 
   ergebnis.unbekannteNamen = [...unbekannt].sort();

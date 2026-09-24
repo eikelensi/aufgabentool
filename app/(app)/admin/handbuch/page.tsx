@@ -25,7 +25,7 @@ export const metadata = { title: "Handbuch – Aufgabentool" };
 const ROLLE_TEXT: Record<string, string> = {
   superadmin: "sieht und darf alles, auch die Einstellungen – immer, unabhängig von jeder Einstellung",
   gf: "sieht alle Aufgaben, darf umverteilen und verwalten, dazu den Asana-Bereich",
-  qm: "sieht alle Aufgaben, das Dashboard und den Team-Bereich",
+  qm: "sieht alle Aufgaben, das Dashboard und den Team-Bereich und darf jede Aufgabe ändern – nur nicht die Verwaltung",
   user: "sieht die eigenen Aufgaben und den Pool",
 };
 
@@ -590,9 +590,31 @@ export default async function HandbuchSeite() {
           Kundennummer probiert. Wer sie ins falsche Feld schreibt, bekommt also
           trotzdem eine Verknüpfung.
         </p>
+        <p>
+          <strong>Nachträglich:</strong> im Aufgabenfenster unter ✎ Bearbeiten
+          stehen beide Felder auch bei bestehenden Aufgaben – ab dem
+          Qualitätsmanagement. Eine eingetippte Nummer wird in onOffice
+          nachgesehen und nur gespeichert, wenn es den Datensatz dort gibt; eine
+          erfundene Nummer wäre schlimmer als ein leeres Feld.
+        </p>
+        <p>
+          <strong>Aus onOffice:</strong> wer drüben ein Objekt an eine Aufgabe
+          hängt, findet es beim nächsten Abgleich hier. Das ging lange nicht,
+          und der Grund war unscheinbar – onOffice gibt die Verknüpfung nicht
+          als Feld der Aufgabe heraus, sondern nur als eigene Beziehung. Jetzt
+          wird die gelesen: zwei Aufrufe für alle Aufgaben eines Laufs.
+        </p>
         <p className="muted">
-          Fehlt eine Verknüpfung drüben, zieht der Abgleich sie nach – fünf pro
-          Lauf, weil jede einen Aufruf kostet.
+          Gefüllt wird nur, was hier leer ist oder anders lautet. Geleert wird
+          nie – findet onOffice keine Verknüpfung, kann das auch heißen, dass
+          wir sie gerade erst eingetragen haben und der Weg dorthin noch vor uns
+          liegt. Fehlt sie drüben, zieht der Abgleich sie nach, fünf pro Lauf,
+          weil jede einen Aufruf kostet.
+        </p>
+        <p className="muted">
+          Im Aufgabenfenster stehen Objekt und Kunde nebeneinander, nicht
+          entweder oder. Angezeigt wird die Nummer, verlinkt die Datensatz-ID:
+          ein Link mit der Objektnummer führte auf ein fremdes Objekt.
         </p>
       </Abschnitt>
 

@@ -159,6 +159,71 @@ export async function findeKunde(nummer: string): Promise<string | null> {
   return null;
 }
 
+/**
+ * Objekt-IDs zu Objektnummern - fuer mehrere auf einmal.
+ *
+ * Gebraucht, wenn eine Verknuepfung aus onOffice kommt: die Relation
+ * liefert nur die Datensatz-ID, auf der Karte soll aber die Nummer
+ * stehen, die im Haus benutzt wird. Eine ID sagt niemandem etwas.
+ *
+ * Wirft nicht: ohne Nummer wird die ID angezeigt, das ist immer noch
+ * besser als ein leeres Feld.
+ */
+export async function objektNummern(ids: (string | number)[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const recordids = [...new Set(ids.map(String))].filter((x) => /^\d+$/.test(x));
+  if (!recordids.length) return map;
+
+  try {
+    const res = await call({
+      action: "read",
+      resourceType: "estate",
+      parameters: { data: ["Id", "objektnr_extern"], recordids },
+    });
+
+    for (const record of res.records as OnOfficeRecord[]) {
+      const e = elements(record);
+      const id = String(record.id ?? e.Id ?? "").trim();
+      const nummer = String(e.objektnr_extern ?? "").trim();
+      if (id && nummer) map.set(id, nummer);
+    }
+  } catch {
+    /* dann eben die ID */
+  }
+
+  return map;
+}
+
+/** Dasselbe fuer Kundendatensaetze: ID -> Kundennummer. */
+export async function kundenNummern(ids: (string | number)[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const recordids = [...new Set(ids.map(String))].filter((x) => /^\d+$/.test(x));
+  if (!recordids.length) return map;
+
+  try {
+    const res = await call({
+      action: "read",
+      resourceType: "address",
+      parameters: { data: ["KdNr", "Vorname", "Name"], recordids },
+    });
+
+    for (const record of res.records as OnOfficeRecord[]) {
+      const e = elements(record);
+      const id = String(record.id ?? "").trim();
+      // Lieber die Kundennummer; ohne die der Name, damit auf der Karte
+      // etwas Lesbares steht und nicht eine nackte Datensatznummer.
+      const nummer =
+        String(e.KdNr ?? "").trim() ||
+        [String(e.Vorname ?? "").trim(), String(e.Name ?? "").trim()].filter(Boolean).join(" ");
+      if (id && nummer) map.set(id, nummer);
+    }
+  } catch {
+    /* dann eben die ID */
+  }
+
+  return map;
+}
+
 /** Deeplink in die onOffice-Oberfläche, für die Aufgabenkarte. */
 export function estateDeeplink(estateId: string): string {
   return `https://smart.onoffice.de/smart/smart.php#estate/${encodeURIComponent(estateId)}`;

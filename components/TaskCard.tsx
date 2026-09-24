@@ -190,7 +190,9 @@ export default function TaskCard({
         ) : null}
         {task.onofficeAddressId ? (
           <span className="chip" style={{ background: "var(--panel-2)", color: "var(--muted)" }}>
-            👤 {task.onofficeAddressId}
+            {/* Die Kundennummer, nicht die Datensatz-ID: "11482" kennt
+                jemand, "3471129" niemand. */}
+            👤 {task.onofficeAddressNo ?? task.onofficeAddressId}
           </span>
         ) : null}
         {task.source === "email" ? (

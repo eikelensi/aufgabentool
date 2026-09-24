@@ -88,6 +88,15 @@ interface StoreValue {
 
   me: Profile;
   isAdmin: boolean;
+  /**
+   * Darf jedes Feld jeder Aufgabe aendern - auch nachtraeglich.
+   *
+   * Absichtlich weiter gefasst als isAdmin: das Qualitaetsmanagement
+   * verteilt und korrigiert, es ist dabei nicht auf die
+   * Geschaeftsfuehrung angewiesen. isAdmin bleibt, was es war - der
+   * Zugang zur Verwaltung.
+   */
+  darfAlles: boolean;
 
   neuLaden: () => Promise<void>;
 
@@ -384,6 +393,7 @@ export function StoreProvider({
       };
 
     const isAdmin = me.role === "gf" || me.role === "superadmin";
+    const darfAlles = isAdmin || me.role === "qm";
 
     const profileById = (id: string | null) => profiles.find((p) => p.id === id);
     const categoryById = (id: string | null) => categories.find((c) => c.id === id);
@@ -747,7 +757,32 @@ export function StoreProvider({
 
     async function updateTask(taskId: string, patch: Partial<Task>): Promise<Ergebnis> {
       const vorher = tasks.find((t) => t.id === taskId);
-      const zeile = { ...aufgabeZurZeile(patch), updated_by: profil.id };
+
+      // Objekt- und Kundennummer gehen NICHT direkt in die Zeile.
+      // Was jemand eintippt, ist eine Nummer - was gespeichert werden
+      // muss, ist die Datensatz-ID dahinter, und die kennt nur
+      // onOffice. Also bestimmt die Route, was in der Datenbank
+      // landet; laesst sich die Nummer nicht aufloesen, bleibt der
+      // alte Stand stehen, statt eine erfundene Nummer zu speichern.
+      const verknuepfung: { objektnummer?: string; kundennummer?: string } = {};
+      if (
+        patch.onofficeEstateNo !== undefined &&
+        (patch.onofficeEstateNo ?? "") !== (vorher?.onofficeEstateNo ?? "")
+      ) {
+        verknuepfung.objektnummer = patch.onofficeEstateNo ?? "";
+      }
+      if (
+        patch.onofficeAddressNo !== undefined &&
+        (patch.onofficeAddressNo ?? "") !== (vorher?.onofficeAddressNo ?? "")
+      ) {
+        verknuepfung.kundennummer = patch.onofficeAddressNo ?? "";
+      }
+
+      const rest = { ...patch };
+      delete rest.onofficeEstateNo;
+      delete rest.onofficeAddressNo;
+
+      const zeile = { ...aufgabeZurZeile(rest), updated_by: profil.id };
       const { error } = await sb.from("tasks").update(zeile).eq("id", taskId);
 
       if (error) {
@@ -824,6 +859,24 @@ export function StoreProvider({
           hinweis =
             "Die Änderung steht im Tool, onOffice war aber gerade nicht erreichbar – " +
             "dort gilt weiter der alte Stand.";
+        }
+      }
+
+      if (Object.keys(verknuepfung).length) {
+        try {
+          const res = await fetch("/api/onoffice/verknuepfung", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId, ...verknuepfung }),
+          });
+          const json = await res.json().catch(() => ({}));
+          // Hier immer melden, auch bei Erfolg: eine eingetippte
+          // Nummer, die onOffice nicht kennt, wird stillschweigend
+          // nicht gespeichert - das muss jemand erfahren.
+          if (json?.meldung) hinweis = json.meldung;
+          else if (json?.fehler) hinweis = json.fehler;
+        } catch {
+          hinweis = "Die Verknüpfung ließ sich nicht setzen – onOffice war nicht erreichbar.";
         }
       }
 
@@ -1275,6 +1328,7 @@ export function StoreProvider({
       settings,
       me,
       isAdmin,
+      darfAlles,
       neuLaden,
       moveTask,
       claimTask,

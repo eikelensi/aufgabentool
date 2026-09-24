@@ -25,6 +25,26 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
+    titel: "Verknüpfte Objekte kamen nie aus onOffice an",
+    text: "Wer in onOffice ein Objekt an eine Aufgabe hängte, sah es im Tool nicht – 136 Aufgaben aus dem CRM, keine einzige mit Objekt. onOffice gibt die Verknüpfung nicht als Feld der Aufgabe heraus, sondern nur als eigene Beziehung; abgefragt wurde aber das Feld, und das war immer leer. Schlimmer noch: jeder Lauf hat damit eine von Hand eingetragene Verknüpfung wieder gelöscht. Jetzt wird die Beziehung gelesen, dazu die Objekt- und Kundennummer.",
+    bereich: "onOffice-Abgleich",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-24",
+    titel: "Objekt und Kunde nachträglich verknüpfen",
+    text: "Unter ✎ Bearbeiten stehen Objektnummer und Kundennummer jetzt auch bei bestehenden Aufgaben, dazu der Privat-Haken. Eine Nummer wird in onOffice nachgesehen und nur gespeichert, wenn es den Datensatz dort gibt. Im Fenster stehen Objekt und Kunde nebeneinander statt entweder oder, und der Link führt über die Datensatz-ID – vorher stand die Objektnummer im Link und führte ins Leere.",
+    bereich: "Aufgabe bearbeiten",
+  },
+  {
+    datum: "2026-09-24",
+    titel: "Qualitätsmanagement darf jede Aufgabe ändern",
+    text: "QM sah bisher nur eigene Aufgaben und den Pool – die Zeilensicherheit der Datenbank kannte die Rolle nicht. Damit blieben Team-Bereich, Dashboard und Trichter für QM leer. Jetzt gilt für Aufgaben der weitere Kreis: sehen, ändern, zuteilen, verknüpfen. Die Verwaltung (Einstellungen, Nutzer, Kategorien) und das Löschen bleiben der Geschäftsführung.",
+    bereich: "Alle Seiten",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-24",
     titel: "Asana: abhaken ohne Öffnen",
     text: "Vor jedem Titel sitzt jetzt ein Kreis. Ein Klick erledigt die Aufgabe – in der Datenbank, in Asana und als Vermerk in den Kommentaren. Ein zweiter Klick macht sie wieder auf; für Fehlklicks gibt es „Rückgängig“ in der Meldungszeile.",
     bereich: "Asana",

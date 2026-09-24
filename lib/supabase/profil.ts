@@ -47,6 +47,22 @@ export function istAdmin(profil: AngemeldetesProfil | null): boolean {
 }
 
 /**
+ * Darf jede Aufgabe aendern - auch fremde.
+ *
+ * Bewusst weiter als istAdmin: das Qualitaetsmanagement verteilt und
+ * korrigiert, dazu muss es an jede Aufgabe herankommen. Die Verwaltung
+ * (Einstellungen, Nutzer, Kategorien) bleibt istAdmin vorbehalten.
+ *
+ * Dieselbe Grenze zieht die Datenbank mit public.darf_alles() - hier
+ * steht sie nur, damit die Routen eine Ablehnung mit Grund geben
+ * koennen, statt auf eine leere Antwort der Zeilensicherheit zu
+ * warten.
+ */
+export function darfAlles(profil: AngemeldetesProfil | null): boolean {
+  return istAdmin(profil) || profil?.role === "qm";
+}
+
+/**
  * Fuer Serveraktionen: wirft, wenn die Person kein Admin ist. Bewusst eine
  * Ausnahme und kein stilles false - eine Aktion, die Rechte braucht, soll
  * nicht versehentlich halb durchlaufen.

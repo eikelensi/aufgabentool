@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/ui";
 import { istVerteilt, type Task } from "@/lib/types";
 
 export default function VerteiltPage() {
-  const { bereit, visibleTasks, me, isAdmin, kollegeNachKuerzel } = useStore();
+  const { bereit, visibleTasks, me, darfAlles, kollegeNachKuerzel } = useStore();
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [detail, setDetail] = useState<Task | null>(null);
 
@@ -34,7 +34,7 @@ export default function VerteiltPage() {
   // ankommt - das hier ist nur die Frage, was davon auf DIESE Seite
   // gehoert.
   const meine = visibleTasks.filter(
-    (t) => istVerteilt(t) && (isAdmin || t.creatorId === me.id),
+    (t) => istVerteilt(t) && (darfAlles || t.creatorId === me.id),
   );
   const liste = applyFilters(meine, filter);
 

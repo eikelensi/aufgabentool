@@ -17,7 +17,7 @@ const STATUSES: TaskStatus[] = ["offen", "in_bearbeitung", "erledigt"];
 export default function TeamPage() {
   const {
     bereit,
-    isAdmin,
+    darfAlles,
     visibleTasks,
     profiles,
     categories,
@@ -34,10 +34,13 @@ export default function TeamPage() {
   const [noteFor, setNoteFor] = useState<Task | null>(null);
   const [over, setOver] = useState<string | null>(null);
 
-  if (!isAdmin) {
+  // Das Menue zeigt "Team" ab dem Qualitaetsmanagement - hier stand
+  // aber noch die alte Huerde: isAdmin, also nur Geschaeftsfuehrung.
+  // QM sah den Menuepunkt und dahinter eine Absage.
+  if (!darfAlles) {
     return (
       <p className="muted text-sm">
-        Diese Ansicht ist Admins und Vorgesetzten vorbehalten.
+        Diese Ansicht ist dem Qualitätsmanagement und der Geschäftsführung vorbehalten.
       </p>
     );
   }

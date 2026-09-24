@@ -116,6 +116,64 @@ export async function taskFileIds(
 }
 
 /**
+ * Objekt- und Kundenverknuepfungen MEHRERER Aufgaben in zwei Aufrufen.
+ *
+ * Der Grund, warum es diese Funktion gibt: die Felder
+ * relatedEstateId und relatedAddressId stehen in der Doku als
+ * EINGABE fuer das Anlegen und als Filter beim Lesen - als Feld einer
+ * Aufgabe gibt onOffice sie nicht heraus. Wir haben sie monatelang
+ * beim Lesen angefragt und immer leer bekommen; 136 Aufgaben aus dem
+ * CRM hatten im Tool kein einziges verknuepftes Objekt, obwohl in
+ * onOffice welche dranhaengen.
+ *
+ * Der Weg, der funktioniert, ist derselbe wie bei den Anhaengen:
+ * idsfromrelation mit mehreren parentids. Zwei Aufrufe fuer einen
+ * ganzen Lauf, nicht zwei je Aufgabe.
+ *
+ * Aufgaben ohne Verknuepfung fehlen in der Antwort und stehen dann
+ * auch nicht in der Map. Wirft nicht - eine Verknuepfung, die nicht
+ * zu holen ist, darf keinen Abgleich abbrechen.
+ */
+export async function verknuepfungenFuerAufgaben(taskIds: (string | number)[]): Promise<{
+  map: Map<string, TaskRelations>;
+  fehler: string[];
+}> {
+  const map = new Map<string, TaskRelations>();
+  const fehler: string[] = [];
+  const parentids = [...new Set(taskIds.map(String))].filter(Boolean);
+  if (parentids.length === 0) return { map, fehler };
+
+  const hole = async (kind: RelationKind) => {
+    const res = await call({
+      action: "get",
+      resourceType: "idsfromrelation",
+      parameters: { relationtype: REL[kind], parentids },
+    });
+
+    for (const record of res.records as OnOfficeRecord[]) {
+      for (const [aufgabenId, wert] of Object.entries(elements(record))) {
+        const ids = nurIds(wert, aufgabenId);
+        if (ids.length === 0) continue;
+        const bisher = map.get(aufgabenId) ?? { estateIds: [], addressIds: [] };
+        const feld = kind === "estate" ? "estateIds" : "addressIds";
+        bisher[feld] = [...new Set([...bisher[feld], ...ids])];
+        map.set(aufgabenId, bisher);
+      }
+    }
+  };
+
+  for (const kind of ["estate", "address"] as const) {
+    try {
+      await hole(kind);
+    } catch (err) {
+      fehler.push(`${kind}: ${(err as Error).message}`);
+    }
+  }
+
+  return { map, fehler };
+}
+
+/**
  * Zu welchem Datensatz gehoert eine Datei?
  *
  * "file" will beim Lesen nicht nur die Datei-Nummer, sondern auch den

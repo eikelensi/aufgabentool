@@ -14,7 +14,7 @@
  */
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
+import { aktuellesProfil, darfAlles } from "@/lib/supabase/profil";
 import { asanaKonfiguriert, ruf } from "@/lib/asana/client";
 
 export const runtime = "nodejs";
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   }
 
   const darf =
-    aufgabe.assignee_id === profil.id || aufgabe.creator_id === profil.id || istAdmin(profil);
+    aufgabe.assignee_id === profil.id || aufgabe.creator_id === profil.id || darfAlles(profil);
   if (!darf) return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
 
   try {

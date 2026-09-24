@@ -33,6 +33,17 @@ export interface OnofficeTask {
   modifiedAt: string | null;
   /** Message-ID der Ursprungsmail, wenn die Aufgabe aus einer Mail entstand. */
   mailMessageId?: string;
+  /**
+   * ACHTUNG, beides ist beim LESEN immer leer.
+   *
+   * relatedEstateId und relatedAddressId sind Eingabewerte fuer
+   * "create task" und Filter fuer "read task" - keine Felder eines
+   * Aufgabendatensatzes. Sie stehen nicht in TASK_FIELDS, werden also
+   * nicht mit abgefragt, und onOffice liefert sie auch nicht
+   * unaufgefordert. Welche Objekte und Kunden an einer Aufgabe
+   * haengen, sagt nur die Relation - siehe
+   * lib/onoffice/relations.ts, verknuepfungenFuerAufgaben().
+   */
   relatedEstateId?: string;
   relatedAddressId?: string;
 }

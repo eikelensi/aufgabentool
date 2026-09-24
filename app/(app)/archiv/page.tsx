@@ -18,9 +18,9 @@ import type { Task } from "@/lib/types";
  * zu frueh abgehakt hat, macht sie hier wieder auf.
  */
 export default function ArchivPage() {
-  const { bereit, archivTasks, me, isAdmin, profileById } = useStore();
+  const { bereit, archivTasks, me, darfAlles, profileById } = useStore();
   const [suche, setSuche] = useState("");
-  const [nurMeine, setNurMeine] = useState(!isAdmin);
+  const [nurMeine, setNurMeine] = useState(!darfAlles);
   const [detail, setDetail] = useState<Task | null>(null);
 
   const gefiltert = useMemo(() => {

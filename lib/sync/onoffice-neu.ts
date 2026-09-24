@@ -9,8 +9,8 @@
  */
 
 import { createTask } from "@/lib/onoffice/tasks";
-import { findeKunde, findeObjekt } from "@/lib/onoffice/records";
-import { verknuepfeAufgabe } from "@/lib/onoffice/relations";
+import { findeKunde, findeObjekt, kundenNummern, objektNummern } from "@/lib/onoffice/records";
+import { verknuepfeAufgabe, verknuepfungenFuerAufgaben } from "@/lib/onoffice/relations";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { TaskPriority, TaskStatus } from "@/lib/types";
@@ -289,6 +289,107 @@ export async function zieheVerknuepfungenNach(grenze = 5): Promise<{
   }
 
   return { verknuepft, fehler };
+}
+
+/**
+ * Die andere Richtung: Verknuepfungen AUS onOffice holen.
+ *
+ * Wer drueben ein Objekt an eine Aufgabe haengt, erwartet, dass es
+ * hier auftaucht. Es tauchte nie auf, und der Grund war unscheinbar:
+ * relatedEstateId ist in onOffice kein Feld einer Aufgabe, sondern
+ * ein Eingabewert beim Anlegen. Wir haben es beim Lesen angefragt und
+ * jedes Mal eine leere Zeichenkette bekommen - kein Fehler, keine
+ * Meldung, nur nichts. 136 Aufgaben aus dem CRM, keine einzige mit
+ * Objekt.
+ *
+ * Der Weg, der geht, ist die Relation selbst: zwei Aufrufe fuer alle
+ * Aufgaben eines Laufs, danach ein Aufruf je Datensatzart, um aus den
+ * IDs die Nummern zu machen, die im Haus benutzt werden.
+ *
+ * GEFUELLT wird nur, was hier leer ist oder anders lautet. Geleert
+ * wird nie: findet onOffice keine Verknuepfung, kann das auch heissen,
+ * dass wir sie gerade erst hier eingetragen haben und der Weg nach
+ * drueben noch vor uns liegt (zieheVerknuepfungenNach). Sonst
+ * loeschten sich die beiden Richtungen gegenseitig.
+ */
+export async function holeVerknuepfungen(
+  aufgaben: { onofficeTaskId: string; taskId: string }[],
+): Promise<{ gefuellt: number; fehler: string[] }> {
+  const fehler: string[] = [];
+  if (aufgaben.length === 0) return { gefuellt: 0, fehler };
+
+  const sb = supabaseAdmin();
+  const { map, fehler: relFehler } = await verknuepfungenFuerAufgaben(
+    aufgaben.map((a) => a.onofficeTaskId),
+  );
+  fehler.push(...relFehler);
+  if (map.size === 0) return { gefuellt: 0, fehler };
+
+  // Erst alle IDs sammeln, dann die Nummern in einem Zug holen.
+  const objektIds = new Set<string>();
+  const kundenIds = new Set<string>();
+  for (const rel of map.values()) {
+    if (rel.estateIds[0]) objektIds.add(rel.estateIds[0]);
+    if (rel.addressIds[0]) kundenIds.add(rel.addressIds[0]);
+  }
+
+  const [objektNr, kundenNr] = await Promise.all([
+    objektNummern([...objektIds]),
+    kundenNummern([...kundenIds]),
+  ]);
+
+  // Was steht hier schon? Nur dann schreiben, wenn es sich aendert -
+  // sonst laeuft jeder Lauf durch 50 sinnlose Updates, und jedes
+  // stoesst die Trigger an.
+  const ids = aufgaben.filter((a) => map.has(a.onofficeTaskId)).map((a) => a.taskId);
+  if (!ids.length) return { gefuellt: 0, fehler };
+
+  const { data: bestand } = await sb
+    .from("tasks")
+    .select("id, onoffice_estate_id, onoffice_estate_no, onoffice_address_id, onoffice_address_no")
+    .in("id", ids);
+
+  const jetzt = new Map((bestand ?? []).map((z) => [z.id, z]));
+  let gefuellt = 0;
+
+  for (const a of aufgaben) {
+    const rel = map.get(a.onofficeTaskId);
+    if (!rel) continue;
+
+    const alt = jetzt.get(a.taskId);
+    if (!alt) continue;
+
+    const zeile: Record<string, unknown> = {};
+    const objekt = rel.estateIds[0];
+    const kunde = rel.addressIds[0];
+
+    if (objekt && String(alt.onoffice_estate_id ?? "") !== objekt) {
+      zeile.onoffice_estate_id = objekt;
+      zeile.onoffice_estate_no = objektNr.get(objekt) ?? objekt;
+      // Steht die Verknuepfung drueben, ist der Weg dorthin erledigt -
+      // sonst versucht zieheVerknuepfungenNach sie noch einmal zu
+      // setzen, obwohl sie schon existiert.
+      zeile.onoffice_verknuepft_am = new Date().toISOString();
+    } else if (objekt && !alt.onoffice_estate_no) {
+      zeile.onoffice_estate_no = objektNr.get(objekt) ?? objekt;
+    }
+
+    if (kunde && String(alt.onoffice_address_id ?? "") !== kunde) {
+      zeile.onoffice_address_id = kunde;
+      zeile.onoffice_address_no = kundenNr.get(kunde) ?? kunde;
+      zeile.onoffice_verknuepft_am = new Date().toISOString();
+    } else if (kunde && !alt.onoffice_address_no) {
+      zeile.onoffice_address_no = kundenNr.get(kunde) ?? kunde;
+    }
+
+    if (!Object.keys(zeile).length) continue;
+
+    const { error } = await sb.from("tasks").update(zeile).eq("id", a.taskId);
+    if (error) fehler.push(`Aufgabe ${a.onofficeTaskId}: ${error.message}`);
+    else gefuellt++;
+  }
+
+  return { gefuellt, fehler };
 }
 
 export async function legeFehlendeAn(grenze = 10): Promise<{

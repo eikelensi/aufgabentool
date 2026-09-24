@@ -181,7 +181,8 @@ export interface Prefill {
 }
 
 export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose: () => void }) {
-  const { createTask, addAttachments, categories, profiles, brokers, isAdmin, me } = useStore();
+  const { createTask, addAttachments, categories, profiles, brokers, darfAlles, me } =
+    useStore();
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [description, setDescription] = useState(prefill?.description ?? "");
   // Bewusst leer, nicht die erste Kategorie: eine Vorauswahl, die niemand
@@ -189,7 +190,7 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   // Aufgabe "Social Media", weil das oben in der Liste stand.
   const [categoryId, setCategoryId] = useState<string>("");
   const [priority, setPriority] = useState<TaskPriority>("normal");
-  const [assignee, setAssignee] = useState<string>(isAdmin ? "__pool" : `p:${me.id}`);
+  const [assignee, setAssignee] = useState<string>(darfAlles ? "__pool" : `p:${me.id}`);
   const [brokerContactId, setBroker] = useState<string>("");
   const [visibleFrom, setVisibleFrom] = useState(isoDate(0));
   const [dueDate, setDueDate] = useState("");
@@ -292,13 +293,13 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
 
         <Field
           label="Bearbeiter"
-          hint={isAdmin ? "Nutzer des Tools oder ein Kollege, der nur in onOffice arbeitet." : "Mitarbeitende legen Aufgaben für sich selbst an."}
+          hint={darfAlles ? "Nutzer des Tools oder ein Kollege, der nur in onOffice arbeitet." : "Mitarbeitende legen Aufgaben für sich selbst an."}
         >
           <select
             className="field"
             value={assignee}
             onChange={(e) => setAssignee(e.target.value)}
-            disabled={!isAdmin || isPrivate}
+            disabled={!darfAlles || isPrivate}
           >
             <option value="__pool">In den Aufgabenpool</option>
             <optgroup label="Nutzer des Aufgabentools">
@@ -518,7 +519,7 @@ export function TaskDetailDialog({
   task: Task;
   onClose: () => void;
 }) {
-  const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, isAdmin,
+  const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, darfAlles,
     updateTask, profiles, brokers, categories, tasks,
     asanaSpalten, asanaNutzer, asanaVerschieben, asanaZuteilen } = useStore();
   const [noteFor, setNoteFor] = useState(false);
@@ -536,6 +537,9 @@ export function TaskDetailDialog({
     dueDate: "",
     visibleFrom: "",
     priority: "normal" as TaskPriority,
+    objektnummer: "",
+    kundennummer: "",
+    isPrivate: false,
   });
 
   // Immer den aktuellen Stand aus dem Store zeigen, damit neu hochgeladene
@@ -583,6 +587,9 @@ export function TaskDetailDialog({
       dueDate: task.dueDate ?? "",
       visibleFrom: task.visibleFrom ?? "",
       priority: task.priority,
+      objektnummer: task.onofficeEstateNo ?? "",
+      kundennummer: task.onofficeAddressNo ?? "",
+      isPrivate: task.isPrivate,
     });
     setBearbeitet(true);
   };
@@ -613,6 +620,20 @@ export function TaskDetailDialog({
       patch.visibleFrom = entwurf.visibleFrom || undefined;
     }
     if (entwurf.priority !== task.priority) patch.priority = entwurf.priority;
+
+    // Nur fuer die, die verteilen: Verknuepfungen und der
+    // Privat-Haken. Beides greift weiter als eine Korrektur am Text -
+    // privat nimmt die Aufgabe allen anderen aus dem Blick, und eine
+    // Verknuepfung wird in fremde CRM-Daten geschrieben.
+    if (darfAlles) {
+      if (entwurf.objektnummer.trim() !== (task.onofficeEstateNo ?? "")) {
+        patch.onofficeEstateNo = entwurf.objektnummer.trim();
+      }
+      if (entwurf.kundennummer.trim() !== (task.onofficeAddressNo ?? "")) {
+        patch.onofficeAddressNo = entwurf.kundennummer.trim();
+      }
+      if (entwurf.isPrivate !== task.isPrivate) patch.isPrivate = entwurf.isPrivate;
+    }
 
     if (Object.keys(patch).length === 0) {
       setBearbeitet(false);
@@ -727,6 +748,59 @@ export function TaskDetailDialog({
             </Field>
           </div>
 
+          {/* Objekt und Kunde: nachtraeglich, und beides zugleich.
+              Vorher gab es das nur beim Anlegen - wer eine Aufgabe
+              aus onOffice bekam, bei der das Objekt fehlte, konnte es
+              nirgends nachtragen. Genau das ist der haeufigste Fall,
+              denn onOffice gibt die Verknuepfung im Aufgabendatensatz
+              nicht heraus. */}
+          {darfAlles ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field
+                  label="onOffice-Objektnummer"
+                  hint="Objektnummer, interne Nummer oder Datensatz-ID – onOffice sucht durch."
+                >
+                  <input
+                    className="field"
+                    value={entwurf.objektnummer}
+                    placeholder="z. B. 4WK-1042"
+                    onChange={(e) => setEntwurf((v) => ({ ...v, objektnummer: e.target.value }))}
+                  />
+                </Field>
+
+                <Field
+                  label="Kundennummer"
+                  hint="Objekt und Kunde lassen sich beide angeben – die Aufgabe hängt dann an beiden."
+                >
+                  <input
+                    className="field"
+                    value={entwurf.kundennummer}
+                    placeholder="z. B. 11482"
+                    onChange={(e) => setEntwurf((v) => ({ ...v, kundennummer: e.target.value }))}
+                  />
+                </Field>
+              </div>
+
+              <label className="flex items-start gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={entwurf.isPrivate}
+                  onChange={(e) => setEntwurf((v) => ({ ...v, isPrivate: e.target.checked }))}
+                />
+                <span>
+                  <strong>Privat</strong>
+                  <span className="muted">
+                    {" "}
+                    – nur der Ersteller sieht die Aufgabe. Keine Mails, keine Eskalation, in
+                    keiner Auswertung.
+                  </span>
+                </span>
+              </label>
+            </>
+          ) : null}
+
           {/* Gesagt werden muss es, bevor jemand tippt: bei diesen
               Feldern fuehrt onOffice, die Aenderung geht also dorthin
               zurueck. Wer das nicht weiss, korrigiert hier einen
@@ -736,6 +810,11 @@ export function TaskDetailDialog({
               Betreff, Beschreibung, Priorität und Fälligkeit werden auch in der
               onOffice-Aufgabe {task.onofficeTaskId} geändert – dort führen diese Felder.
               „Sichtbar ab“ und die Kategorie bleiben hier.
+              {darfAlles
+                ? " Eine eingetippte Objekt- oder Kundennummer wird in onOffice nachgesehen und" +
+                  " nur gespeichert, wenn es den Datensatz dort gibt; die Verknüpfung wird" +
+                  " drüben mitgesetzt."
+                : ""}
             </p>
           ) : null}
 
@@ -834,29 +913,42 @@ export function TaskDetailDialog({
         <Row label="Auftrag von">
           {broker ? `${broker.displayName} · ${broker.email}` : "– niemand hinterlegt –"}
         </Row>
+        {/* Objekt UND Kunde, nicht entweder oder - eine Aufgabe kann
+            an beidem haengen, und vorher verdeckte das Objekt den
+            Kunden. Verlinkt wird mit der Datensatz-ID, angezeigt die
+            Nummer: der Link mit der Objektnummer fuehrte auf ein
+            fremdes Objekt. */}
         <Row label="Objekt / Kunde">
-          {task.onofficeEstateNo ? (
-            <a
-              className="underline"
-              style={{ color: "var(--color-ci-500)" }}
-              href={`https://smart.onoffice.de/smart/smart.php#estate/${task.onofficeEstateNo}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {task.onofficeEstateNo}
-            </a>
-          ) : task.onofficeAddressId ? (
-            <a
-              className="underline"
-              style={{ color: "var(--color-ci-500)" }}
-              href={`https://smart.onoffice.de/smart/smart.php#address/${task.onofficeAddressId}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {task.onofficeAddressId}
-            </a>
+          {task.onofficeEstateId || task.onofficeAddressId ? (
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {task.onofficeEstateId ? (
+                <a
+                  className="underline"
+                  style={{ color: "var(--color-ci-500)" }}
+                  href={`https://smart.onoffice.de/smart/smart.php#estate/${task.onofficeEstateId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  🏠 {task.onofficeEstateNo ?? task.onofficeEstateId}
+                </a>
+              ) : null}
+              {task.onofficeAddressId ? (
+                <a
+                  className="underline"
+                  style={{ color: "var(--color-ci-500)" }}
+                  href={`https://smart.onoffice.de/smart/smart.php#address/${task.onofficeAddressId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  👤 {task.onofficeAddressNo ?? task.onofficeAddressId}
+                </a>
+              ) : null}
+            </span>
           ) : (
-            "–"
+            <span className="muted">
+              nicht verknüpft
+              {darfAlles ? " – über ✎ Bearbeiten nachtragbar" : ""}
+            </span>
           )}
         </Row>
         <Row label="Sichtbar ab">{formatDate(task.visibleFrom)}</Row>
@@ -874,7 +966,7 @@ export function TaskDetailDialog({
         </div>
       ) : null}
 
-      {isAdmin ? (
+      {darfAlles ? (
         <div className="mb-4">
           <Field
             label="Bearbeiter"
