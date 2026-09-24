@@ -15,7 +15,6 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";
 import { asanaKonfiguriert, projektGid, ruf } from "@/lib/asana/client";
-import { synchronisiereAsana } from "@/lib/sync/asana";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,14 +87,45 @@ export async function POST(request: Request) {
       });
     }
 
-    // Gleich holen, damit die Karte sofort im Board steht.
-    const ergebnis = await synchronisiereAsana();
+    // Die Karte gleich selbst eintragen, statt den ganzen Abgleich
+    // laufen zu lassen. Der brauchte fuer dreiundvierzig Aufgaben und
+    // ihre Kommentare so lange, dass die Anfrage in die Zeitgrenze
+    // lief - und das Fenster offen blieb, obwohl die Aufgabe in Asana
+    // schon stand. Was hier fehlt, ergaenzt der naechste Lauf in
+    // hoechstens einer Minute.
+    const { data: wer } = assigneeGid
+      ? await sb.from("asana_users").select("profile_id").eq("gid", assigneeGid).maybeSingle()
+      : { data: null };
+
+    const { data: angelegt, error } = await sb
+      .from("tasks")
+      .insert({
+        title: titel.trim(),
+        description: beschreibung?.trim() || null,
+        status: "offen",
+        priority: "normal",
+        bereich: "asana",
+        asana_task_gid: neu.gid,
+        asana_section_gid: ziel ?? null,
+        asana_assignee_gid: assigneeGid || null,
+        assignee_id: wer?.profile_id ?? null,
+        creator_id: profil.id,
+        due_date: dueOn || null,
+        visible_from: new Date().toISOString().slice(0, 10),
+        source: "manuell",
+        is_pool: false,
+        updated_by: profil.id,
+      })
+      .select("id")
+      .single();
 
     return NextResponse.json({
       ok: true,
       asanaTaskGid: neu.gid,
-      meldung: `„${titel.trim()}“ in Asana angelegt.`,
-      abgleich: ergebnis.meldung,
+      taskId: angelegt?.id ?? null,
+      meldung: error
+        ? `In Asana angelegt. Im Tool erscheint sie mit dem nächsten Abgleich (${error.message}).`
+        : `„${titel.trim()}“ in Asana angelegt.`,
     });
   } catch (err) {
     return NextResponse.json({ fehler: (err as Error).message }, { status: 500 });

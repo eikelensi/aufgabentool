@@ -238,7 +238,14 @@ export default function AsanaBoard() {
         <NeueAsanaAufgabe
           spalteGid={neueIn}
           onClose={() => setNeueIn(null)}
-          onAnlegen={asanaAnlegen}
+          onAnlegen={async (werte) => {
+            const res = await asanaAnlegen(werte);
+            // Gleich nachfragen: die Karte steht schon im Board, aber
+            // Zustaendigkeit und Spalte liest der Abgleich genauer als
+            // wir beim Anlegen raten koennen.
+            if (res.ok) void holen();
+            return res;
+          }}
           spalten={asanaSpalten.filter((sp) => !sp.istPool)}
           nutzer={asanaNutzer}
         />
@@ -361,9 +368,15 @@ function NeueAsanaAufgabe({
         </p>
 
         {fehler ? (
-          <p className="text-[11px]" style={{ color: "var(--err-fg)" }}>
-            {fehler}
-          </p>
+          <div className="text-[11px]" style={{ color: "var(--err-fg)" }}>
+            <p>{fehler}</p>
+            {/* Nicht blind ein zweites Mal klicken: wenn Asana lange
+                gebraucht hat, kann die Aufgabe trotzdem stehen. */}
+            <p className="mt-1">
+              Bitte erst im Board nachsehen, bevor du es erneut versuchst – sonst legst du
+              sie womöglich zweimal an.
+            </p>
+          </div>
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
