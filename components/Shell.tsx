@@ -116,7 +116,12 @@ export default function Shell({
             </span>
           </Link>
 
-          <nav className="scroll-x flex items-center gap-1">
+          {/* Umbrechen statt scrollen. Mit sieben Punkten, dem Logo und
+              den Knoepfen rechts ist die Zeile voll; die scrollbare
+              Variante schob den letzten Punkt aus dem Bild, und wer
+              nicht wischt, glaubt, es gibt ihn nicht. Zwei Zeilen sind
+              haesslicher als eine, aber ehrlicher. */}
+          <nav className="flex flex-wrap items-center gap-1">
             {nav.map((n) => {
               const active =
                 n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
