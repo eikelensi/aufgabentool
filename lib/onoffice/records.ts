@@ -224,11 +224,11 @@ export async function kundenNummern(ids: (string | number)[]): Promise<Map<strin
   return map;
 }
 
-/** Deeplink in die onOffice-Oberfläche, für die Aufgabenkarte. */
-export function estateDeeplink(estateId: string): string {
-  return `https://smart.onoffice.de/smart/smart.php#estate/${encodeURIComponent(estateId)}`;
-}
-
-export function addressDeeplink(addressId: string): string {
-  return `https://smart.onoffice.de/smart/smart.php#address/${encodeURIComponent(addressId)}`;
-}
+/**
+ * Deeplinks in die onOffice-Oberfläche.
+ *
+ * Gebaut werden sie in lib/onoffice/links.ts - dieselben Adressen
+ * braucht auch der Browser, und der darf diese Datei hier nicht
+ * anfassen (sie zieht den API-Client mit Token und Secret nach sich).
+ */
+export { estateLink as estateDeeplink, addressLink as addressDeeplink } from "./links";

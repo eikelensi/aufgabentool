@@ -632,10 +632,19 @@ export default async function HandbuchSeite() {
           liegt. Fehlt sie drüben, zieht der Abgleich sie nach, fünf pro Lauf,
           weil jede einen Aufruf kostet.
         </p>
+        <p>
+          <strong>Ein Klick genügt.</strong> Objektnummer, Kundennummer und
+          Aufgabennummer sind auf jeder Karte und im Aufgabenfenster anklickbar
+          und öffnen den Datensatz in onOffice in einem neuen Tab. Die Aufgabe
+          hier bleibt offen, wo sie war.
+        </p>
         <p className="muted">
           Im Aufgabenfenster stehen Objekt und Kunde nebeneinander, nicht
           entweder oder. Angezeigt wird die Nummer, verlinkt die Datensatz-ID:
-          ein Link mit der Objektnummer führte auf ein fremdes Objekt.
+          ein Link mit der Objektnummer führte auf ein fremdes Objekt. Fehlt die
+          ID, ist die Nummer bewusst kein Link – lieber keiner als einer, der
+          auf ein fremdes Objekt führt. Sobald der Abgleich die Verknüpfung
+          geholt hat, wird der Chip anklickbar.
         </p>
       </Abschnitt>
 

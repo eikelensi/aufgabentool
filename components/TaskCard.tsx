@@ -4,6 +4,56 @@ import React from "react";
 import { useStore } from "@/lib/store";
 import { istVerteilt, type Task } from "@/lib/types";
 import { Avatar, CategoryChip, PriorityChip, daysSince, formatDate } from "./ui";
+import { addressLink, estateLink, taskLink } from "@/lib/onoffice/links";
+
+/**
+ * Eine Nummer auf der Karte, die nach onOffice fuehrt.
+ *
+ * Zwei Dinge, die beide sein muessen:
+ *
+ * 1. stopPropagation - sonst oeffnet derselbe Klick auch noch das
+ *    Aufgabenfenster, und man sieht zwei Dinge, von denen man eines
+ *    wollte.
+ * 2. Ein neuer Tab. Wer im Tool eine Aufgabe abarbeitet, will
+ *    nachsehen und zurueckkommen, nicht neu anfangen.
+ *
+ * Fehlt die Datensatz-ID, wird NICHT verlinkt: ein Link, der auf ein
+ * fremdes Objekt fuehrt, ist schlimmer als gar keiner. Dann bleibt es
+ * ein stummer Chip, und der Titel sagt, warum.
+ */
+function NummerChip({
+  href,
+  titel,
+  children,
+}: {
+  href?: string;
+  titel: string;
+  children: React.ReactNode;
+}) {
+  const stil = { background: "var(--panel-2)", color: "var(--muted)" } as const;
+
+  if (!href) {
+    return (
+      <span className="chip" style={stil} title={titel}>
+        {children}
+      </span>
+    );
+  }
+
+  return (
+    <a
+      className="chip chip-link"
+      style={stil}
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      title={titel}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </a>
+  );
+}
 
 export default function TaskCard({
   task,
@@ -168,13 +218,12 @@ export default function TaskCard({
 
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
         {task.onofficeTaskId ? (
-          <span
-            className="chip"
-            style={{ background: "var(--panel-2)", color: "var(--muted)" }}
-            title="Aufgabennummer in onOffice – danach lässt sich oben suchen"
+          <NummerChip
+            href={taskLink(task.onofficeTaskId)}
+            titel={`Aufgabe ${task.onofficeTaskId} in onOffice öffnen`}
           >
             #{task.onofficeTaskId}
-          </span>
+          </NummerChip>
         ) : null}
         <PriorityChip priority={task.priority} />
         <CategoryChip category={category} />
@@ -184,16 +233,27 @@ export default function TaskCard({
           </span>
         ) : null}
         {task.onofficeEstateNo ? (
-          <span className="chip" style={{ background: "var(--panel-2)", color: "var(--muted)" }}>
+          <NummerChip
+            href={task.onofficeEstateId ? estateLink(task.onofficeEstateId) : undefined}
+            titel={
+              task.onofficeEstateId
+                ? `Objekt ${task.onofficeEstateNo} in onOffice öffnen`
+                : "Objektnummer – der Datensatz in onOffice ist noch nicht zugeordnet, " +
+                  "deshalb führt hier kein Link hin"
+            }
+          >
             🏠 {task.onofficeEstateNo}
-          </span>
+          </NummerChip>
         ) : null}
         {task.onofficeAddressId ? (
-          <span className="chip" style={{ background: "var(--panel-2)", color: "var(--muted)" }}>
+          <NummerChip
+            href={addressLink(task.onofficeAddressId)}
+            titel={`Kunde ${task.onofficeAddressNo ?? task.onofficeAddressId} in onOffice öffnen`}
+          >
             {/* Die Kundennummer, nicht die Datensatz-ID: "11482" kennt
                 jemand, "3471129" niemand. */}
             👤 {task.onofficeAddressNo ?? task.onofficeAddressId}
-          </span>
+          </NummerChip>
         ) : null}
         {task.source === "email" ? (
           <span className="chip" style={{ background: "var(--panel-2)", color: "var(--muted)" }}>

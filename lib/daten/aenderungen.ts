@@ -25,6 +25,12 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
+    titel: "Objekt-, Kunden- und Aufgabennummer sind anklickbar",
+    text: "Auf jeder Karte öffnet ein Klick auf 🏠, 👤 oder #Nummer den Datensatz in onOffice – in einem neuen Tab, die Aufgabe hier bleibt offen. Fehlt die Datensatz-ID, bleibt die Nummer bewusst stumm: ein Link, der auf ein fremdes Objekt führt, wäre schlimmer als keiner.",
+    bereich: "Alle Aufgaben",
+  },
+  {
+    datum: "2026-09-24",
     titel: "„Auftrag von“ geht jetzt über das onOffice-Feld „tags“",
     text: "Wer in onOffice eine Aufgabe anlegt und als Tag den Kollegen setzt, für den gearbeitet wird, findet ihn hier als „Auftrag von“ wieder – und umgekehrt. Zusammengeführt wird über das neue Feld „onOffice-Tag“ beim Kollegen (Verwaltung → Kollegen); ohne Eintrag werden Kürzel und Nachname probiert. Ein Tag, das auf zwei Kollegen passt, wird nicht zugeordnet – an dem Feld hängt, wer die Erledigt-Mail bekommt.",
     bereich: "onOffice-Abgleich, Verwaltung",

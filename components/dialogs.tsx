@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/lib/store";
+import { addressLink, estateLink, taskLink } from "@/lib/onoffice/links";
 import { isoDate } from "@/lib/data";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
 import { STATUS_LABEL, istVerteilt } from "@/lib/types";
@@ -900,7 +901,7 @@ export function TaskDetailDialog({
             <a
               className="underline"
               style={{ color: "var(--color-ci-500)" }}
-              href={`https://smart.onoffice.de/smart/smart.php#task/${task.onofficeTaskId}`}
+              href={taskLink(task.onofficeTaskId)}
               target="_blank"
               rel="noreferrer"
             >
@@ -925,7 +926,7 @@ export function TaskDetailDialog({
                 <a
                   className="underline"
                   style={{ color: "var(--color-ci-500)" }}
-                  href={`https://smart.onoffice.de/smart/smart.php#estate/${task.onofficeEstateId}`}
+                  href={estateLink(task.onofficeEstateId)}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -936,7 +937,7 @@ export function TaskDetailDialog({
                 <a
                   className="underline"
                   style={{ color: "var(--color-ci-500)" }}
-                  href={`https://smart.onoffice.de/smart/smart.php#address/${task.onofficeAddressId}`}
+                  href={addressLink(task.onofficeAddressId)}
                   target="_blank"
                   rel="noreferrer"
                 >
