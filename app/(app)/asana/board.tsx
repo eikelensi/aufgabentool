@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import TaskCard from "@/components/TaskCard";
 import { TaskDetailDialog } from "@/components/dialogs";
@@ -27,6 +27,46 @@ export default function AsanaBoard() {
   // Erledigtes verstopft ein Board, das zum Arbeiten da ist - es ist
   // einen Klick entfernt, aber nicht im Weg.
   const [zeigeFertige, setZeigeFertige] = useState(false);
+  const [holt, setHolt] = useState(false);
+
+  /**
+   * Bei Asana nachfragen, nicht warten.
+   *
+   * Der Zeitplan auf dem Server laeuft im Minutentakt - fuer jemanden,
+   * der drueben gerade eine Aufgabe angelegt hat, ist eine Minute
+   * lang. Wer diese Seite offen hat, fragt deshalb selbst: beim
+   * Oeffnen, beim Zurueckkommen zum Tab und alle halbe Minute,
+   * solange man hinsieht. Im Hintergrund nicht - ein Tab, den
+   * niemand ansieht, braucht kein frisches Board.
+   */
+  const holen = useCallback(async () => {
+    if (document.visibilityState !== "visible") return;
+    setHolt(true);
+    try {
+      await fetch("/api/sync/asana", { method: "POST" });
+      await neuLaden();
+    } catch {
+      /* dann eben beim naechsten Mal */
+    }
+    setHolt(false);
+  }, [neuLaden]);
+
+  useEffect(() => {
+    void holen();
+
+    const beiRueckkehr = () => {
+      if (document.visibilityState === "visible") void holen();
+    };
+    document.addEventListener("visibilitychange", beiRueckkehr);
+    window.addEventListener("focus", beiRueckkehr);
+    const takt = setInterval(() => void holen(), 30_000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", beiRueckkehr);
+      window.removeEventListener("focus", beiRueckkehr);
+      clearInterval(takt);
+    };
+  }, [holen]);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
 
@@ -75,6 +115,15 @@ export default function AsanaBoard() {
           <button
             type="button"
             className="btn btn-ghost"
+            onClick={() => void holen()}
+            disabled={holt}
+            title="Jetzt bei Asana nachfragen"
+          >
+            {holt ? "…" : "↻"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
             onClick={() => setZeigeFertige((z) => !z)}
             title="Erledigte Aufgaben ein- oder ausblenden"
           >
@@ -100,8 +149,8 @@ export default function AsanaBoard() {
           </button>
         </span>
         <span className="muted text-[11px]">
-          Asana führt: Titel, Text, Zuständigkeit und Spalte kommen von dort. Jede Aufgabe
-          steht zusätzlich in onOffice.
+          Asana führt: Titel, Text, Zuständigkeit und Spalte kommen von dort. Diese Seite
+          fragt beim Öffnen und alle 30 Sekunden nach{holt ? " – gerade jetzt" : ""}.
         </span>
       </div>
 

@@ -384,6 +384,22 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     // der sie sich gerade gezogen hat, wieder aus der Hand.
     if (vorhanden?.bereich === "task") continue;
 
+    // Unveraendert? Dann nichts schreiben. Das ist nicht Sparsamkeit um
+    // ihrer selbst willen: jede geschriebene Zeile meldet sich per
+    // Realtime an jeden offenen Browser, und einundvierzig Meldungen
+    // im Minutentakt fuer nichts machen die Seite langsam, nicht
+    // schnell. Ein Spaltenwechsel oder eine neue Zustaendigkeit
+    // aendert in Asana das Datum - was hier durchfaellt, hat sich
+    // wirklich nicht geruehrt.
+    if (
+      vorhanden &&
+      aufgabe.modified_at &&
+      vorhanden.asana_modified_at &&
+      new Date(vorhanden.asana_modified_at).getTime() === new Date(aufgabe.modified_at).getTime()
+    ) {
+      continue;
+    }
+
     // Die Datenbank verlangt bei "Rueckfragen offen" eine Notiz. Aus
     // Asana kommt keine - die Spalte IST die Begruendung. Also ein
     // ehrlicher Platzhalter, aber nur, wenn noch nichts dasteht:
