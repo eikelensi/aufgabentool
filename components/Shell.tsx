@@ -7,6 +7,7 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { NewTaskDialog } from "./dialogs";
 import Meldungen from "./Meldungen";
+import Tagesgruss from "./Tagesgruss";
 import { ROLLE_LABEL, darfSehen, type AppRole, type Bereich, type Bereichsrechte } from "@/lib/types";
 
 export interface ShellProfil {
@@ -242,6 +243,9 @@ export default function Shell({
       {/* Steht ueber allem und ist trotzdem still, solange nichts
           anliegt. */}
       <Meldungen />
+
+      {/* Einmal am Tag, beim ersten Aufmachen. */}
+      <Tagesgruss />
     </div>
   );
 }

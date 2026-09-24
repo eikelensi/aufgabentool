@@ -502,7 +502,21 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={17} titel="Was sich am Tool ändert">
+      <Abschnitt nummer={17} titel="Die Begrüßung am Morgen">
+        <p>
+          Beim ersten Aufmachen an einem Tag erscheint ein kurzes Fenster: der
+          eigene Name, die offenen Aufgaben, die offenen Rückfragen und wie viel
+          im Pool liegt.
+        </p>
+        <p className="muted">
+          Gemerkt wird das im Browser, nicht in der Datenbank – einmal je Gerät
+          und Tag. Wer morgens am Büro-Rechner anfängt, hat es dort gesehen; am
+          Laptop am Nachmittag erscheint es noch einmal. In einem privaten
+          Fenster erscheint es nicht.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={18} titel="Was sich am Tool ändert">
         <p>
           Jede Änderung am Tool selbst – neue Funktionen und behobene Fehler –
           steht unter <strong>Verwaltung → Protokolle → Am System geändert</strong>,
