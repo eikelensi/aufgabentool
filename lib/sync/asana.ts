@@ -94,24 +94,26 @@ async function spiegleSpalten(): Promise<{ poolGid: string | null; namen: Map<st
     spalten.push(pool);
   }
 
-  // Die Pool-Spalte gehoert nach vorn, gleich neben den Eingang: sie
-  // ist der Ausgang dieses Bereichs und keine Ablage am Ende, zu der
-  // man erst durch zehn Spalten scrollt. Steht sie schon dort,
-  // passiert nichts - Asana nimmt denselben Aufruf beliebig oft.
-  const erste = spalten.find((s) => s.gid !== pool!.gid);
-  if (erste && spalten.indexOf(pool) !== 1) {
+  // Die Pool-Spalte steht ganz links, vor dem Eingang: sie ist der
+  // Ausgang dieses Bereichs, und man soll nicht durch zehn Spalten
+  // scrollen, um etwas abzugeben. Steht sie schon dort, passiert
+  // nichts - Asana nimmt denselben Aufruf beliebig oft.
+  if (spalten[0]?.gid !== pool.gid) {
+    const erste = spalten.find((s) => s.gid !== pool!.gid);
     try {
-      await ruf({
-        pfad: `/projects/${projektGid()}/sections/insert`,
-        methode: "POST",
-        daten: { section: pool.gid, after_section: erste.gid },
-      });
+      if (erste) {
+        await ruf({
+          pfad: `/projects/${projektGid()}/sections/insert`,
+          methode: "POST",
+          daten: { section: pool.gid, before_section: erste.gid },
+        });
+      }
       const ohne = spalten.filter((s) => s.gid !== pool!.gid);
       spalten.length = 0;
-      spalten.push(ohne[0], pool, ...ohne.slice(1));
+      spalten.push(pool, ...ohne);
     } catch {
       // Misslingt das Einsortieren, bleibt die Spalte, wo sie ist -
-      // das ist unschoen, aber kein Grund, den Abgleich abzubrechen.
+      // unschoen, aber kein Grund, den Abgleich abzubrechen.
     }
   }
 
@@ -231,10 +233,15 @@ async function holeKommentare(
 /**
  * Eine Aufgabe, die in der Pool-Spalte liegt, abgeben.
  *
- * Drei Dinge auf einmal, und keines darf fehlen: sie wechselt den
- * Bereich, sie verlaesst das Asana-Projekt, und die Verantwortlichen
- * erfahren davon. Bliebe sie in Asana stehen, holte der naechste Lauf
- * sie zurueck.
+ * Sie wechselt den Bereich, landet im Aufgabenpool und verschwindet
+ * damit aus dem Asana-Board des Tools. In Asana selbst BLEIBT sie
+ * stehen, in der Pool-Spalte: dort ist sie die Notiz "das haben wir
+ * abgegeben", und die Geschichte einer Aufgabe gehoert nicht in den
+ * Papierkorb.
+ *
+ * Dass der naechste Lauf sie nicht zurueckholt, liegt nicht daran,
+ * dass sie drueben fehlt, sondern an ihrem Bereich: was einmal im
+ * Tool angekommen ist, fasst der Abgleich nicht mehr an.
  */
 export async function gibAbAnDenPool(
   taskId: string,
@@ -257,14 +264,6 @@ export async function gibAbAnDenPool(
       updated_at: new Date().toISOString(),
     })
     .eq("id", taskId);
-
-  // Aus dem Projekt nehmen, nicht loeschen: die Aufgabe hat eine
-  // Geschichte, und die gehoert nicht in den Papierkorb.
-  await ruf({
-    pfad: `/tasks/${asanaGid}/removeProject`,
-    methode: "POST",
-    daten: { project: projektGid() },
-  });
 
   const { data: empfaenger } = await sb
     .from("profiles")
@@ -336,15 +335,22 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
   ergebnis.gelesen = aufgaben.length;
 
   const gids = aufgaben.map((a) => a.gid);
-  const bekannt = new Map<string, { id: string; asana_modified_at: string | null }>();
+  const bekannt = new Map<
+    string,
+    { id: string; asana_modified_at: string | null; bereich: string }
+  >();
   if (gids.length) {
     const { data } = await sb
       .from("tasks")
-      .select("id, asana_task_gid, asana_modified_at")
+      .select("id, asana_task_gid, asana_modified_at, bereich")
       .in("asana_task_gid", gids);
     for (const t of data ?? []) {
       if (t.asana_task_gid) {
-        bekannt.set(t.asana_task_gid, { id: t.id, asana_modified_at: t.asana_modified_at });
+        bekannt.set(t.asana_task_gid, {
+          id: t.id,
+          asana_modified_at: t.asana_modified_at,
+          bereich: t.bereich,
+        });
       }
     }
   }
@@ -370,6 +376,12 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
 
     // Was drueben fertig ist und hier noch nie war, bleibt drueben.
     if (!vorhanden && aufgabe.completed) continue;
+
+    // Schon abgegeben: die Aufgabe gehoert jetzt dem Aufgabenpool. Sie
+    // steht in Asana weiter in der Pool-Spalte, aber hier fasst der
+    // Abgleich sie nicht mehr an - sonst zoege er sie dem Kollegen,
+    // der sie sich gerade gezogen hat, wieder aus der Hand.
+    if (vorhanden?.bereich === "task") continue;
 
     const zeile: Record<string, unknown> = {
       title: aufgabe.name || "(ohne Titel)",

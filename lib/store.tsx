@@ -89,6 +89,14 @@ interface StoreValue {
   asanaNutzer: AsanaNutzer[];
   /** Karte in eine andere Spalte legen; die Pool-Spalte gibt sie ab. */
   asanaVerschieben: (taskId: string, sectionGid: string) => Promise<Ergebnis>;
+  /** Eine Aufgabe im Asana-Bereich anlegen - sie entsteht in Asana. */
+  asanaAnlegen: (werte: {
+    titel: string;
+    beschreibung?: string;
+    sectionGid?: string;
+    assigneeGid?: string | null;
+    dueOn?: string | null;
+  }) => Promise<Ergebnis>;
   /** Zustaendigkeit und Frist in Asana setzen. */
   asanaZuteilen: (
     taskId: string,
@@ -813,6 +821,27 @@ export function StoreProvider({
       }
     }
 
+    async function asanaAnlegen(werte: {
+      titel: string;
+      beschreibung?: string;
+      sectionGid?: string;
+      assigneeGid?: string | null;
+      dueOn?: string | null;
+    }): Promise<Ergebnis> {
+      try {
+        const res = await fetch("/api/asana/anlegen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(werte),
+        });
+        const json = await res.json().catch(() => ({}));
+        await neuLaden();
+        return res.ok ? { ok: true } : { ok: false, error: json.fehler };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    }
+
     async function asanaZuteilen(
       taskId: string,
       werte: { assigneeGid?: string | null; dueOn?: string | null },
@@ -1059,6 +1088,7 @@ export function StoreProvider({
       asanaSpalten,
       asanaTasks: tasks.filter((t) => t.bereich === "asana"),
       asanaNutzer,
+      asanaAnlegen,
       asanaVerschieben,
       asanaZuteilen,
       sortiere,

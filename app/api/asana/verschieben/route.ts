@@ -58,11 +58,22 @@ export async function POST(request: Request) {
 
   try {
     if (spalte.ist_pool) {
+      // Erst drueben in die Pool-Spalte legen, dann hier abgeben. In
+      // dieser Reihenfolge, damit die Karte in Asana nicht dort
+      // stehenbleibt, wo sie war, wenn das Abgeben scheitert - dann
+      // waere im Board nichts zu sehen und im Pool doch etwas.
+      await ruf({
+        pfad: `/sections/${sectionGid}/addTask`,
+        methode: "POST",
+        daten: { task: aufgabe.asana_task_gid },
+      });
+
       await gibAbAnDenPool(aufgabe.id, aufgabe.asana_task_gid, aufgabe.title, profil.id);
+
       return NextResponse.json({
         ok: true,
         abgegeben: true,
-        meldung: `„${aufgabe.title}“ liegt jetzt im Aufgabenpool.`,
+        meldung: `„${aufgabe.title}“ liegt jetzt im Aufgabenpool – in Asana steht sie in der Pool-Spalte.`,
       });
     }
 
