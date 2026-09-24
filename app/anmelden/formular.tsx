@@ -50,6 +50,16 @@ export default function AnmeldenFormular() {
       return;
     }
 
+    // Der Gruss gehoert zur Anmeldung, nicht zum Tag: hier wird das
+    // Zeichen gesetzt, das die Huelle nach dem Laden findet und gleich
+    // wieder wegnimmt. Damit erscheint er genau einmal je Anmeldung -
+    // nicht bei jedem Seitenwechsel und nicht bei jedem Neuladen.
+    try {
+      window.sessionStorage.setItem("aufgabentool-gruss-zeigen", "1");
+    } catch {
+      /* ohne Browserspeicher eben kein Gruss */
+    }
+
     // Vollstaendiges Neuladen, damit die Server-Komponenten die frische
     // Sitzung aus den Cookies sehen.
     router.replace(weiter);

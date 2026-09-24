@@ -502,17 +502,16 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={17} titel="Die Begrüßung am Morgen">
+      <Abschnitt nummer={17} titel="Die Begrüßung beim Anmelden">
         <p>
-          Beim ersten Aufmachen an einem Tag erscheint ein kurzes Fenster: der
-          eigene Name, die offenen Aufgaben, die offenen Rückfragen und wie viel
-          im Pool liegt.
+          Nach jedem Anmelden erscheint ein kurzes Fenster: der eigene Name, die
+          offenen Aufgaben, die offenen Rückfragen und wie viel im Pool liegt.
         </p>
         <p className="muted">
-          Gemerkt wird das im Browser, nicht in der Datenbank – einmal je Gerät
-          und Tag. Wer morgens am Büro-Rechner anfängt, hat es dort gesehen; am
-          Laptop am Nachmittag erscheint es noch einmal. In einem privaten
-          Fenster erscheint es nicht.
+          Wer angemeldet bleibt und morgens nur den Tab aufweckt, meldet sich
+          nie an – für den erscheint es einmal am Tag. Gemerkt wird das im
+          Browser, nicht in der Datenbank; in einem privaten Fenster erscheint es
+          nicht.
         </p>
       </Abschnitt>
 

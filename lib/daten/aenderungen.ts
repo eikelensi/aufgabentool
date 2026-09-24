@@ -25,8 +25,8 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
-    titel: "Begrüßung beim ersten Login am Tag",
-    text: "Einmal täglich beim Aufmachen erscheint ein kurzes Fenster mit Namen, offenen Aufgaben, offenen Rückfragen und der Zahl der Aufgaben im Pool. Gemerkt wird das im Browser – einmal je Gerät und Tag.",
+    titel: "Begrüßung beim Anmelden",
+    text: "Nach jedem Anmelden erscheint ein kurzes Fenster mit Namen, offenen Aufgaben, offenen Rückfragen und der Zahl der Aufgaben im Pool. Wer angemeldet bleibt, sieht es einmal am Tag.",
     bereich: "Alle Seiten",
   },
   {

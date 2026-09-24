@@ -4,19 +4,25 @@ import React, { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 
 /**
- * Die Begruessung am ersten Tageslogin.
+ * Die Begruessung nach dem Anmelden.
  *
- * Gemerkt wird das im Browser, nicht in der Datenbank: ein Datum je
- * Geraet. Das ist Absicht - wer morgens am Buero-Rechner anfaengt und
- * mittags am Laptop weitermacht, soll den Gruss am Rechner gesehen
- * haben und nicht auf dem Laptop verpasst haben. Und es ist keine
- * Angabe, die in einer Datenbank etwas verloren haette.
+ * Ausgeloest wird sie von der Anmeldung selbst: das Formular legt ein
+ * Zeichen in den Sitzungsspeicher, diese Huelle findet es nach dem
+ * Laden und nimmt es gleich wieder weg. Damit erscheint der Gruss
+ * genau einmal je Anmeldung - nicht bei jedem Seitenwechsel, nicht
+ * bei jedem Neuladen, und auch nicht, wenn jemand einen zweiten Tab
+ * aufmacht.
+ *
+ * Als Netz daneben: einmal am Tag auch ohne frische Anmeldung. Wer
+ * angemeldet bleibt und morgens nur den Tab aufweckt, meldet sich nie
+ * an - bekaeme also nie einen Gruss.
  *
  * Gezeigt wird erst, wenn die Zahlen stimmen. Ein Willkommen mit
  * "0 offene Aufgaben", weil noch geladen wird, waere schlimmer als
  * keins.
  */
 
+const ZEICHEN = "aufgabentool-gruss-zeigen";
 const SCHLUESSEL = "aufgabentool-gruss";
 
 function heute(): string {
@@ -38,6 +44,15 @@ export default function Tagesgruss() {
     if (!bereit) return;
 
     try {
+      // Frisch angemeldet? Dann immer.
+      if (window.sessionStorage.getItem(ZEICHEN)) {
+        window.sessionStorage.removeItem(ZEICHEN);
+        window.localStorage.setItem(SCHLUESSEL, heute());
+        setOffen(true);
+        return;
+      }
+
+      // Sonst einmal am Tag, fuer alle, die angemeldet bleiben.
       if (window.localStorage.getItem(SCHLUESSEL) === heute()) return;
       window.localStorage.setItem(SCHLUESSEL, heute());
     } catch {
