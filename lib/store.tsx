@@ -483,6 +483,11 @@ export function StoreProvider({
         }
       }
 
+      if (aufgabe.asanaTaskGid && status !== aufgabe.status) {
+        if (status === "erledigt") vermerkeInAsana(aufgabe, "erledigt");
+        else if (aufgabe.status === "erledigt") vermerkeInAsana(aufgabe, "geoeffnet");
+      }
+
       // Kommt die Aufgabe aus Asana - auch wenn sie laengst abgegeben
       // ist -, muss das Abhaken dort ankommen. Sonst haengt drueben in
       // der Pool-Spalte eine Karte, von der niemand weiss, dass sie
@@ -504,7 +509,39 @@ export function StoreProvider({
       return hinweis ? { ok: true, error: hinweis } : { ok: true };
     }
 
+    /**
+     * Den Lebenslauf einer Aufgabe in Asana mitschreiben.
+     *
+     * Nebenher und ohne Abwarten: ein Vermerk ist eine Notiz, kein
+     * Arbeitsschritt. Wer sich eine Aufgabe zieht, soll nicht darauf
+     * warten, dass Asana antwortet.
+     */
+    function vermerkeInAsana(
+      aufgabe: Task | undefined,
+      anlass: "verteilt" | "pool" | "erledigt" | "geoeffnet",
+      grund?: string,
+    ) {
+      if (!aufgabe?.asanaTaskGid) return;
+      void fetch("/api/asana/vermerk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: aufgabe.id,
+          anlass,
+          grund,
+          // Beim Uebernehmen loescht das Tool den Pool-Vermerk. Ob die
+          // Aufgabe schon einmal zurueckkam, weiss also nur noch der
+          // Stand von vorhin - und der steht hier.
+          erneut: Boolean(aufgabe.poolZurueckAm),
+        }),
+      }).catch(() => undefined);
+    }
+
     async function claimTask(taskId: string): Promise<Ergebnis> {
+      // Vor dem Speichern merken: gleich sind pool_grund und
+      // pool_zurueck_am geloescht, und damit die Vorgeschichte.
+      const vorZugriff = tasks.find((t) => t.id === taskId);
+
       const { error } = await sb
         .from("tasks")
         .update({
@@ -525,6 +562,11 @@ export function StoreProvider({
         await neuLaden();
         return { ok: false, error: error.message };
       }
+
+      // In Asana steht die Karte weiter in der Pool-Spalte. Damit dort
+      // nicht nur steht, dass sie abgegeben wurde, sondern auch, wer
+      // sie genommen hat.
+      vermerkeInAsana(vorZugriff, "verteilt");
 
       // Wer sich eine Aufgabe zieht, steht auch in onOffice als Bearbeiter.
       // Bewusst danach und ohne Abwarten des Ergebnisses: eine hakende
@@ -570,6 +612,8 @@ export function StoreProvider({
         await neuLaden();
         return { ok: false, error: error.message };
       }
+
+      vermerkeInAsana(aufgabe, "pool", text);
 
       // Erst den Bearbeiter drueben leeren, dann melden. Beides
       // fail-soft: die Aufgabe liegt im Pool, auch wenn eines davon
@@ -679,6 +723,14 @@ export function StoreProvider({
         (patch.onofficeBearbeiterId !== undefined &&
           patch.onofficeBearbeiterId !== (vorher?.onofficeBearbeiterId ?? null)) ||
         (patch.isPool !== undefined && patch.isPool !== (vorher?.isPool ?? false));
+
+      // Eine Umverteilung ist fuer die Karte in Asana dasselbe
+      // Ereignis wie das Ziehen aus dem Pool: jemand anderes ist
+      // jetzt dran.
+      if (zuweisungGeaendert && vorher?.asanaTaskGid) {
+        const nachher = patch.assigneeId ?? vorher.assigneeId;
+        vermerkeInAsana({ ...vorher, assigneeId: nachher ?? null }, nachher ? "verteilt" : "pool");
+      }
 
       let hinweis: string | undefined;
       if (zuweisungGeaendert && vorher?.onofficeTaskId) {
