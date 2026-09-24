@@ -157,6 +157,7 @@ export function zuAufgabe(row: any): Task {
     onofficeEstateNo: row.onoffice_estate_no ?? row.onoffice_estate_id ?? undefined,
     onofficeAddressId: row.onoffice_address_id ?? undefined,
     onofficeAddressNo: row.onoffice_address_no ?? row.onoffice_address_id ?? undefined,
+    onofficeTag: row.onoffice_tag ?? undefined,
     source: row.source,
     inProgressNote: row.in_progress_note ?? undefined,
     createdAt: row.created_at,

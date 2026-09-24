@@ -260,6 +260,13 @@ export interface Task {
   onofficeEstateNo?: string;
   onofficeAddressId?: string;
   onofficeAddressNo?: string;
+  /**
+   * Das Feld "tags" aus onOffice, unveraendert. Dort steht, FUER WEN
+   * gearbeitet wird; im Tool ist das "Auftrag von". Bleibt auch dann
+   * stehen, wenn das Tag zu keinem Kollegen passt - sonst waere die
+   * Angabe verloren und niemand koennte sie nachtragen.
+   */
+  onofficeTag?: string;
   source: TaskSource;
   inProgressNote?: string;
   createdAt: string;

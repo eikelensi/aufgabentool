@@ -48,7 +48,7 @@ export default async function KollegenSeite() {
     sb
       .from("broker_contacts")
       .select(
-        "id, display_name, short_code, email, phone, extension, location, onoffice_user_id, profile_id, sync_source, is_active",
+        "id, display_name, short_code, onoffice_tag, email, phone, extension, location, onoffice_user_id, profile_id, sync_source, is_active",
       )
       .order("is_active", { ascending: false })
       .order("display_name"),
@@ -76,6 +76,7 @@ export default async function KollegenSeite() {
     id: k.id,
     displayName: k.display_name,
     shortCode: k.short_code,
+    onofficeTag: k.onoffice_tag,
     email: k.email,
     phone: k.phone,
     extension: k.extension,

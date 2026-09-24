@@ -54,6 +54,7 @@ export async function kollegeSpeichern(formData: FormData): Promise<Ergebnis> {
     display_name: displayName,
     email,
     short_code: text(formData, "short_code") || null,
+    onoffice_tag: text(formData, "onoffice_tag") || null,
     phone: text(formData, "phone") || null,
     extension: text(formData, "extension") || null,
     location: text(formData, "location") || null,

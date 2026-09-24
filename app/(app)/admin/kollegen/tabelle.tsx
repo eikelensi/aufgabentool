@@ -15,6 +15,8 @@ export interface KollegeZeile {
   id: string;
   displayName: string;
   shortCode: string | null;
+  /** Wert des Feldes "tags" an einer onOffice-Aufgabe, der diesen Kollegen meint. */
+  onofficeTag: string | null;
   email: string;
   phone: string | null;
   extension: string | null;
@@ -56,6 +58,7 @@ function Feld({
   platzhalter,
   typ = "text",
   breit = false,
+  hinweis,
 }: {
   name: string;
   label: string;
@@ -63,6 +66,8 @@ function Feld({
   platzhalter?: string;
   typ?: string;
   breit?: boolean;
+  /** Ein Satz unter dem Feld, wenn der Name allein nicht reicht. */
+  hinweis?: string;
 }) {
   return (
     <div className={breit ? "sm:col-span-2" : undefined}>
@@ -77,6 +82,7 @@ function Feld({
         defaultValue={wert ?? ""}
         placeholder={platzhalter}
       />
+      {hinweis ? <p className="muted mt-1 text-[11px] leading-relaxed">{hinweis}</p> : null}
     </div>
   );
 }
@@ -121,6 +127,13 @@ function KollegeFormular({
         />
         <Feld name="email" label="E-Mail" typ="email" wert={kollege?.email} />
         <Feld name="short_code" label="Kürzel" wert={kollege?.shortCode} platzhalter="mw" />
+        <Feld
+          name="onoffice_tag"
+          label="onOffice-Tag"
+          wert={kollege?.onofficeTag}
+          platzhalter="Weis"
+          hinweis="Was in onOffice im Aufgabenfeld „tags“ steht, wenn diese Aufgabe für ihn ist. Daraus wird hier „Auftrag von“ – und umgekehrt."
+        />
         <Feld
           name="onoffice_user_id"
           label="onOffice-Benutzer-ID"
@@ -300,6 +313,15 @@ export function KollegenBereich({
                         {k.displayName}
                         {k.shortCode ? (
                           <span className="muted ml-1.5 text-[11px]">({k.shortCode})</span>
+                        ) : null}
+                        {k.onofficeTag ? (
+                          <span
+                            className="chip ml-1.5"
+                            style={{ background: "var(--panel-2)", color: "var(--muted)" }}
+                            title="onOffice-Tag"
+                          >
+                            #{k.onofficeTag}
+                          </span>
                         ) : null}
                         {!k.isActive ? (
                           <span

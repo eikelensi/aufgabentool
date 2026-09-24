@@ -78,7 +78,8 @@ export async function legeInOnofficeAn(
     .select(
       `id, title, description, status, priority, due_date, visible_from, is_private,
        assignee_id, creator_id, onoffice_task_id, onoffice_bearbeiter_id,
-       onoffice_estate_id, onoffice_address_id, onoffice_estate_no, onoffice_address_no`,
+       onoffice_estate_id, onoffice_address_id, onoffice_estate_no, onoffice_address_no,
+       broker_contact_id`,
     )
     .eq("id", taskId)
     .maybeSingle();
@@ -112,6 +113,24 @@ export async function legeInOnofficeAn(
     bearbeiter = kollege?.short_code?.trim() ?? "";
   }
   const verantwortung = await onofficeName(aufgabe.creator_id);
+
+  // "Auftrag von" geht als Tag mit. Damit steht schon beim Anlegen
+  // drueben, fuer wen gearbeitet wird - und der naechste Abgleich
+  // liest genau das wieder heraus, statt das Feld leer zu finden.
+  let tag = "";
+  if (aufgabe.broker_contact_id) {
+    const { data: auftrag } = await sb
+      .from("broker_contacts")
+      .select("onoffice_tag, short_code, display_name")
+      .eq("id", aufgabe.broker_contact_id)
+      .maybeSingle();
+
+    tag =
+      auftrag?.onoffice_tag?.trim() ||
+      String(auftrag?.display_name ?? "").split(",")[0].trim() ||
+      auftrag?.short_code?.trim() ||
+      "";
+  }
 
   // Die eingetippten Nummern in IDs uebersetzen. Ohne diesen Schritt
   // wird die Aufgabe drueben angelegt und haengt an nichts - und
@@ -173,6 +192,7 @@ export async function legeInOnofficeAn(
       deadline: aufgabe.due_date ?? undefined,
       relatedEstateId: estateId ?? undefined,
       relatedAddressId: addressId ?? undefined,
+      tag: tag || undefined,
     });
 
     // Die Verknuepfungen noch einmal ausdruecklich setzen. Beim
@@ -194,6 +214,7 @@ export async function legeInOnofficeAn(
         onoffice_responsible: verantwortung || null,
         onoffice_synced_at: new Date().toISOString(),
         onoffice_verknuepft_am: verknuepft,
+        onoffice_tag: tag || null,
       })
       .eq("id", aufgabe.id);
 

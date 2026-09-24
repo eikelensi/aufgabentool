@@ -59,6 +59,14 @@ export interface SyncErgebnis {
   anhaengeErfasst: number;
   /** Objekt- oder Kundenverknuepfungen, die aus onOffice nachgetragen wurden. */
   verknuepfungenGeholt: number;
+  /** Aus dem Feld "tags" zugeordnete Auftraggeber. */
+  tagsZugeordnet: number;
+  /**
+   * Tags, zu denen kein Kollege gefunden wurde - oder zu viele. Die
+   * Liste ist die Arbeitsanweisung: in der Verwaltung beim richtigen
+   * Kollegen als onOffice-Tag eintragen.
+   */
+  unbekannteTags: string[];
   fehler: string[];
   hinweise: string[];
   seit: string;
@@ -98,6 +106,61 @@ async function ladeVerzeichnis(): Promise<NutzerVerzeichnis> {
     if (key) nachName.set(key, p.id);
   }
   return { nachName, anzahl: nachName.size };
+}
+
+/**
+ * Welches Tag meint welchen Kollegen.
+ *
+ * In onOffice steht am Feld "tags" ein kurzer Name - "Lensinger" -,
+ * im Tool heisst derselbe Mensch "Lensinger, Eike (BaufiLensinger)".
+ * Zusammengefuehrt wird ueber broker_contacts.onoffice_tag, ein Feld,
+ * das in der Verwaltung gepflegt wird. Ersatzweise das Kuerzel und
+ * der Nachname aus dem Anzeigenamen - das trifft die meisten Faelle,
+ * ohne dass jemand etwas eintragen muss.
+ *
+ * MEHRDEUTIGE Tags werden ausdruecklich NICHT zugeordnet. "Peissig"
+ * gibt es hier zweimal, Christian und Lisa. Wer raet, schickt die
+ * Erledigt-Mail an den Falschen - lieber gar keine Zuordnung und ein
+ * Hinweis im Protokoll.
+ */
+interface TagVerzeichnis {
+  /** normalisiertes Tag -> broker_contacts.id, oder null bei Mehrdeutigkeit. */
+  nachTag: Map<string, string | null>;
+}
+
+async function ladeTagVerzeichnis(): Promise<TagVerzeichnis> {
+  const sb = supabaseAdmin();
+  const { data } = await sb
+    .from("broker_contacts")
+    .select("id, display_name, short_code, onoffice_tag")
+    .eq("is_active", true);
+
+  const nachTag = new Map<string, string | null>();
+
+  // Reihenfolge ist Rangfolge: was ausdruecklich eingetragen wurde,
+  // schlaegt das Geratene. Deshalb drei Durchgaenge statt einem.
+  const eintragen = (wert: string | null | undefined, id: string, festgelegt: boolean) => {
+    const key = normalisiere(wert);
+    if (!key) return;
+    const vorhanden = nachTag.get(key);
+    if (vorhanden === undefined) {
+      nachTag.set(key, id);
+      return;
+    }
+    // Schon belegt: von jemand anderem heisst mehrdeutig. Es sei denn,
+    // ein ausdruecklich gepflegtes Tag kommt ueber einen geratenen
+    // Eintrag - dann gewinnt das gepflegte.
+    if (vorhanden !== id) nachTag.set(key, festgelegt && !vorhanden ? id : null);
+  };
+
+  for (const k of data ?? []) eintragen(k.onoffice_tag, k.id, true);
+  for (const k of data ?? []) eintragen(k.short_code, k.id, false);
+  for (const k of data ?? []) {
+    const nachname = String(k.display_name ?? "").split(",")[0];
+    eintragen(nachname, k.id, false);
+  }
+
+  return { nachTag };
 }
 
 /**
@@ -144,6 +207,7 @@ export async function synchronisiereAufgaben(
   const seit = optionen.seit ?? (await bestimmeStart(ueberlappung));
 
   const verzeichnis = await ladeVerzeichnis();
+  const tags = await ladeTagVerzeichnis();
 
   const ergebnis: SyncErgebnis = {
     gelesen: 0,
@@ -162,6 +226,8 @@ export async function synchronisiereAufgaben(
     erkundung: verzeichnis.anzahl === 0,
     anhaengeErfasst: 0,
     verknuepfungenGeholt: 0,
+    tagsZugeordnet: 0,
+    unbekannteTags: [],
     fehler: [],
     hinweise: [],
     seit,
@@ -180,6 +246,19 @@ export async function synchronisiereAufgaben(
   try {
     const res = await readTasks({ modifiedSince: seit, listLimit: GRENZE });
     crmAufgaben = res.tasks;
+
+    // Ein Feld, das der Mandant ablehnt, sah bisher aus wie ein Feld,
+    // das leer ist. Genau daran haben wir bei relatedEstateId Monate
+    // verloren - also sagen wir es jetzt.
+    if (res.weggelassen.length) {
+      ergebnis.hinweise.push(
+        `Der Lesecall hat diese Felder abgelehnt und weggelassen: ${res.weggelassen.join(", ")}. ` +
+          (res.weggelassen.includes("tags")
+            ? "Damit kommt der Auftraggeber (Feld „tags“) nicht mit – das muss onOffice für die " +
+              "Schnittstelle freischalten."
+            : ""),
+      );
+    }
   } catch (err) {
     ergebnis.fehler.push(`Abruf aus onOffice fehlgeschlagen: ${(err as Error).message}`);
     return ergebnis;
@@ -199,20 +278,28 @@ export async function synchronisiereAufgaben(
   // Welche onoffice_task_id kennen wir schon? Bestimmt neu vs. aktualisiert
   // und verhindert, dass ein Upsert lokale Felder ueberschreibt.
   const ids = crmAufgaben.map((t) => t.id).filter(Boolean);
-  const bekannt = new Map<string, { id: string; in_progress_note: string | null }>();
+  const bekannt = new Map<
+    string,
+    { id: string; in_progress_note: string | null; broker_contact_id: string | null }
+  >();
   if (ids.length) {
     const { data: vorhanden } = await sb
       .from("tasks")
-      .select("id, onoffice_task_id, in_progress_note")
+      .select("id, onoffice_task_id, in_progress_note, broker_contact_id")
       .in("onoffice_task_id", ids);
     for (const t of vorhanden ?? []) {
       if (t.onoffice_task_id) {
-        bekannt.set(t.onoffice_task_id, { id: t.id, in_progress_note: t.in_progress_note });
+        bekannt.set(t.onoffice_task_id, {
+          id: t.id,
+          in_progress_note: t.in_progress_note,
+          broker_contact_id: t.broker_contact_id,
+        });
       }
     }
   }
 
   const unbekannt = new Set<string>();
+  const tagsOhneZuordnung = new Set<string>();
   /** Jeder vorkommende Name mit der Zahl seiner Aufgaben. */
   const zaehler = new Map<string, number>();
   const zaehle = (name: string | null | undefined) => {
@@ -304,6 +391,28 @@ export async function synchronisiereAufgaben(
       updated_at: new Date().toISOString(),
     };
 
+    // Das Feld "tags" sagt, FUER WEN gearbeitet wird - im Tool
+    // "Auftrag von". onOffice fuehrt: steht dort ein Tag, das wir
+    // zuordnen koennen, gilt es.
+    //
+    // Steht dort KEINS, bleibt der lokale Wert stehen. Nicht aus
+    // Vorsicht, sondern weil sonst ein im Tool gesetzter Auftraggeber
+    // beim naechsten Lauf verschwaende - der Weg nach drueben liegt
+    // dann ja womoeglich noch vor uns.
+    const tag = aufgabe.tags[0];
+    if (tag) {
+      zeile.onoffice_tag = tag;
+      const treffer = tags.nachTag.get(normalisiere(tag));
+      if (treffer) {
+        if (treffer !== vorhandene?.broker_contact_id) ergebnis.tagsZugeordnet++;
+        zeile.broker_contact_id = treffer;
+      } else {
+        // null heisst mehrdeutig, undefined heisst unbekannt - beides
+        // ist ein Fall fuer einen Menschen, nicht fuer eine Vermutung.
+        tagsOhneZuordnung.add(tag);
+      }
+    }
+
     if (aufgabe.status === "erledigt") {
       zeile.completed_at = modified ?? new Date().toISOString();
     } else {
@@ -378,6 +487,18 @@ export async function synchronisiereAufgaben(
     for (const f of fehler.slice(0, 5)) ergebnis.hinweise.push(f);
   } catch (err) {
     ergebnis.hinweise.push(`Verknüpfungen nicht geholt: ${(err as Error).message}`);
+  }
+
+  ergebnis.unbekannteTags = [...tagsOhneZuordnung].sort();
+  if (ergebnis.unbekannteTags.length) {
+    ergebnis.hinweise.push(
+      `Diese Tags gehören zu keinem eindeutigen Kollegen: ${ergebnis.unbekannteTags
+        .slice(0, 10)
+        .join(", ")}. In der Verwaltung unter Kollegen als onOffice-Tag eintragen.`,
+    );
+  }
+  if (ergebnis.tagsZugeordnet) {
+    ergebnis.hinweise.push(`${ergebnis.tagsZugeordnet}× „Auftrag von“ aus dem Tag übernommen.`);
   }
 
   ergebnis.unbekannteNamen = [...unbekannt].sort();

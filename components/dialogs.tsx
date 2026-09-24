@@ -1168,7 +1168,7 @@ export function TaskDetailDialog({
 
         <Field
           label="Auftrag von (Makler)"
-          hint="Wer die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Geht nicht nach onOffice – Makler arbeiten nicht im Tool."
+          hint="Wer die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Geht als Tag nach onOffice und kommt von dort auch zurück."
         >
           <select
             className="field"
@@ -1182,6 +1182,17 @@ export function TaskDetailDialog({
               </option>
             ))}
           </select>
+          {/* In onOffice steht ein Tag, dem wir keinen Kollegen
+              zuordnen konnten - oder zwei, was dasselbe Problem ist.
+              Raten waere hier teuer: an dem Feld haengt, wer die
+              Erledigt-Mail bekommt. */}
+          {task.onofficeTag && !task.brokerContactId ? (
+            <p className="muted mt-1.5 text-[11px] leading-relaxed">
+              In onOffice steht das Tag <code>{task.onofficeTag}</code> – es gehört zu keinem
+              eindeutigen Kollegen. Einzutragen in der Verwaltung unter Kollegen als
+              onOffice-Tag.
+            </p>
+          ) : null}
         </Field>
       </div>
 

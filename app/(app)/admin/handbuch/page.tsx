@@ -348,7 +348,28 @@ export default async function HandbuchSeite() {
           Lesen einer Kachel die erste Frage: für wen mache ich das
           eigentlich. Derselbe Mensch bekommt die Mail, wenn die Aufgabe auf
           Rückfragen offen geht oder erledigt wird. Einen Zugang zum Tool
-          braucht er dafür nicht, und in onOffice landet davon nichts.
+          braucht er dafür nicht.
+        </p>
+        <p>
+          <strong>In onOffice heißt dasselbe „tags“.</strong> Wer dort eine
+          Aufgabe anlegt und als Tag den Namen des Kollegen setzt, für den
+          gearbeitet wird, findet ihn hier als „Auftrag von“ wieder – und
+          umgekehrt: wird er hier gesetzt, steht er kurz darauf drüben. Der
+          Abgleich läuft also in beide Richtungen, genau wie bei Betreff und
+          Frist.
+        </p>
+        <p>
+          Zusammengeführt wird über das Feld <strong>onOffice-Tag</strong> beim
+          Kollegen (Verwaltung → Kollegen). Steht dort nichts, wird das Kürzel
+          und der Nachname aus dem Anzeigenamen probiert – „Lensinger, Eike
+          (BaufiLensinger)“ findet das Tag „Lensinger“ von allein.
+        </p>
+        <p className="muted">
+          Ein Tag, das auf <em>zwei</em> Kollegen passt, wird ausdrücklich
+          NICHT zugeordnet. „Peissig“ gibt es hier zweimal; wer rät, schickt
+          die Erledigt-Mail an den Falschen. Solche Tags stehen im Protokoll
+          des Abgleichs und im Aufgabenfenster unter „Auftrag von“ – einzutragen
+          ist dann ein eindeutiges Tag beim richtigen Kollegen.
         </p>
         <p>
           Dieselbe Liste dient noch einem zweiten Zweck: als{" "}

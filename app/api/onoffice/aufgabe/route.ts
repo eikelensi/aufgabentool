@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 /** Was der Client anfordern darf - und wie es drueben heisst. */
-const ERLAUBT = ["titel", "beschreibung", "faelligkeit", "prioritaet"] as const;
+const ERLAUBT = ["titel", "beschreibung", "faelligkeit", "prioritaet", "auftrag"] as const;
 type Feld = (typeof ERLAUBT)[number];
 
 export async function POST(request: Request) {
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const { data: aufgabe } = await sb
     .from("tasks")
     .select(
-      "id, onoffice_task_id, assignee_id, creator_id, title, description, due_date, priority",
+      "id, onoffice_task_id, assignee_id, creator_id, title, description, due_date, priority, broker_contact_id",
     )
     .eq("id", taskId)
     .maybeSingle();
@@ -90,6 +90,41 @@ export async function POST(request: Request) {
     if (feld === "prioritaet") {
       daten.Prio = toOnofficePriority((aufgabe.priority ?? "normal") as TaskPriority);
     }
+  }
+
+  // "Auftrag von" geht als Tag zurueck. Das Feld heisst drueben "tags"
+  // und ist das einzige, das in beide Richtungen ueber einen NAMEN
+  // laeuft statt ueber eine ID - deshalb hier aus der Verwaltung
+  // nachgesehen, statt den Anzeigenamen zu nehmen.
+  if (gewuenscht.includes("auftrag")) {
+    let tag = "";
+    if (aufgabe.broker_contact_id) {
+      const { data: kollege } = await sb
+        .from("broker_contacts")
+        .select("onoffice_tag, short_code, display_name")
+        .eq("id", aufgabe.broker_contact_id)
+        .maybeSingle();
+
+      tag =
+        kollege?.onoffice_tag?.trim() ||
+        String(kollege?.display_name ?? "").split(",")[0].trim() ||
+        kollege?.short_code?.trim() ||
+        "";
+
+      if (!tag) {
+        return NextResponse.json({
+          uebertragen: false,
+          meldung:
+            "Für diesen Kollegen ist kein onOffice-Tag hinterlegt – nachzutragen in der " +
+            "Verwaltung unter Kollegen. Bis dahin steht der Auftraggeber nur hier.",
+        });
+      }
+    }
+    // Leer heisst leer: wer den Auftraggeber herausnimmt, soll ihn
+    // auch drueben los sein.
+    daten.tags = tag;
+
+    await sb.from("tasks").update({ onoffice_tag: tag || null }).eq("id", aufgabe.id);
   }
 
   try {

@@ -26,6 +26,16 @@ export interface OnofficeTask {
   /** onOffice-Benutzername, z.B. "Bauer, Sarah (sb)". */
   responsibility: string;
   processor: string;
+  /**
+   * Das Feld "tags" an der Aufgabe. In diesem Mandanten steht dort,
+   * FUER WEN gearbeitet wird - im Tool heisst das "Auftrag von".
+   *
+   * Der Lesecall hat "tags" frueher abgelehnt (siehe
+   * readWithoutRejectedFields). Wird es weiter abgelehnt, bleibt die
+   * Liste leer und der Abgleich sagt das im Protokoll, statt still
+   * nichts zu tun.
+   */
+  tags: string[];
   startDate: string | null;
   deadline: string | null;
   isPrivate: boolean;
@@ -63,6 +73,7 @@ function toTask(record: OnOfficeRecord): OnofficeTask {
     rawArt: str("Art"),
     responsibility: str("Verantwortung"),
     processor: str("Bearbeiter"),
+    tags: zuTags(e.tags ?? e.Tags),
     startDate: toIsoDate(e.Beginnt_am),
     deadline: toIsoDate(e.Deadline),
     isPrivate: str("Privat") === "1" || str("Privat").toLowerCase() === "true",
@@ -72,6 +83,20 @@ function toTask(record: OnOfficeRecord): OnofficeTask {
     relatedEstateId: str("relatedEstateId") || undefined,
     relatedAddressId: str("relatedAddressId") || undefined,
   };
+}
+
+/**
+ * Tags einlesen, ohne zu wissen, in welcher Form sie kommen.
+ *
+ * onOffice liefert Mehrfachwerte mal als Liste, mal als eine
+ * Zeichenkette mit Komma oder Semikolon. Beides kann hier ankommen,
+ * und beides soll dasselbe Ergebnis geben.
+ */
+function zuTags(wert: unknown): string[] {
+  const roh = Array.isArray(wert) ? wert : String(wert ?? "").split(/[,;|]/);
+  return roh
+    .map((t) => String(t).trim())
+    .filter(Boolean);
 }
 
 export interface ReadTasksOptions {
@@ -89,6 +114,8 @@ export interface ReadTasksOptions {
 export async function readTasks(options: ReadTasksOptions = {}): Promise<{
   tasks: OnofficeTask[];
   total?: number;
+  /** Felder, die der Mandant abgelehnt hat - siehe readWithoutRejectedFields. */
+  weggelassen: string[];
 }> {
   const filter: Record<string, unknown> = {};
   if (options.processor) filter.Bearbeiter = [{ op: "=", val: options.processor }];
@@ -107,7 +134,11 @@ export async function readTasks(options: ReadTasksOptions = {}): Promise<{
   if (options.relatedAddressId) parameters.relatedAddressId = String(options.relatedAddressId);
 
   const res = await readWithoutRejectedFields(parameters);
-  return { tasks: (res.records as OnOfficeRecord[]).map(toTask), total: res.total };
+  return {
+    tasks: (res.records as OnOfficeRecord[]).map(toTask),
+    total: res.total,
+    weggelassen: res.weggelassen,
+  };
 }
 
 /**
@@ -120,13 +151,18 @@ export async function readTasks(options: ReadTasksOptions = {}): Promise<{
 async function readWithoutRejectedFields(
   parameters: Record<string, unknown>,
   maxVersuche = 4,
-): Promise<{ records: unknown[]; total?: number }> {
+): Promise<{ records: unknown[]; total?: number; weggelassen: string[] }> {
   const entfernt: string[] = [];
   let aktuell = { ...parameters };
 
   for (let versuch = 0; versuch < maxVersuche; versuch++) {
     try {
-      return await call({ action: "read", resourceType: "task", parameters: aktuell });
+      // Wer den Aufruf gemacht hat, soll erfahren, was unterwegs
+      // verloren ging. Frueher stand das nur in der Serverkonsole -
+      // und ein Feld, das der Mandant ablehnt, sah aus wie ein Feld,
+      // das einfach leer ist.
+      const res = await call({ action: "read", resourceType: "task", parameters: aktuell });
+      return { ...res, weggelassen: entfernt };
     } catch (err) {
       const meldung = (err as Error).message;
       // Form der Meldung: Invalid field in input data: "(0, Nr)" oder "listoffset"
@@ -198,6 +234,8 @@ export interface CreateTaskInput {
   comment?: string;
   relatedEstateId?: string | number;
   relatedAddressId?: string | number;
+  /** Feld "tags": fuer wen gearbeitet wird ("Auftrag von" im Tool). */
+  tag?: string;
 }
 
 export async function createTask(input: CreateTaskInput): Promise<string> {
@@ -221,6 +259,10 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
   if (input.startDate) data.Beginnt_am = input.startDate;
   if (input.deadline) data.Deadline = input.deadline;
   if (input.isPrivate) data.Privat = 1;
+  // Nur mitschicken, wenn es einen gibt: ein leeres "tags" waere ein
+  // Feld mehr, das der Mandant ablehnen koennte, ohne dass es etwas
+  // braechte.
+  if (input.tag) data.tags = input.tag;
 
   const parameters: Record<string, unknown> = { data };
   // Die Doku sagt INTEGER, und wir haben Zeichenketten geschickt.

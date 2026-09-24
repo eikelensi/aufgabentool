@@ -25,6 +25,12 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
+    titel: "„Auftrag von“ geht jetzt über das onOffice-Feld „tags“",
+    text: "Wer in onOffice eine Aufgabe anlegt und als Tag den Kollegen setzt, für den gearbeitet wird, findet ihn hier als „Auftrag von“ wieder – und umgekehrt. Zusammengeführt wird über das neue Feld „onOffice-Tag“ beim Kollegen (Verwaltung → Kollegen); ohne Eintrag werden Kürzel und Nachname probiert. Ein Tag, das auf zwei Kollegen passt, wird nicht zugeordnet – an dem Feld hängt, wer die Erledigt-Mail bekommt.",
+    bereich: "onOffice-Abgleich, Verwaltung",
+  },
+  {
+    datum: "2026-09-24",
     titel: "Verknüpfte Objekte kamen nie aus onOffice an",
     text: "Wer in onOffice ein Objekt an eine Aufgabe hängte, sah es im Tool nicht – 136 Aufgaben aus dem CRM, keine einzige mit Objekt. onOffice gibt die Verknüpfung nicht als Feld der Aufgabe heraus, sondern nur als eigene Beziehung; abgefragt wurde aber das Feld, und das war immer leer. Schlimmer noch: jeder Lauf hat damit eine von Hand eingetragene Verknüpfung wieder gelöscht. Jetzt wird die Beziehung gelesen, dazu die Objekt- und Kundennummer.",
     bereich: "onOffice-Abgleich",

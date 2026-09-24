@@ -193,6 +193,12 @@ export const TASK_FIELDS = [
   "Erinnerungsdatum",
   "Eintragsdatum",
   "modified",
+  // Das Feld, in dem steht, FUER WEN gearbeitet wird. Der Lesecall hat
+  // es in diesem Mandanten frueher abgelehnt; passiert das wieder,
+  // laesst readWithoutRejectedFields es weg und der Abgleich sagt es
+  // im Protokoll. Deshalb steht es zuletzt: faellt es weg, bleibt der
+  // Rest unberuehrt.
+  "tags",
 ] as const;
 
 /** Ein Datum wie "2019-10-08 00:00:00" oder "" normalisieren. */

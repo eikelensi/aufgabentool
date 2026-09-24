@@ -50,7 +50,7 @@ const AUFGABE_SPALTEN = `
   bereich, asana_task_gid, asana_section_gid, asana_assignee_gid, wartet,
   broker_contact_id, onoffice_bearbeiter_id, is_pool, is_private, visible_from, due_date,
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id,
-  onoffice_address_no, source,
+  onoffice_address_no, onoffice_tag, source,
   onoffice_assignee, onoffice_responsible,
   in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
   pool_grund, pool_zurueck_am, pool_zurueck_von,
@@ -844,6 +844,16 @@ export function StoreProvider({
       }
       if (patch.priority !== undefined && patch.priority !== vorher?.priority) {
         inhaltFelder.push("prioritaet");
+      }
+      // "Auftrag von" steht in onOffice im Feld "tags". Frueher war das
+      // ein rein lokaler Wert - seit es drueben ein Feld dafuer gibt,
+      // muss er denselben Weg gehen wie Betreff und Frist, sonst holt
+      // der Abgleich das alte Tag zurueck.
+      if (
+        patch.brokerContactId !== undefined &&
+        patch.brokerContactId !== (vorher?.brokerContactId ?? null)
+      ) {
+        inhaltFelder.push("auftrag");
       }
 
       if (inhaltFelder.length && vorher?.onofficeTaskId) {
