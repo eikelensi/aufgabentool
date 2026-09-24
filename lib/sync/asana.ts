@@ -295,7 +295,18 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     }
   }
 
-  const darfOnoffice = (await pruefeSchreibsperre("anlegen")).erlaubt;
+  // Zwei Bedingungen, und beide muessen ja sagen: der allgemeine
+  // Schreibweg nach onOffice und der eigene Schalter fuer diesen
+  // Bereich. Einundvierzig Datensaetze auf einmal legt man nicht
+  // nebenbei an.
+  const { data: einst } = await sb
+    .from("app_settings")
+    .select("sync_asana_onoffice")
+    .maybeSingle();
+
+  const darfOnoffice =
+    (einst as { sync_asana_onoffice?: boolean } | null)?.sync_asana_onoffice === true &&
+    (await pruefeSchreibsperre("anlegen")).erlaubt;
 
   for (const aufgabe of aufgaben) {
     const spalte = spalteVon(aufgabe);

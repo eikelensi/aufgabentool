@@ -24,7 +24,7 @@ export default function Rueckschreiben({ stand }: { stand: Schalterstand }) {
   const gesperrt = stand.nurLesen;
 
   const setze = (
-    welcher: "nurLesen" | "bearbeiter" | "status" | "inhalt" | "anlegen",
+    welcher: "nurLesen" | "bearbeiter" | "status" | "inhalt" | "anlegen" | "asana",
     an: boolean,
   ) =>
     starte(async () => setErgebnis(await schalterSetzen(welcher, an)));
@@ -136,6 +136,25 @@ export default function Rueckschreiben({ stand }: { stand: Schalterstand }) {
               Ohne das bleibt eine hier angelegte Aufgabe für immer unsichtbar
               für alle, die in onOffice arbeiten. Private Aufgaben gehen nie
               hinüber, egal wie dieser Haken steht.
+            </span>
+          </span>
+        </label>
+
+        <label className="line flex items-start gap-2.5 rounded-md border p-2.5 text-xs">
+          <input
+            type="checkbox"
+            checked={stand.asana}
+            disabled={laeuft || gesperrt}
+            onChange={(e) => setze("asana", e.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span>
+            <strong>Auch die Aufgaben aus dem Asana-Bereich.</strong> Jede Karte
+            der Geschäftsführung bekommt ein Gegenstück in onOffice.
+            <span className="muted mt-1 block leading-relaxed">
+              Steht aus Vorsicht aus: beim ersten Lauf entstehen über vierzig
+              Datensätze auf einmal, die dort niemand bestellt hat. Erst
+              einschalten, wenn das Board stimmt.
             </span>
           </span>
         </label>

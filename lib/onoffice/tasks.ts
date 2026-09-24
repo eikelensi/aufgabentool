@@ -171,6 +171,8 @@ export async function readTask(taskId: string | number): Promise<OnofficeTask | 
 export interface CreateTaskInput {
   subject: string;
   description?: string;
+  /** Aufgabenart in onOffice - Pflichtfeld des Mandanten. */
+  art?: string;
   status?: TaskStatus;
   priority?: TaskPriority;
   /** onOffice-Benutzername des Bearbeiters. */
@@ -194,6 +196,11 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
     Aufgabe: input.description ?? input.subject,
     Status: toOnofficeStatus(input.status ?? "offen"),
     Prio: toOnofficePriority(input.priority ?? "normal"),
+    // Pflichtfeld in diesem Mandanten: ohne "Art" lehnt onOffice das
+    // Anlegen ab (Code 254). Welcher Wert erlaubt ist, steht in der
+    // Feldkonfiguration; passt die Vorgabe nicht, setzt man
+    // ONOFFICE_TASK_ART.
+    Art: input.art ?? process.env.ONOFFICE_TASK_ART ?? "Aufgabe",
   };
   if (input.processor) data.Bearbeiter = input.processor;
   if (input.responsibility) data.Verantwortung = input.responsibility;
@@ -264,6 +271,60 @@ export async function modifyTask(
  * Mandanten wirklich eingerichtet ist, sagt sie nicht - und genau daran
  * ist frueher schon eine Annahme gescheitert. Also fragen statt raten.
  */
+export interface TaskFeld {
+  name: string;
+  label?: string;
+  typ?: string;
+  werte?: string[];
+}
+
+/** Wie readTaskFieldNames, aber mit Label, Typ und erlaubten Werten. */
+export async function readTaskFields(): Promise<TaskFeld[]> {
+  const res = await call({
+    action: "get",
+    resourceType: "fields",
+    resourceId: "",
+    parameters: { labels: true, language: "DEU", modules: ["task"] },
+  });
+
+  const felder: TaskFeld[] = [];
+  for (const record of res.records as OnOfficeRecord[]) {
+    for (const [schluessel, wert] of Object.entries(elements(record))) {
+      if (schluessel === "modul" || schluessel === "module" || schluessel === "id") continue;
+      if (!wert || typeof wert !== "object" || Array.isArray(wert)) continue;
+
+      const innen = wert as Record<string, unknown>;
+      const sindFelder = Object.values(innen).every(
+        (v) => v && typeof v === "object" && !Array.isArray(v),
+      );
+
+      if (sindFelder) {
+        for (const [name, beschreibung] of Object.entries(innen)) {
+          const b = beschreibung as Record<string, unknown>;
+          felder.push({
+            name,
+            label: b.label ? String(b.label) : undefined,
+            typ: b.type ? String(b.type) : undefined,
+            werte: b.permittedvalues
+              ? Object.keys(b.permittedvalues as Record<string, unknown>)
+              : undefined,
+          });
+        }
+      } else {
+        felder.push({
+          name: schluessel,
+          label: innen.label ? String(innen.label) : undefined,
+          typ: innen.type ? String(innen.type) : undefined,
+          werte: innen.permittedvalues
+            ? Object.keys(innen.permittedvalues as Record<string, unknown>)
+            : undefined,
+        });
+      }
+    }
+  }
+  return felder;
+}
+
 export async function readTaskFieldNames(): Promise<string[]> {
   const res = await call({
     action: "get",

@@ -22,7 +22,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
 import { dateiWegBekannt, ladeDatei, pushFileToTask } from "@/lib/onoffice/files";
 import { taskFileIds } from "@/lib/onoffice/relations";
-import { readTaskFieldNames } from "@/lib/onoffice/tasks";
+import { readTaskFields } from "@/lib/onoffice/tasks";
 
 /** Wie viele Dateien ein Lauf hoechstens hoch- bzw. herunterlaedt. */
 const PRO_LAUF_HIN = 10;
@@ -319,13 +319,20 @@ async function einmaligFelderNotieren(): Promise<void> {
   if (schon?.length) return;
 
   try {
-    const felder = await readTaskFieldNames();
+    const felder = await readTaskFields();
     await sb.from("onoffice_sync_log").insert({
       direction: "pull",
       resource: "fields",
       ok: true,
       message: `${felder.length} Felder am Modul Aufgabe`,
-      payload: { felder },
+      payload: {
+        felder: felder.map((f) => f.name),
+        // Die Pflichtfelder mit fester Werteliste sind das, woran das
+        // Anlegen scheitert - die gehoeren ins Protokoll, nicht nur die Namen.
+        werte: Object.fromEntries(
+          felder.filter((f) => f.werte?.length).map((f) => [f.name, f.werte]),
+        ),
+      },
     });
   } catch (err) {
     await sb.from("onoffice_sync_log").insert({

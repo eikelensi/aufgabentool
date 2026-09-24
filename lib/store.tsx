@@ -926,7 +926,12 @@ export function StoreProvider({
     return {
       bereit,
       fehler,
-      tasks,
+      // Das Tagesgeschaeft sieht den Asana-Bereich nicht. Nicht nur in
+      // den Listen: auch alles, was sich sonst aus "tasks" bedient,
+      // soll ihn gar nicht erst in die Finger bekommen. Die Funktionen
+      // oben arbeiten weiter auf dem vollstaendigen Bestand - sonst
+      // liesse sich aus dem Asana-Board heraus nichts mehr aendern.
+      tasks: tasks.filter((t) => t.bereich !== "asana"),
       visibleTasks,
       profiles,
       brokers,
