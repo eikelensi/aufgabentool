@@ -19,6 +19,7 @@ export type Bereich =
   | "verteilt"
   | "uebersicht"
   | "verwaltung"
+  | "archiv"
   | "asana";
 
 export const BEREICH_LABEL: Record<Bereich, string> = {
@@ -27,6 +28,7 @@ export const BEREICH_LABEL: Record<Bereich, string> = {
   verteilt: "Verteilt",
   uebersicht: "Übersicht",
   verwaltung: "Verwaltung",
+  archiv: "Archiv",
   asana: "Asana (Geschäftsführung)",
 };
 
@@ -216,6 +218,8 @@ export interface Task {
   onofficeResponsible?: string | null;
   onofficeEstateNo?: string;
   onofficeAddressId?: string;
+  /** Eingetippte Kundennummer - die ID steht in onofficeAddressId. */
+  onofficeAddressNo?: string;
   source: TaskSource;
   inProgressNote?: string;
   createdAt: string;

@@ -34,6 +34,7 @@ const NAV: { href: string; label: string; icon: string; bereich: Bereich }[] = [
   { href: "/verteilt", label: "Verteilt", icon: "↗️", bereich: "verteilt" },
   { href: "/asana", label: "Asana", icon: "🗂️", bereich: "asana" },
   { href: "/uebersicht", label: "Übersicht", icon: "📊", bereich: "uebersicht" },
+  { href: "/archiv", label: "Archiv", icon: "📦", bereich: "archiv" },
   { href: "/admin", label: "Verwaltung", icon: "⚙️", bereich: "verwaltung" },
 ];
 

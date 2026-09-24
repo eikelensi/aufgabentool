@@ -150,6 +150,7 @@ export function zuAufgabe(row: any): Task {
     onofficeResponsible: row.onoffice_responsible ?? null,
     onofficeEstateNo: row.onoffice_estate_no ?? row.onoffice_estate_id ?? undefined,
     onofficeAddressId: row.onoffice_address_id ?? undefined,
+    onofficeAddressNo: row.onoffice_address_no ?? undefined,
     source: row.source,
     inProgressNote: row.in_progress_note ?? undefined,
     createdAt: row.created_at,
@@ -238,6 +239,7 @@ export function aufgabeZurZeile(patch: Partial<Task>): Record<string, unknown> {
   if (patch.dueDate !== undefined) z.due_date = patch.dueDate;
   if (patch.onofficeEstateNo !== undefined) z.onoffice_estate_no = patch.onofficeEstateNo || null;
   if (patch.onofficeAddressId !== undefined) z.onoffice_address_id = patch.onofficeAddressId || null;
+  if (patch.onofficeAddressNo !== undefined) z.onoffice_address_no = patch.onofficeAddressNo || null;
   if (patch.inProgressNote !== undefined) z.in_progress_note = patch.inProgressNote || null;
   return z;
 }

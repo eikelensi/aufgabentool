@@ -213,7 +213,10 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
       dueDate: dueDate || null,
       isPrivate,
       onofficeEstateNo: estateNo || undefined,
-      onofficeAddressId: addressId || undefined,
+      // Die Eingabe ist eine Kundennummer, keine ID - die loest der
+      // Server auf. Beides zusammen ist erlaubt: eine Aufgabe kann an
+      // einem Objekt UND an einem Kunden haengen.
+      onofficeAddressNo: addressId || undefined,
       source: prefill?.source ?? "manuell",
     });
     if (!newId) return;
@@ -354,12 +357,12 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
           />
         </Field>
 
-        <Field label="oder Kundendatensatz">
+        <Field label="Kundennummer" hint="Objekt und Kunde lassen sich beide angeben – die Aufgabe hängt dann in onOffice an beiden.">
           <input
             className="field"
             value={addressId}
             onChange={(e) => setAddressId(e.target.value)}
-            placeholder="z. B. ADR-11482"
+            placeholder="z. B. 11482"
           />
         </Field>
 

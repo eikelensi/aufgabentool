@@ -77,7 +77,7 @@ export async function legeInOnofficeAn(
     .select(
       `id, title, description, status, priority, due_date, visible_from, is_private,
        assignee_id, creator_id, onoffice_task_id, onoffice_bearbeiter_id,
-       onoffice_estate_id, onoffice_address_id, onoffice_estate_no`,
+       onoffice_estate_id, onoffice_address_id, onoffice_estate_no, onoffice_address_no`,
     )
     .eq("id", taskId)
     .maybeSingle();
@@ -112,30 +112,43 @@ export async function legeInOnofficeAn(
   }
   const verantwortung = await onofficeName(aufgabe.creator_id);
 
-  // Die eingetippte Objekt- oder Kundennummer in eine ID uebersetzen.
-  // Ohne diesen Schritt wird die Aufgabe drueben angelegt und haengt
-  // an nichts - und genau die Verknuepfung ist der Grund, warum man
-  // die Nummer ueberhaupt eintippt.
+  // Die eingetippten Nummern in IDs uebersetzen. Ohne diesen Schritt
+  // wird die Aufgabe drueben angelegt und haengt an nichts - und
+  // genau die Verknuepfung ist der Grund, warum man eine Nummer
+  // ueberhaupt eintippt.
+  //
+  // Zwei Felder, zwei Suchen, unabhaengig voneinander: eine Aufgabe
+  // kann an einem Objekt haengen, an einem Kunden, oder an beidem.
   let estateId = aufgabe.onoffice_estate_id ? String(aufgabe.onoffice_estate_id) : null;
   let addressId = aufgabe.onoffice_address_id ? String(aufgabe.onoffice_address_id) : null;
-  const nummer = (aufgabe.onoffice_estate_no ?? "").trim();
 
-  if (!estateId && nummer) {
+  const objektNummer = (aufgabe.onoffice_estate_no ?? "").trim();
+  const kundenNummer = (aufgabe.onoffice_address_no ?? "").trim();
+
+  if (!estateId && objektNummer) {
     try {
-      estateId = await findeObjekt(nummer);
+      estateId = await findeObjekt(objektNummer);
     } catch {
       /* dann ohne Objekt */
     }
   }
 
-  // Dasselbe Feld nimmt auch eine Kundennummer: wer "ADR-11482"
-  // eintippt, meint keinen Objektbezug. Nur suchen, wenn sich die
-  // Nummer nicht als Objekt gefunden hat.
-  if (!estateId && !addressId && nummer) {
+  if (!addressId && kundenNummer) {
     try {
-      addressId = await findeKunde(nummer);
+      addressId = await findeKunde(kundenNummer);
     } catch {
       /* dann ohne Kunden */
+    }
+  }
+
+  // Wer nur eine Nummer eintippt und sie ins falsche Feld schreibt,
+  // soll trotzdem eine Verknuepfung bekommen: findet sich die
+  // Objektnummer nicht als Objekt, wird sie als Kundennummer probiert.
+  if (!estateId && !addressId && objektNummer) {
+    try {
+      addressId = await findeKunde(objektNummer);
+    } catch {
+      /* dann eben ohne */
     }
   }
 
@@ -177,7 +190,15 @@ export async function legeInOnofficeAn(
       reference: nummer,
       ok: true,
       message: `Aufgabe in onOffice angelegt: ${aufgabe.title}`,
-      payload: { durch, bearbeiter, verantwortung, estateId, addressId, nummer },
+      payload: {
+        durch,
+        bearbeiter,
+        verantwortung,
+        estateId,
+        addressId,
+        objektNummer,
+        kundenNummer,
+      },
     });
 
     return {

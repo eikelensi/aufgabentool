@@ -49,7 +49,8 @@ const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
   bereich, asana_task_gid, asana_section_gid, asana_assignee_gid,
   broker_contact_id, onoffice_bearbeiter_id, is_pool, is_private, visible_from, due_date,
-  onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
+  onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id,
+  onoffice_address_no, source,
   onoffice_assignee, onoffice_responsible,
   in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
   pool_grund, pool_zurueck_am, pool_zurueck_von,
@@ -71,6 +72,13 @@ interface StoreValue {
 
   tasks: Task[];
   visibleTasks: Task[];
+  /**
+   * Erledigtes, das aus dem Tagesgeschaeft verschwunden ist.
+   *
+   * Nicht geloescht, nur nicht mehr im Weg - wer wissen will, was er
+   * letzte Woche abgehakt hat, findet es hier.
+   */
+  archivTasks: Task[];
   profiles: Profile[];
   brokers: BrokerContact[];
   categories: Category[];
@@ -1206,6 +1214,17 @@ export function StoreProvider({
       }
     }
 
+    // Was aus dem Tagesgeschaeft gefallen ist, weil es lange genug
+    // erledigt ist. Dieselbe Grenze, nur andersherum gelesen.
+    const archivTasks = tasks
+      .filter(
+        (t) =>
+          t.bereich !== "asana" &&
+          t.status === "erledigt" &&
+          (!t.completedAt || new Date(t.completedAt).getTime() <= grenze),
+      )
+      .sort((a, b) => String(b.completedAt ?? "").localeCompare(String(a.completedAt ?? "")));
+
     return {
       bereit,
       fehler,
@@ -1216,6 +1235,7 @@ export function StoreProvider({
       // liesse sich aus dem Asana-Board heraus nichts mehr aendern.
       tasks: tasks.filter((t) => t.bereich !== "asana"),
       visibleTasks,
+      archivTasks,
       profiles,
       brokers,
       categories,

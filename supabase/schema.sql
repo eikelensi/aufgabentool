@@ -326,7 +326,7 @@ create table if not exists public.app_settings (
   mail_provider            mail_provider not null default 'onoffice',
   onoffice_email_identity  text,       -- Pflichtparameter "emailidentity" der onOffice-API
   smtp_from                text,       -- Fallback-Absender
-  done_hide_after_hours    integer not null default 24,   -- Ausblendfrist erledigter Aufgaben
+  done_hide_after_hours    integer not null default 48,   -- Ausblendfrist erledigter Aufgaben (dann Archiv)
   attachment_max_mb        integer not null default 25,   -- Obergrenze je Datei
   attachment_push_onoffice boolean not null default true, -- Anhänge nach onOffice spiegeln
   sync_push_inhalt         boolean not null default true, -- Betreff/Text/Frist/Prio zurückschreiben
