@@ -22,6 +22,7 @@
 import { asanaKonfiguriert, projektGid, ruf, rufAlle } from "@/lib/asana/client";
 import { AUFGABEN_FELDER, type AsanaAufgabe, type AsanaSection, type AsanaStory } from "@/lib/asana/typen";
 import { createTask } from "@/lib/onoffice/tasks";
+import { haeufigsteArt } from "@/lib/sync/onoffice-neu";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { TaskStatus } from "@/lib/types";
@@ -468,6 +469,7 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
             : { data: null };
 
           const nummer = await createTask({
+            art: await haeufigsteArt(),
             subject: aufgabe.name || "(ohne Titel)",
             description: aufgabe.notes?.trim() || undefined,
             status: statusAus(aufgabe, spaltenName),

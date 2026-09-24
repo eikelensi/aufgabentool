@@ -20,6 +20,7 @@
 import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
 import { istAbgeschlossen } from "@/lib/onoffice/mapping";
 import { erfasseAnhangIds } from "@/lib/sync/anhaenge";
+import { legeFehlendeAn } from "@/lib/sync/onoffice-neu";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export interface NameMitAnzahl {
@@ -278,6 +279,7 @@ export async function synchronisiereAufgaben(
       onoffice_modified_at: modified,
       onoffice_status_raw: aufgabe.rawStatus || null,
       onoffice_prio_raw: aufgabe.rawPriority || null,
+      onoffice_art_raw: aufgabe.rawArt || null,
       onoffice_assignee: aufgabe.processor || null,
       onoffice_responsible: aufgabe.responsibility || null,
       onoffice_estate_id: aufgabe.relatedEstateId ?? null,
@@ -313,6 +315,17 @@ export async function synchronisiereAufgaben(
     } catch (err) {
       ergebnis.fehler.push(`Aufgabe ${aufgabe.id}: ${(err as Error).message}`);
     }
+  }
+
+  // Was hier entstanden ist und drueben fehlt, nachtraeglich anlegen.
+  // Damit heilt ein fehlgeschlagener erster Versuch von selbst, statt
+  // dass eine Aufgabe fuer immer nur im Tool existiert.
+  try {
+    const { angelegt, fehler } = await legeFehlendeAn();
+    if (angelegt) ergebnis.hinweise.push(`${angelegt} Aufgabe(n) in onOffice nachgetragen.`);
+    for (const f of fehler.slice(0, 5)) ergebnis.hinweise.push(f);
+  } catch (err) {
+    ergebnis.hinweise.push(`Nachtragen fehlgeschlagen: ${(err as Error).message}`);
   }
 
   // Dateien: nur die Nummern, ein Aufruf fuer alle Aufgaben des Laufs.

@@ -21,6 +21,8 @@ export interface OnofficeTask {
   rawStatus: string;
   priority: TaskPriority;
   rawPriority: string;
+  /** Feld "Art" - in diesem Mandanten Pflicht beim Anlegen, und eine Zahl. */
+  rawArt: string;
   /** onOffice-Benutzername, z.B. "Bauer, Sarah (sb)". */
   responsibility: string;
   processor: string;
@@ -47,6 +49,7 @@ function toTask(record: OnOfficeRecord): OnofficeTask {
     rawStatus: str("Status"),
     priority: toOurPriority(e.Prio),
     rawPriority: str("Prio"),
+    rawArt: str("Art"),
     responsibility: str("Verantwortung"),
     processor: str("Bearbeiter"),
     startDate: toIsoDate(e.Beginnt_am),
@@ -196,11 +199,11 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
     Aufgabe: input.description ?? input.subject,
     Status: toOnofficeStatus(input.status ?? "offen"),
     Prio: toOnofficePriority(input.priority ?? "normal"),
-    // Pflichtfeld in diesem Mandanten: ohne "Art" lehnt onOffice das
-    // Anlegen ab (Code 254). Welcher Wert erlaubt ist, steht in der
-    // Feldkonfiguration; passt die Vorgabe nicht, setzt man
-    // ONOFFICE_TASK_ART.
-    Art: input.art ?? process.env.ONOFFICE_TASK_ART ?? "Aufgabe",
+    // Pflichtfeld in diesem Mandanten, und eine ZAHL: "Aufgabe" als
+    // Text wurde mit Code 228 abgelehnt ("expected to be an integer").
+    // Welche Zahl gilt, verraet der Bestand - der Aufrufer gibt sie
+    // mit, sonst greift ONOFFICE_TASK_ART und zuletzt die 1.
+    Art: Number(input.art ?? process.env.ONOFFICE_TASK_ART ?? 1),
   };
   if (input.processor) data.Bearbeiter = input.processor;
   if (input.responsibility) data.Verantwortung = input.responsibility;
