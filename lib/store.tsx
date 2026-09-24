@@ -18,6 +18,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   aufgabeZurZeile,
   einstellungenZurZeile,
+  zuAsanaNutzer,
   zuAsanaSpalte,
   zuAufgabe,
   zuBenachrichtigung,
@@ -31,6 +32,7 @@ import {
 import { ALLOWED_EXTENSIONS } from "./data";
 import type {
   AppSettings,
+  AsanaNutzer,
   AsanaSpalte,
   BrokerContact,
   Category,
@@ -45,7 +47,7 @@ import type {
 
 const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
-  bereich, asana_task_gid, asana_section_gid,
+  bereich, asana_task_gid, asana_section_gid, asana_assignee_gid,
   broker_contact_id, onoffice_bearbeiter_id, is_pool, is_private, visible_from, due_date,
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id, source,
   onoffice_assignee, onoffice_responsible,
@@ -81,9 +83,19 @@ interface StoreValue {
 
   neuLaden: () => Promise<void>;
 
-  /** Der Bereich der Geschaeftsfuehrung: Spalten und Karten. */
+  /** Der Bereich der Geschaeftsfuehrung: Spalten, Karten, Mitglieder. */
   asanaSpalten: AsanaSpalte[];
   asanaTasks: Task[];
+  asanaNutzer: AsanaNutzer[];
+  /** Karte in eine andere Spalte legen; die Pool-Spalte gibt sie ab. */
+  asanaVerschieben: (taskId: string, sectionGid: string) => Promise<Ergebnis>;
+  /** Zustaendigkeit und Frist in Asana setzen. */
+  asanaZuteilen: (
+    taskId: string,
+    werte: { assigneeGid?: string | null; dueOn?: string | null },
+  ) => Promise<Ergebnis>;
+  /** Eine Karte innerhalb ihrer Liste an eine andere Stelle setzen. */
+  sortiere: (taskId: string, vorTaskId: string | null, inListe: Task[]) => Promise<Ergebnis>;
 
   /** Was diese Person im Chatsymbol sieht, neueste zuerst. */
   meldungen: Meldung[];
@@ -159,12 +171,13 @@ export function StoreProvider({
   const [settings, setSettings] = useState<AppSettings>(zuEinstellungen(null));
   const [meldungen, setMeldungen] = useState<Meldung[]>([]);
   const [asanaSpalten, setAsanaSpalten] = useState<AsanaSpalte[]>([]);
+  const [asanaNutzer, setAsanaNutzer] = useState<AsanaNutzer[]>([]);
 
   const neuLaden = useCallback(async () => {
     const sb = supabaseBrowser();
     setFehler(null);
 
-    const [a, p, k, ka, v, e, n, m, as] = await Promise.all([
+    const [a, p, k, ka, v, e, n, m, as, an] = await Promise.all([
       sb
         .from("tasks")
         .select(AUFGABE_SPALTEN)
@@ -190,6 +203,7 @@ export function StoreProvider({
         .select("gid, name, sort_order, ist_pool")
         .eq("sichtbar", true)
         .order("sort_order"),
+      sb.from("asana_users").select("gid, name, email, profile_id").order("name"),
     ]);
 
     const ersterFehler = [a.error, p.error, k.error, ka.error, v.error, e.error].find(Boolean);
@@ -206,6 +220,7 @@ export function StoreProvider({
     // Die Zeilen sind durch RLS schon auf die eigene Person begrenzt.
     if (m.data) setMeldungen(m.data.map(zuMeldung));
     if (as.data) setAsanaSpalten(as.data.map(zuAsanaSpalte));
+    if (an.data) setAsanaNutzer(an.data.map(zuAsanaNutzer));
 
     setBereit(true);
   }, []);
@@ -741,6 +756,81 @@ export function StoreProvider({
       return fehler2 ? { ok: false, error: fehler2.message } : { ok: true };
     }
 
+    /**
+     * Eine Karte an eine bestimmte Stelle ihrer Liste setzen.
+     *
+     * Anders als verschiebe(), das zwei Nachbarn tauscht: hier zieht
+     * jemand eine Karte irgendwohin. Die neue Position ist die Mitte
+     * zwischen den beiden Karten, zwischen denen sie landet - bei
+     * Gleitkommazahlen geht das beliebig oft, ohne neu durchzunummerieren.
+     *
+     * vorTaskId ist die Karte, VOR die gelegt wird; null heisst ans Ende.
+     */
+    async function sortiere(
+      taskId: string,
+      vorTaskId: string | null,
+      inListe: Task[],
+    ): Promise<Ergebnis> {
+      if (taskId === vorTaskId) return { ok: true };
+
+      // Die Liste ohne die gezogene Karte - sonst rechnet man mit der
+      // eigenen alten Stelle.
+      const ohne = inListe.filter((t) => t.id !== taskId);
+      const posVon = (t: Task, i: number) => t.position ?? (i + 1) * 100;
+
+      const zielIndex = vorTaskId ? ohne.findIndex((t) => t.id === vorTaskId) : ohne.length;
+      if (vorTaskId && zielIndex < 0) return { ok: true };
+
+      const davor = zielIndex > 0 ? posVon(ohne[zielIndex - 1], zielIndex - 1) : null;
+      const danach =
+        zielIndex < ohne.length ? posVon(ohne[zielIndex], zielIndex) : null;
+
+      let neu: number;
+      if (davor === null && danach === null) neu = 100;
+      else if (davor === null) neu = (danach as number) - 50;
+      else if (danach === null) neu = davor + 100;
+      else neu = (davor + danach) / 2;
+
+      setTasks((alt2) => alt2.map((t) => (t.id === taskId ? { ...t, position: neu } : t)));
+
+      const { error } = await sb.from("tasks").update({ position: neu }).eq("id", taskId);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function asanaVerschieben(taskId: string, sectionGid: string): Promise<Ergebnis> {
+      try {
+        const res = await fetch("/api/asana/verschieben", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId, sectionGid }),
+        });
+        const json = await res.json().catch(() => ({}));
+        await neuLaden();
+        return res.ok ? { ok: true, error: json.meldung } : { ok: false, error: json.fehler };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    }
+
+    async function asanaZuteilen(
+      taskId: string,
+      werte: { assigneeGid?: string | null; dueOn?: string | null },
+    ): Promise<Ergebnis> {
+      try {
+        const res = await fetch("/api/asana/zuteilen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId, ...werte }),
+        });
+        const json = await res.json().catch(() => ({}));
+        await neuLaden();
+        return res.ok ? { ok: true } : { ok: false, error: json.fehler };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    }
+
     async function addAttachments(taskId: string, files: File[]) {
       const rejected: string[] = [];
       let added = 0;
@@ -968,6 +1058,10 @@ export function StoreProvider({
       // nichts verloren, solange sie nicht abgegeben wurde.
       asanaSpalten,
       asanaTasks: tasks.filter((t) => t.bereich === "asana"),
+      asanaNutzer,
+      asanaVerschieben,
+      asanaZuteilen,
+      sortiere,
       meldungen,
       ungelesen: meldungen.filter((m) => !m.readAt).length,
       addNote,
@@ -985,6 +1079,7 @@ export function StoreProvider({
     notifications,
     meldungen,
     asanaSpalten,
+    asanaNutzer,
     settings,
     profil,
     neuLaden,

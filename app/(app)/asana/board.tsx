@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useStore } from "@/lib/store";
 import TaskCard from "@/components/TaskCard";
 import { TaskDetailDialog } from "@/components/dialogs";
@@ -22,6 +22,7 @@ export default function AsanaBoard() {
   const { asanaSpalten, asanaTasks, neuLaden, bereit } = useStore();
   const [offen, setOffen] = useState<Task | null>(null);
   const [zieht, setZieht] = useState<Task | null>(null);
+  const leiste = useRef<HTMLDivElement>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
 
@@ -56,6 +57,29 @@ export default function AsanaBoard() {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline gap-2">
         <h1 className="text-base font-semibold">Buchhaltung und HR</h1>
+        {/* Elf Spalten passen auf keinen Bildschirm. Wischen geht auf
+            dem Trackpad, aber nicht jeder arbeitet an einem - also
+            zwei Knoepfe, die dasselbe tun. */}
+        <span className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            className="btn"
+            title="Nach links"
+            aria-label="Board nach links scrollen"
+            onClick={() => leiste.current?.scrollBy({ left: -320, behavior: "smooth" })}
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            className="btn"
+            title="Nach rechts"
+            aria-label="Board nach rechts scrollen"
+            onClick={() => leiste.current?.scrollBy({ left: 320, behavior: "smooth" })}
+          >
+            ▶
+          </button>
+        </span>
         <span className="muted text-[11px]">
           Asana führt: Titel, Text, Zuständigkeit und Spalte kommen von dort. Jede Aufgabe
           steht zusätzlich in onOffice.
@@ -72,7 +96,11 @@ export default function AsanaBoard() {
         </p>
       ) : null}
 
-      <div className="scroll-x flex items-start gap-3 pb-2" style={{ opacity: laeuft ? 0.6 : 1 }}>
+      <div
+        ref={leiste}
+        className="scroll-x flex items-start gap-3 pb-2"
+        style={{ opacity: laeuft ? 0.6 : 1 }}
+      >
         {asanaSpalten.map((spalte) => {
           const karten = asanaTasks.filter((t) => t.asanaSectionGid === spalte.gid);
           return (

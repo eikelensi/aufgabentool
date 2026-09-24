@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui";
 import type { Task, TaskStatus } from "@/lib/types";
 
 export default function MeinTagPage() {
-  const { bereit, me, visibleTasks, moveTask, claimTask } = useStore();
+  const { bereit, me, visibleTasks, moveTask, claimTask, sortiere } = useStore();
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [detail, setDetail] = useState<Task | null>(null);
   const [noteFor, setNoteFor] = useState<Task | null>(null);
@@ -84,7 +84,16 @@ export default function MeinTagPage() {
 
       <Filters value={filter} onChange={setFilter} showAssignee={false} />
 
-      <Board tasks={mine} onOpen={setDetail} onDropTask={onDropTask} />
+      {/* Ziehen heisst hier zweierlei: in eine andere Spalte schieben
+          aendert den Status, innerhalb einer Spalte aendert es die
+          Reihenfolge. Wer seinen Tag ordnet, will oben haben, was
+          zuerst drankommt. */}
+      <Board
+        tasks={mine}
+        onOpen={setDetail}
+        onDropTask={onDropTask}
+        onSort={(taskId, vorTaskId, spalte) => void sortiere(taskId, vorTaskId, spalte)}
+      />
 
       {mine.length === 0 ? (
         <p className="muted mt-3 text-xs">

@@ -510,7 +510,8 @@ export function TaskDetailDialog({
   onClose: () => void;
 }) {
   const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, isAdmin,
-    updateTask, profiles, brokers, categories, tasks } = useStore();
+    updateTask, profiles, brokers, categories, tasks,
+    asanaSpalten, asanaNutzer, asanaVerschieben, asanaZuteilen } = useStore();
   const [noteFor, setNoteFor] = useState(false);
   const [poolFor, setPoolFor] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
@@ -957,6 +958,84 @@ export function TaskDetailDialog({
           Bewusst NICHT auf Admins begrenzt: wer an einer Aufgabe
           arbeitet, weiss am besten, fuer wen - und muss das eintragen
           koennen, ohne zu fragen. */}
+      {/* Was in Asana steht, wird hier gesetzt - nicht nur angezeigt.
+          Eine Zuteilung, die nur im Tool stuende, waere beim naechsten
+          Abgleich wieder weg: in diesem Bereich fuehrt Asana. Deshalb
+          schreiben diese drei Felder direkt hinueber. */}
+      {task.bereich === "asana" ? (
+        <div
+          className="line mb-4 rounded-lg border p-3"
+          style={{ background: "var(--panel-2)" }}
+        >
+          <h3 className="mb-2 text-xs font-semibold">In Asana</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Spalte" hint="Verschiebt die Karte auch drüben.">
+              <select
+                className="field"
+                value={task.asanaSectionGid ?? ""}
+                onChange={async (e) => {
+                  if (!e.target.value) return;
+                  setLaeuft(true);
+                  const res = await asanaVerschieben(task.id, e.target.value);
+                  setLaeuft(false);
+                  // Die Pool-Spalte nimmt die Aufgabe aus diesem
+                  // Bereich heraus - dann gibt es hier nichts mehr zu
+                  // sehen.
+                  const spalte = asanaSpalten.find((sp) => sp.gid === e.target.value);
+                  if (res.ok && spalte?.istPool) onClose();
+                  else if (!res.ok) setFehler(res.error ?? "Verschieben ging nicht.");
+                }}
+                disabled={laeuft}
+              >
+                <option value="">– keine –</option>
+                {asanaSpalten.map((sp) => (
+                  <option key={sp.gid} value={sp.gid}>
+                    {sp.name}
+                    {sp.istPool ? " (gibt die Aufgabe ab)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Zuständig" hint="Die Mitglieder des Asana-Projekts.">
+              <select
+                className="field"
+                value={task.asanaAssigneeGid ?? ""}
+                onChange={async (e) => {
+                  setLaeuft(true);
+                  const res = await asanaZuteilen(task.id, { assigneeGid: e.target.value || null });
+                  setLaeuft(false);
+                  if (!res.ok) setFehler(res.error ?? "Zuteilen ging nicht.");
+                }}
+                disabled={laeuft}
+              >
+                <option value="">– niemand –</option>
+                {asanaNutzer.map((n) => (
+                  <option key={n.gid} value={n.gid}>
+                    {n.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Fällig in Asana">
+              <input
+                type="date"
+                className="field"
+                defaultValue={task.dueDate ?? ""}
+                onChange={async (e) => {
+                  setLaeuft(true);
+                  const res = await asanaZuteilen(task.id, { dueOn: e.target.value || null });
+                  setLaeuft(false);
+                  if (!res.ok) setFehler(res.error ?? "Frist ging nicht.");
+                }}
+                disabled={laeuft}
+              />
+            </Field>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mb-4 grid gap-3 sm:grid-cols-2">
         {/* Die Kategorie gehoert hierher und nicht nur ins Anlegen-Fenster:
             fast jede Aufgabe kommt aus onOffice und wird gar nicht hier

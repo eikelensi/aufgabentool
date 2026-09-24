@@ -5,6 +5,7 @@
  */
 import type {
   AppSettings,
+  AsanaNutzer,
   AsanaSpalte,
   Attachment,
   BrokerContact,
@@ -85,6 +86,15 @@ export function zuAnhang(row: any): Attachment {
   };
 }
 
+export function zuAsanaNutzer(row: any): AsanaNutzer {
+  return {
+    gid: row.gid,
+    name: row.name,
+    email: row.email ?? undefined,
+    profileId: row.profile_id ?? null,
+  };
+}
+
 export function zuAsanaSpalte(row: any): AsanaSpalte {
   return {
     gid: row.gid,
@@ -157,6 +167,7 @@ export function zuAufgabe(row: any): Task {
     bereich: row.bereich ?? "task",
     asanaTaskGid: row.asana_task_gid ?? null,
     asanaSectionGid: row.asana_section_gid ?? null,
+    asanaAssigneeGid: row.asana_assignee_gid ?? null,
     attachments: (row.task_attachments ?? []).map(zuAnhang),
     notes: (row.task_notes ?? [])
       .map(zuNotiz)

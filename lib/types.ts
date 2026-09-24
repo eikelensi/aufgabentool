@@ -45,6 +45,14 @@ export interface AsanaSpalte {
   istPool: boolean;
 }
 
+/** Wer in Asana zustaendig sein kann - auch ohne Zugang zum Tool. */
+export interface AsanaNutzer {
+  gid: string;
+  name: string;
+  email?: string;
+  profileId?: string | null;
+}
+
 /** Sichtbarkeit je Rolle und Bereich, wie sie in der Datenbank steht. */
 export type Bereichsrechte = Record<string, Record<string, boolean>>;
 
@@ -221,6 +229,7 @@ export interface Task {
   bereich: "task" | "asana";
   asanaTaskGid?: string | null;
   asanaSectionGid?: string | null;
+  asanaAssigneeGid?: string | null;
   /**
    * Warum die Aufgabe zurueck in den Pool ging, und von wem. Bleibt
    * stehen, bis sie sich jemand zieht - wer sie uebernimmt, soll wissen,

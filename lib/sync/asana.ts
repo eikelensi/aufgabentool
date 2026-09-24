@@ -94,6 +94,27 @@ async function spiegleSpalten(): Promise<{ poolGid: string | null; namen: Map<st
     spalten.push(pool);
   }
 
+  // Die Pool-Spalte gehoert nach vorn, gleich neben den Eingang: sie
+  // ist der Ausgang dieses Bereichs und keine Ablage am Ende, zu der
+  // man erst durch zehn Spalten scrollt. Steht sie schon dort,
+  // passiert nichts - Asana nimmt denselben Aufruf beliebig oft.
+  const erste = spalten.find((s) => s.gid !== pool!.gid);
+  if (erste && spalten.indexOf(pool) !== 1) {
+    try {
+      await ruf({
+        pfad: `/projects/${projektGid()}/sections/insert`,
+        methode: "POST",
+        daten: { section: pool.gid, after_section: erste.gid },
+      });
+      const ohne = spalten.filter((s) => s.gid !== pool!.gid);
+      spalten.length = 0;
+      spalten.push(ohne[0], pool, ...ohne.slice(1));
+    } catch {
+      // Misslingt das Einsortieren, bleibt die Spalte, wo sie ist -
+      // das ist unschoen, aber kein Grund, den Abgleich abzubrechen.
+    }
+  }
+
   const zeilen = spalten.map((s, i) => ({
     gid: s.gid,
     name: s.name,
@@ -108,6 +129,34 @@ async function spiegleSpalten(): Promise<{ poolGid: string | null; namen: Map<st
     poolGid: pool?.gid ?? null,
     namen: new Map(spalten.map((s) => [s.gid, s.name])),
   };
+}
+
+/**
+ * Die Mitglieder des Projekts spiegeln.
+ *
+ * Damit im Aufgabenfenster jemand zugeteilt werden kann, der in Asana
+ * arbeitet - auch wenn er keinen Zugang zum Tool hat.
+ */
+async function spiegleMitglieder(verzeichnis: Map<string, string>): Promise<void> {
+  const sb = supabaseAdmin();
+
+  const projekt = await ruf<{ members?: { gid: string; name?: string }[] }>({
+    pfad: `/projects/${projektGid()}`,
+    query: { opt_fields: "members.gid,members.name,members.email" },
+  });
+
+  const zeilen = (projekt.members ?? []).map((m) => {
+    const mail = ((m as { email?: string }).email ?? "").trim().toLowerCase();
+    return {
+      gid: m.gid,
+      name: m.name ?? "(ohne Namen)",
+      email: mail || null,
+      profile_id: verzeichnis.get(mail) ?? null,
+      synced_at: new Date().toISOString(),
+    };
+  });
+
+  if (zeilen.length) await sb.from("asana_users").upsert(zeilen, { onConflict: "gid" });
 }
 
 /** Asana-Nutzer auf Profile abbilden - ueber die Mailadresse. */
@@ -247,6 +296,11 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
 
   const { poolGid, namen } = await spiegleSpalten();
   const verzeichnis = await nutzerVerzeichnis();
+  try {
+    await spiegleMitglieder(verzeichnis);
+  } catch (err) {
+    ergebnis.fehler.push(`Mitglieder: ${(err as Error).message}`);
+  }
 
   // Wer zeichnet, wenn niemand passt? Der erste Superadmin - creator_id
   // darf nicht leer sein.
@@ -326,6 +380,7 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
       bereich: "asana",
       asana_task_gid: aufgabe.gid,
       asana_section_gid: spalte?.gid ?? null,
+      asana_assignee_gid: aufgabe.assignee?.gid ?? null,
       asana_modified_at: aufgabe.modified_at ?? null,
       due_date: aufgabe.due_on ?? null,
       visible_from: aufgabe.start_on ?? new Date().toISOString().slice(0, 10),

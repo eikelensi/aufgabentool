@@ -129,7 +129,8 @@ export default function UebersichtPage() {
           <p className="muted mt-2 text-[11px]">
             Karten lassen sich zwischen Status <em>und</em> zwischen Mitarbeitenden ziehen – so wird bei
             Krankheit oder Ausfall in einem Zug neu verteilt. Mit den Pfeilen bringst du sie
-            innerhalb einer Spalte in deine eigene Reihenfolge; die bleibt erhalten.
+            innerhalb einer Spalte in deine eigene Reihenfolge; die bleibt erhalten. Jede Zelle
+            zeigt die ersten vier Karten – der Rest klappt auf Klick auf.
           </p>
         </div>
       ) : null}
@@ -217,6 +218,18 @@ function Lane({
   onVerschiebe: (taskId: string, richtung: -1 | 1, inListe: Task[]) => Promise<unknown>;
 }) {
   const key = assigneeId ?? "pool";
+
+  /**
+   * Wie viele Karten eine Zelle zeigt, bevor sie zumacht.
+   *
+   * Bei zwoelf Mitarbeitenden mit je zwanzig Aufgaben ist die
+   * Uebersicht keine mehr - man scrollt Minuten, um die letzte Zeile zu
+   * sehen. Vier Karten je Zelle reichen, um zu erkennen, wer womit
+   * beschaeftigt ist; der Rest ist einen Klick entfernt.
+   */
+  const GRENZE = 4;
+  const [offen, setOffen] = useState<Record<string, boolean>>({});
+
   return (
     <div className="mb-2 grid gap-2" style={{ gridTemplateColumns: "170px repeat(3, 1fr)" }}>
       <div className="panel flex items-center gap-2 p-2" style={{ background: "var(--panel-2)" }}>
@@ -231,6 +244,9 @@ function Lane({
       {STATUSES.map((s) => {
         const cellKey = `${key}:${s}`;
         const items = tasks.filter((t) => t.status === s);
+        const aufgeklappt = offen[cellKey] ?? false;
+        const sichtbare = aufgeklappt ? items : items.slice(0, GRENZE);
+        const versteckt = items.length - sichtbare.length;
         return (
           <div
             key={s}
@@ -246,9 +262,16 @@ function Lane({
               if (id) onDrop(id, assigneeId, s);
             }}
             className={`panel min-h-[64px] space-y-1.5 p-1.5 ${over === cellKey ? "dropzone-active" : ""}`}
-            style={{ background: "var(--panel-2)" }}
+            style={{
+              background: "var(--panel-2)",
+              // Aufgeklappt bleibt die Zelle in ihrer Zeile und scrollt
+              // in sich - sonst schoebe eine lange Spalte die ganze
+              // Tabelle auseinander.
+              maxHeight: aufgeklappt ? 420 : undefined,
+              overflowY: aufgeklappt ? "auto" : undefined,
+            }}
           >
-            {items.map((t, i) => (
+            {sichtbare.map((t, i) => (
               <div key={t.id} className="flex items-stretch gap-1">
                 <div className="min-w-0 flex-1">
                   <TaskCard task={t} onOpen={onOpen} onDragStart={() => undefined} compact />
@@ -287,6 +310,28 @@ function Lane({
                 </div>
               </div>
             ))}
+            {versteckt > 0 ? (
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                style={{ fontSize: 11 }}
+                onClick={() => setOffen((o) => ({ ...o, [cellKey]: true }))}
+              >
+                + {versteckt} weitere
+              </button>
+            ) : null}
+
+            {aufgeklappt && items.length > GRENZE ? (
+              <button
+                type="button"
+                className="btn btn-ghost w-full"
+                style={{ fontSize: 11 }}
+                onClick={() => setOffen((o) => ({ ...o, [cellKey]: false }))}
+              >
+                weniger zeigen
+              </button>
+            ) : null}
+
             {items.length === 0 ? <div className="muted p-1 text-[11px]">–</div> : null}
           </div>
         );

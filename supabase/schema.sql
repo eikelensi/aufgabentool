@@ -200,6 +200,15 @@ create index if not exists task_notes_task_idx on public.task_notes (task_id, cr
 
 -- Welche Rolle welchen Bereich im Menue sieht. Superadmin steht nicht
 -- drin: er sieht immer alles.
+-- Bereich der Geschaeftsfuehrung: Mitglieder des Asana-Projekts
+create table if not exists public.asana_users (
+  gid        text primary key,
+  name       text not null,
+  email      text,
+  profile_id uuid references public.profiles(id) on delete set null,
+  synced_at  timestamptz not null default now()
+);
+
 -- Bereich der Geschaeftsfuehrung: gespiegelte Asana-Spalten
 create table if not exists public.asana_sections (
   gid        text primary key,
