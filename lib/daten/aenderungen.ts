@@ -25,6 +25,12 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-24",
+    titel: "Asana: abhaken ohne Öffnen",
+    text: "Vor jedem Titel sitzt jetzt ein Kreis. Ein Klick erledigt die Aufgabe – in der Datenbank, in Asana und als Vermerk in den Kommentaren. Ein zweiter Klick macht sie wieder auf; für Fehlklicks gibt es „Rückgängig“ in der Meldungszeile.",
+    bereich: "Asana",
+  },
+  {
+    datum: "2026-09-24",
     titel: "Aus „Übersicht“ wird „Team“",
     text: "Der Menüpunkt heißt jetzt Team und steht direkt hinter dem Dashboard, vor „Mein Tag“. Die Ansicht nach Mitarbeitenden ist deutlich kompakter: Karten wurden zu Zeilen, jede Zelle zeigt drei statt vier – damit passen alle Mitarbeitenden auf einen Blick auf den Bildschirm. Alles zu einer Aufgabe steht weiterhin im Aufgabenfenster.",
     bereich: "Team",

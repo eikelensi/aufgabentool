@@ -12,6 +12,7 @@ export default function TaskCard({
   showAssignee = false,
   compact = false,
   winzig = false,
+  abhaken,
   action,
 }: {
   task: Task;
@@ -27,6 +28,15 @@ export default function TaskCard({
    * Aufgabenfenster.
    */
   winzig?: boolean;
+  /**
+   * Haken vor dem Titel: erledigen, ohne die Aufgabe aufzumachen.
+   *
+   * Es gibt Aufgaben, bei denen das Oeffnen der eigentliche Aufwand
+   * ist - "Rechnung abgelegt", "angerufen". Wer erst klicken, lesen,
+   * einen Knopf suchen und wieder schliessen muss, laesst sie lieber
+   * stehen. Ein zweiter Klick nimmt es zurueck.
+   */
+  abhaken?: (t: Task) => void;
   action?: React.ReactNode;
 }) {
   const { categoryById, profileById, brokerById, kollegeNachKuerzel, settings } = useStore();
@@ -35,6 +45,29 @@ export default function TaskCard({
   const broker = brokerById(task.brokerContactId);
   const age = daysSince(task.createdAt);
   const overdue = task.dueDate ? task.dueDate < new Date().toISOString().slice(0, 10) : false;
+
+  const fertig = task.status === "erledigt";
+
+  const haken = abhaken ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        abhaken(task);
+      }}
+      title={fertig ? "Wieder öffnen" : "Erledigt"}
+      aria-label={fertig ? `„${task.title}“ wieder öffnen` : `„${task.title}“ erledigen`}
+      aria-pressed={fertig}
+      className="haken shrink-0"
+      style={
+        fertig
+          ? { background: "var(--ok-fg)", borderColor: "var(--ok-fg)", color: "var(--auf-akzent)" }
+          : undefined
+      }
+    >
+      ✓
+    </button>
+  ) : null;
 
   const ziehen = {
     draggable: Boolean(onDragStart),
@@ -55,6 +88,7 @@ export default function TaskCard({
         style={{ background: "var(--panel)" }}
       >
         <div className="flex items-center gap-1.5">
+          {haken}
           {category ? (
             <span
               aria-hidden
@@ -122,7 +156,11 @@ export default function TaskCard({
       style={{ background: "var(--panel)" }}
     >
       <div className="flex items-start justify-between gap-2">
-        <h4 className={`font-medium leading-snug ${compact ? "text-[13px]" : "text-sm"}`}>
+        {haken}
+        <h4
+          className={`flex-1 font-medium leading-snug ${compact ? "text-[13px]" : "text-sm"}`}
+          style={fertig ? { textDecoration: "line-through", opacity: 0.6 } : undefined}
+        >
           {task.title}
         </h4>
         {showAssignee ? <Avatar profile={assignee} size={22} /> : null}

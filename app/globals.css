@@ -233,6 +233,36 @@ aside {
   transform: translateY(1px);
 }
 
+/* Der Haken vor dem Titel: erledigen, ohne die Aufgabe aufzumachen.
+   Im Ruhezustand blass - er soll da sein, wenn man ihn sucht, und
+   nicht um Aufmerksamkeit bitten, solange man liest. */
+.haken {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  border-radius: 99px;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: transparent;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--tempo) ease, border-color var(--tempo) ease,
+    color var(--tempo) ease;
+}
+
+.haken:hover {
+  border-color: var(--ok-fg);
+  color: var(--ok-fg);
+}
+
+.haken:active {
+  transform: scale(0.92);
+}
+
 .btn:disabled,
 .btn[aria-disabled="true"] {
   opacity: 0.5;

@@ -524,6 +524,12 @@ export default async function HandbuchSeite() {
           zurückgespielt samt Begründung, erledigt durch wen und wann. Wird eine
           abgegebene Aufgabe in Asana abgehakt, verlässt sie auch hier den Pool.
         </p>
+        <p>
+          <strong>Abhaken ohne Öffnen:</strong> vor jedem Titel sitzt ein Kreis.
+          Ein Klick erledigt die Aufgabe – hier, in Asana und als Kommentar
+          drüben. Ein zweiter Klick macht sie wieder auf; solange die Meldung
+          oben steht, nimmt „Rückgängig“ den Klick zurück.
+        </p>
         <p className="muted">
           Die Seite fragt beim Öffnen, beim Zurückkommen zum Tab und alle 30
           Sekunden bei Asana nach; der Knopf ↻ fragt sofort. Erledigte Karten

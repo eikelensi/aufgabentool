@@ -19,7 +19,8 @@ import type { Task } from "@/lib/types";
  * und hinterher raten, wo die Aufgabe geblieben ist.
  */
 export default function AsanaBoard() {
-  const { asanaSpalten, asanaTasks, asanaNutzer, asanaAnlegen, neuLaden, bereit } = useStore();
+  const { asanaSpalten, asanaTasks, asanaNutzer, asanaAnlegen, moveTask, neuLaden, bereit } =
+    useStore();
   const [offen, setOffen] = useState<Task | null>(null);
   const [zieht, setZieht] = useState<Task | null>(null);
   const leiste = useRef<HTMLDivElement>(null);
@@ -69,6 +70,32 @@ export default function AsanaBoard() {
   }, [holen]);
   const [meldung, setMeldung] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
+  /** Was zuletzt abgehakt wurde - fuer den Weg zurueck. */
+  const [zurueck, setZurueck] = useState<{ id: string; titel: string } | null>(null);
+
+  /**
+   * Abhaken ohne Aufmachen.
+   *
+   * Vieles auf diesem Board ist in zwei Sekunden getan und braucht
+   * kein Fenster: abgelegt, angerufen, weitergeleitet. Wer dafuer
+   * oeffnen, suchen und schliessen muss, laesst es liegen.
+   *
+   * moveTask erledigt den Rest - Datenbank, Haken in Asana, Vermerk in
+   * den Kommentaren. Hier steht nur der Klick.
+   */
+  const abhaken = async (task: Task) => {
+    const war = task.status === "erledigt";
+    setMeldung(null);
+    const res = await moveTask(task.id, war ? "offen" : "erledigt");
+    setZurueck(war ? null : { id: task.id, titel: task.title });
+    setMeldung(
+      res.error
+        ? res.error
+        : war
+          ? `„${task.title}“ ist wieder offen.`
+          : `„${task.title}“ ist erledigt – auch in Asana.`,
+    );
+  };
 
   const verschiebe = async (task: Task, sectionGid: string) => {
     if (task.asanaSectionGid === sectionGid) return;
@@ -150,17 +177,48 @@ export default function AsanaBoard() {
         </span>
         <span className="muted text-[11px]">
           Asana führt: Titel, Text, Zuständigkeit und Spalte kommen von dort. Diese Seite
-          fragt beim Öffnen und alle 30 Sekunden nach{holt ? " – gerade jetzt" : ""}.
+          fragt beim Öffnen und alle 30 Sekunden nach{holt ? " – gerade jetzt" : ""}. Der
+          Kreis vor dem Titel hakt eine Aufgabe ab, ohne sie zu öffnen.
         </span>
       </div>
 
       {meldung ? (
         <p
-          className="rounded-md px-2.5 py-2 text-[11px]"
+          className="flex flex-wrap items-center gap-2 rounded-md px-2.5 py-2 text-[11px]"
           style={{ background: "var(--panel-2)", color: "var(--muted)" }}
           role="status"
         >
-          {meldung}
+          <span>{meldung}</span>
+          {/* Abgehakt verschwindet die Karte aus dem Board. Ohne diesen
+              Knopf muesste man erst "Erledigte an" schalten, um einen
+              Fehlklick zu finden. */}
+          {zurueck ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ fontSize: 11, padding: "0 0.4rem" }}
+              onClick={() => {
+                const t = asanaTasks.find((x) => x.id === zurueck.id);
+                setZurueck(null);
+                if (t) void abhaken(t);
+                else setMeldung(null);
+              }}
+            >
+              Rückgängig
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "0 0.4rem" }}
+            onClick={() => {
+              setMeldung(null);
+              setZurueck(null);
+            }}
+            aria-label="Meldung schließen"
+          >
+            ✕
+          </button>
         </p>
       ) : null}
 
@@ -222,6 +280,7 @@ export default function AsanaBoard() {
                     task={t}
                     onOpen={setOffen}
                     onDragStart={setZieht}
+                    abhaken={(x) => void abhaken(x)}
                     showAssignee
                     compact
                   />
