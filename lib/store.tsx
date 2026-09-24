@@ -270,14 +270,49 @@ export function StoreProvider({
     document.addEventListener("visibilitychange", beiRueckkehr);
     window.addEventListener("focus", beiRueckkehr);
 
+    // Fuenfundzwanzig statt sechzig Sekunden: der Abgleich mit onOffice
+    // laeuft alle zwei Minuten, dazu kommen Aenderungen von Kollegen.
+    // Wer am Board arbeitet, soll nicht auf eine Minute warten, um zu
+    // sehen, dass eine Aufgabe weg ist.
     const takt = setInterval(() => {
       if (sichtbar()) void neuLaden();
-    }, 60_000);
+    }, 25_000);
 
     return () => {
       document.removeEventListener("visibilitychange", beiRueckkehr);
       window.removeEventListener("focus", beiRueckkehr);
       clearInterval(takt);
+    };
+  }, [neuLaden]);
+
+  /**
+   * Sofort mitbekommen, wenn sich an den Aufgaben etwas aendert.
+   *
+   * Der Takt oben ist das Netz; das hier ist der Normalfall. Postgres
+   * meldet jede Aenderung an den Aufgaben und Notizen, und wir laden
+   * neu - gebuendelt, denn ein Abgleich schreibt vierzig Zeilen in
+   * einer Sekunde, und vierzig Ladevorgaenge braucht niemand.
+   */
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const spaeter = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (document.visibilityState === "visible") void neuLaden();
+      }, 700);
+    };
+
+    const kanal = sb
+      .channel("aufgaben-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, spaeter)
+      .on("postgres_changes", { event: "*", schema: "public", table: "task_notes" }, spaeter)
+      .subscribe();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      void sb.removeChannel(kanal);
     };
   }, [neuLaden]);
 
@@ -445,6 +480,24 @@ export function StoreProvider({
           if (res.status === 207 && json?.meldung) hinweis = json.meldung;
         } catch {
           hinweis = "Der Status steht im Tool, onOffice war aber gerade nicht erreichbar.";
+        }
+      }
+
+      // Kommt die Aufgabe aus Asana - auch wenn sie laengst abgegeben
+      // ist -, muss das Abhaken dort ankommen. Sonst haengt drueben in
+      // der Pool-Spalte eine Karte, von der niemand weiss, dass sie
+      // fertig ist.
+      if (aufgabe.asanaTaskGid && (status === "erledigt" || aufgabe.status === "erledigt")) {
+        try {
+          const res = await fetch("/api/asana/status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ taskId, erledigt: status === "erledigt" }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (res.status === 207 && json?.meldung) hinweis = json.meldung;
+        } catch {
+          hinweis = "Der Status steht im Tool, Asana war aber gerade nicht erreichbar.";
         }
       }
 

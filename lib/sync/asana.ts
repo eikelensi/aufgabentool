@@ -384,10 +384,26 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     // der sie sich gerade gezogen hat, wieder aus der Hand.
     if (vorhanden?.bereich === "task") continue;
 
+    // Die Datenbank verlangt bei "Rueckfragen offen" eine Notiz. Aus
+    // Asana kommt keine - die Spalte IST die Begruendung. Also ein
+    // ehrlicher Platzhalter, aber nur, wenn noch nichts dasteht:
+    // zwei Aufgaben sind daran bisher bei jedem Lauf gescheitert.
+    const status = statusAus(aufgabe, spaltenName);
+    let notiz: string | null = null;
+    if (status === "in_bearbeitung") {
+      const { data: alt } = vorhanden
+        ? await sb.from("tasks").select("in_progress_note").eq("id", vorhanden.id).maybeSingle()
+        : { data: null };
+      notiz =
+        alt?.in_progress_note?.trim() ||
+        `Steht in Asana in der Spalte „${spaltenName || "Rückfragen offen"}“.`;
+    }
+
     const zeile: Record<string, unknown> = {
       title: aufgabe.name || "(ohne Titel)",
       description: aufgabe.notes?.trim() || null,
-      status: statusAus(aufgabe, spaltenName),
+      status,
+      in_progress_note: notiz,
       assignee_id: bearbeiterId ?? null,
       creator_id: vorhanden ? undefined : ersatzAutor,
       bereich: "asana",
