@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin, serviceRoleVorhanden } from "@/lib/supabase/admin";
 import { NOTIFY_LABEL, type NotifyKind } from "@/lib/types";
+import { AENDERUNGEN } from "@/lib/daten/aenderungen";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -135,6 +136,7 @@ export default async function ProtokollSeite({
 }) {
   const { zeigt } = await searchParams;
   const mailAnsicht = zeigt === "mails";
+  const systemAnsicht = zeigt === "system";
 
   if (!serviceRoleVorhanden()) {
     return (
@@ -171,6 +173,17 @@ export default async function ProtokollSeite({
         </a>
         <a
           className="btn"
+          href="/admin/protokoll?zeigt=system"
+          style={
+            systemAnsicht
+              ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" }
+              : undefined
+          }
+        >
+          Am System geändert
+        </a>
+        <a
+          className="btn"
           href="/admin/protokoll?zeigt=mails"
           style={
             mailAnsicht ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" } : undefined
@@ -180,7 +193,47 @@ export default async function ProtokollSeite({
         </a>
       </div>
 
-      {!mailAnsicht ? (
+      {systemAnsicht ? (
+        <div className="max-w-[80ch]">
+          <p className="muted mb-3 text-xs leading-relaxed">
+            Was am Tool selbst geändert wurde – neue Funktionen und behobene
+            Fehler, in der Sprache der Arbeit und nicht der Programmierung. Die
+            Liste wird weitergeschrieben; das Neueste steht oben.
+          </p>
+
+          {AENDERUNGEN.map((a, i) => (
+            <article key={`${a.datum}-${i}`} className="panel mb-2 p-3">
+              <header className="flex flex-wrap items-baseline gap-2">
+                <h2 className="text-[13px] font-semibold">{a.titel}</h2>
+                {a.behoben ? (
+                  <span
+                    className="chip"
+                    style={{ background: "var(--warn-bg)", color: "var(--warn-fg)" }}
+                  >
+                    behoben
+                  </span>
+                ) : (
+                  <span
+                    className="chip"
+                    style={{ background: "var(--ok-bg)", color: "var(--ok-fg)" }}
+                  >
+                    neu
+                  </span>
+                )}
+                {a.bereich ? <span className="muted text-[11px]">{a.bereich}</span> : null}
+                <span className="muted ml-auto text-[11px]">
+                  {new Date(a.datum).toLocaleDateString("de-DE", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </span>
+              </header>
+              <p className="mt-1 text-xs leading-relaxed">{a.text}</p>
+            </article>
+          ))}
+        </div>
+      ) : !mailAnsicht ? (
         <>
           <p className="muted mb-3 max-w-[75ch] text-xs leading-relaxed">
             Wird still mitgeschrieben, von der Datenbank selbst. Auch der

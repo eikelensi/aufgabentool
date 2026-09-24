@@ -8,7 +8,15 @@
  */
 import { supabaseAdmin, serviceRoleVorhanden } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
-import { STATUS_LABEL } from "@/lib/types";
+import {
+  BEREICH_LABEL,
+  ROLLE_LABEL,
+  STATUS_LABEL,
+  darfSehen,
+  type AppRole,
+  type Bereich,
+  type Bereichsrechte,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,7 +60,8 @@ export default async function HandbuchSeite() {
 
   const sb = supabaseAdmin();
 
-  const [einst, kategorien, nutzer, kollegen, vorlagen, cursor, arten] = await Promise.all([
+  const [einst, kategorien, nutzer, kollegen, vorlagen, cursor, arten, bereiche, spalten] =
+    await Promise.all([
     sb.from("app_settings").select("*").maybeSingle(),
     sb.from("categories").select("name, color, is_active").order("sort_order"),
     sb
@@ -64,6 +73,8 @@ export default async function HandbuchSeite() {
     sb.from("email_templates").select("key, label, is_active"),
     sb.from("onoffice_sync_cursor").select("last_run_at").eq("resource", "task").maybeSingle(),
     sb.from("task_types").select("label").eq("is_active", true).order("sort_order"),
+    sb.from("rollen_bereiche").select("role, bereich, sichtbar"),
+    sb.from("asana_sections").select("name, ist_pool, sort_order").order("sort_order"),
   ]);
 
   const s = einst.data;
@@ -79,6 +90,25 @@ export default async function HandbuchSeite() {
   const aktiveKollegen = (kollegen.data ?? []).filter((k) => k.is_active);
   const aktiveKategorien = (kategorien.data ?? []).filter((k) => k.is_active);
   const aktiveVorlagen = (vorlagen.data ?? []).filter((v) => v.is_active);
+
+  // Wer sieht welchen Bereich - aus der Tabelle, nicht aus dem Text.
+  // Damit stimmt dieser Abschnitt auch dann, wenn jemand einen Haken
+  // umsetzt.
+  const ROLLEN: AppRole[] = ["gf", "qm", "user"];
+  const rechte: Bereichsrechte = {};
+  for (const z of bereiche.data ?? []) (rechte[z.role] ??= {})[z.bereich] = z.sichtbar;
+  const alleBereiche = Object.keys(BEREICH_LABEL) as Bereich[];
+
+  const asanaSpalten = spalten.data ?? [];
+  const poolSpalte = asanaSpalten.find((sp) => sp.ist_pool);
+
+  const schalter = [
+    ["Bearbeiter eintragen", s?.sync_push_assignee],
+    ["Status übertragen", s?.sync_push_status],
+    ["Betreff, Text, Frist, Priorität", s?.sync_push_inhalt],
+    ["Neue Aufgaben anlegen", s?.sync_push_neu],
+    ["Asana-Aufgaben in onOffice", s?.sync_asana_onoffice],
+  ] as const;
 
   const stand = new Date().toLocaleString("de-DE", {
     day: "2-digit",
@@ -119,6 +149,40 @@ export default async function HandbuchSeite() {
         {aktiveNutzer.length === 0 ? (
           <p className="muted">Noch keine aktiven Zugänge.</p>
         ) : null}
+
+        <p className="mt-3">
+          Welche Rolle welchen Menüpunkt sieht, steht in der Verwaltung unter
+          <strong> Rollen</strong> und lässt sich dort umstellen. Der Superadmin
+          sieht immer alles – auch dann, wenn ein Haken fehlt; sonst könnte man
+          sich selbst aussperren.
+        </p>
+
+        <div className="scroll-x mt-2">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="line border-b">
+                <th className="py-1 pr-3 text-left font-semibold">Bereich</th>
+                {ROLLEN.map((r) => (
+                  <th key={r} className="px-2 py-1 text-left font-semibold">
+                    {ROLLE_LABEL[r]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {alleBereiche.map((b) => (
+                <tr key={b} className="line border-b">
+                  <td className="py-1 pr-3">{BEREICH_LABEL[b]}</td>
+                  {ROLLEN.map((r) => (
+                    <td key={r} className="px-2 py-1">
+                      {darfSehen(r, b, rechte) ? "ja" : "–"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Abschnitt>
 
       <Abschnitt nummer={2} titel="Der Weg einer Aufgabe">
@@ -301,6 +365,149 @@ export default async function HandbuchSeite() {
           Geschrieben wird es von der Datenbank selbst, nicht von der Oberfläche.
           Deshalb steht auch drin, was der automatische Abgleich getan hat – der
           erscheint als „System“. Nachzulesen unter Protokolle.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={11} titel="Eine Aufgabe bearbeiten">
+        <p>
+          Im Aufgabenfenster öffnet <strong>✎ Bearbeiten</strong> die Felder:
+          Betreff, Beschreibung, Priorität, Fälligkeit und Sichtbar-ab. Die
+          ersten vier gehen nach onOffice zurück, denn dort werden sie geführt –
+          eine Änderung, die nur hier stünde, wäre beim nächsten Abgleich wieder
+          weg. Sichtbar-ab und die Kategorie bleiben im Tool.
+        </p>
+        <p>
+          Übertragen wird nur, was wirklich geändert wurde. Wer einen Tippfehler
+          im Text korrigiert, setzt drüben nicht nebenbei die Frist neu.
+        </p>
+        <p className="muted">
+          Der Bearbeiter, „Auftrag von (Makler)“ und die Kategorie werden direkt
+          beim Auswählen gespeichert, ohne Bearbeiten-Modus.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={12} titel="Notizen und Nachrichten">
+        <p>
+          Jede Aufgabe hat einen <strong>Notizverlauf</strong> – eigene Notizen
+          rechts, fremde links, Enter schickt ab. Wer schreibt, benachrichtigt
+          Ersteller und Bearbeiter, nie sich selbst.
+        </p>
+        <p>
+          Unten rechts schwebt ein <strong>Chatsymbol</strong> mit der Zahl der
+          ungelesenen Nachrichten. Ein Klick auf eine Nachricht öffnet die
+          Aufgabe und markiert sie gelesen. Neue Notizen erscheinen sofort, nicht
+          erst im Takt.
+        </p>
+        <p>
+          Jede Notiz geht als Kommentar nach onOffice und – bei Aufgaben aus dem
+          Asana-Bereich – auch nach Asana, in der Form
+          <em> „Name: Inhalt“</em>. Umgekehrt landen Kommentare aus Asana im
+          Notizverlauf.
+        </p>
+        <p className="muted">
+          Liegt das Tool in einem Hintergrund-Tab, kann es zusätzlich das System
+          benachrichtigen. Die Erlaubnis dafür holt ein Knopf im
+          Nachrichtenfenster; bei geschlossenem Browser geht es nicht.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={13} titel="Der Asana-Bereich (Geschäftsführung)">
+        <p>
+          Der Menüpunkt <strong>Asana</strong> spiegelt das Projekt „Buchhaltung
+          und HR“: {asanaSpalten.length} Spalten, Karten mit Titel, Text,
+          Zuständigem und Frist, Kommentare als Notizverlauf, Dateien wie
+          überall.
+        </p>
+        <p>
+          <strong>Asana führt.</strong> Titel, Text, Zuständigkeit und Spalte
+          kommen von dort; das Tool bildet sie ab. Karten lassen sich hier
+          ziehen – das schreibt nach Asana zurück. Neue Aufgaben entstehen in
+          Asana und werden sofort hergeholt.
+        </p>
+        <p>
+          Die Spalte <strong>{poolSpalte?.name ?? "Pool"}</strong> ist der
+          Ausgang und steht ganz links: eine Karte, die dorthin wandert, geht in
+          den Aufgabenpool des Tools, verschwindet aus diesem Board und meldet
+          sich bei Geschäftsführung und Qualitätsmanagement. In Asana bleibt sie
+          in der Pool-Spalte stehen – als Notiz, dass abgegeben wurde.
+        </p>
+        <p>
+          Jede Bewegung hinterlässt dort einen Kommentar: verteilt an wen,
+          zurückgespielt samt Begründung, erledigt durch wen und wann. Wird eine
+          abgegebene Aufgabe in Asana abgehakt, verlässt sie auch hier den Pool.
+        </p>
+        <p className="muted">
+          Die Seite fragt beim Öffnen, beim Zurückkommen zum Tab und alle 30
+          Sekunden bei Asana nach; der Knopf ↻ fragt sofort. Erledigte Karten
+          sind ausgeblendet, ein Knopf holt sie dazu.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={14} titel="Archiv">
+        <p>
+          Erledigtes verschwindet nach <strong>{ausblenden} Stunden</strong> aus
+          dem Tagesgeschäft und liegt danach unter <strong>Archiv</strong> – nach
+          Tagen gruppiert, mit Suche über Betreff, Text und Aufgabennummer und
+          einem Haken „nur meine“.
+        </p>
+        <p className="muted">
+          Gelöscht wird nichts. Eine zu früh abgehakte Aufgabe lässt sich dort
+          öffnen und wieder aufmachen.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={15} titel="Was nach onOffice geschrieben wird">
+        <p>
+          Der Abgleich läuft alle zwei Minuten in beide Richtungen. Was das Tool
+          drüben verändern darf, steht unter Verwaltung → Einstellungen und ist
+          einzeln abschaltbar. Der Hauptschalter „nur lesen“ sperrt alles.
+        </p>
+        <p>
+          Derzeit:{" "}
+          <strong>{nurLesen ? "nur lesen – es wird nichts geschrieben" : "Schreiben erlaubt"}</strong>.
+        </p>
+        <ul className="mt-1 space-y-1">
+          {schalter.map(([name, an]) => (
+            <li key={name}>
+              {an === true ? "✓" : "–"} {name}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2">
+          Eine im Tool angelegte Aufgabe entsteht auch in onOffice, mit
+          Bearbeiter und Verantwortung. Die Aufgabennummer kommt zurück und steht
+          auf der Karte. Scheitert es, trägt der Abgleich es in der nächsten
+          Minute nach – Fehlschläge heilen von selbst.
+        </p>
+        <p className="muted">
+          Private Aufgaben gehen nie hinüber, unabhängig von jedem Schalter.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={16} titel="Objekt und Kunde verknüpfen">
+        <p>
+          Beim Anlegen nehmen zwei Felder eine <strong>Objektnummer</strong> und
+          eine <strong>Kundennummer</strong>. Beides ist erlaubt – die Aufgabe
+          hängt dann in onOffice an beiden.
+        </p>
+        <p>
+          Gesucht wird der Reihe nach: Maklernummer, interne Objektnummer,
+          Datensatz-ID; findet sich nichts als Objekt, wird dieselbe Nummer als
+          Kundennummer probiert. Wer sie ins falsche Feld schreibt, bekommt also
+          trotzdem eine Verknüpfung.
+        </p>
+        <p className="muted">
+          Fehlt eine Verknüpfung drüben, zieht der Abgleich sie nach – fünf pro
+          Lauf, weil jede einen Aufruf kostet.
+        </p>
+      </Abschnitt>
+
+      <Abschnitt nummer={17} titel="Was sich am Tool ändert">
+        <p>
+          Jede Änderung am Tool selbst – neue Funktionen und behobene Fehler –
+          steht unter <strong>Verwaltung → Protokolle → Am System geändert</strong>,
+          in der Sprache der Arbeit und nicht der Programmierung. Dieses Handbuch
+          wird mitgeschrieben.
         </p>
       </Abschnitt>
     </div>
