@@ -19,8 +19,17 @@ import type { AsanaBereich, Task } from "@/lib/types";
  * und hinterher raten, wo die Aufgabe geblieben ist.
  */
 export default function AsanaBoard() {
-  const { asanaSpalten, asanaTasks, asanaNutzer, asanaAnlegen, moveTask, me, neuLaden, bereit } =
-    useStore();
+  const {
+    asanaSpalten,
+    asanaTasks,
+    asanaNutzer,
+    asanaAnlegen,
+    asanaVerschieben,
+    moveTask,
+    me,
+    neuLaden,
+    bereit,
+  } = useStore();
 
   /**
    * Zwei Bretter, eine Seite.
@@ -87,7 +96,6 @@ export default function AsanaBoard() {
     };
   }, [holen]);
   const [meldung, setMeldung] = useState<string | null>(null);
-  const [laeuft, setLaeuft] = useState(false);
   /** Was zuletzt abgehakt wurde - fuer den Weg zurueck. */
   const [zurueck, setZurueck] = useState<{ id: string; titel: string } | null>(null);
 
@@ -124,25 +132,18 @@ export default function AsanaBoard() {
    * innerhalb derselben Spalte ist nur dann nichts, wenn auch keine
    * Stelle genannt wurde - sonst waere Umsortieren nicht moeglich.
    */
-  const verschiebe = async (task: Task, sectionGid: string, vorTaskId?: string) => {
+  const verschiebe = (task: Task, sectionGid: string, vorTaskId?: string) => {
     if (vorTaskId === task.id) return;
     const jetzt = brett === "eigene" ? task.asanaEigeneSectionGid : task.asanaSectionGid;
     if (jetzt === sectionGid && !vorTaskId) return;
-    setLaeuft(true);
-    setMeldung(null);
-    try {
-      const res = await fetch("/api/asana/verschieben", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: task.id, sectionGid, vorTaskId }),
-      });
-      const json = await res.json().catch(() => ({}));
-      setMeldung(json.meldung ?? json.fehler ?? null);
-    } catch {
-      setMeldung("Asana war gerade nicht erreichbar – die Karte blieb, wo sie war.");
-    }
-    setLaeuft(false);
-    await neuLaden();
+
+    // Bewusst ohne await und ohne Schleier: die Karte steht schon da,
+    // wo sie hingehoert (der Store setzt sie sofort um). Gemeldet wird
+    // nur, wenn etwas SCHIEFgeht - eine Bestaetigung fuer etwas, das
+    // man gerade selbst getan und gesehen hat, ist Laerm.
+    void asanaVerschieben(task.id, sectionGid, brett, vorTaskId ?? null).then((res) => {
+      if (!res.ok) setMeldung(res.error ?? "Die Karte ist zurückgesprungen – Asana hat sie nicht angenommen.");
+    });
   };
 
   if (!bereit) return <p className="muted text-xs">Lade…</p>;
@@ -288,7 +289,6 @@ export default function AsanaBoard() {
       <div
         ref={leiste}
         className="scroll-x flex items-start gap-3 pb-2"
-        style={{ opacity: laeuft ? 0.6 : 1 }}
       >
         {spaltenDesBretts.map((spalte) => {
           // Reihenfolge wie in Asana: asana_rang, gefuellt vom
@@ -312,7 +312,7 @@ export default function AsanaBoard() {
               onDrop={(e) => {
                 e.preventDefault();
                 setUeber(null);
-                if (zieht) void verschiebe(zieht, spalte.gid);
+                if (zieht) verschiebe(zieht, spalte.gid);
                 setZieht(null);
               }}
               className="panel flex w-[290px] shrink-0 flex-col gap-2 p-2.5"
@@ -366,7 +366,7 @@ export default function AsanaBoard() {
                       e.preventDefault();
                       e.stopPropagation();
                       setUeber(null);
-                      if (zieht) void verschiebe(zieht, spalte.gid, t.id);
+                      if (zieht) verschiebe(zieht, spalte.gid, t.id);
                       setZieht(null);
                     }}
                     style={{

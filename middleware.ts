@@ -9,11 +9,52 @@
  */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { mitKeksOptionen } from "@/lib/supabase/keks";
 
 /** Seiten, die ohne Anmeldung erreichbar sein muessen. */
 const OFFEN = ["/anmelden", "/passwort-setzen", "/auth"];
 
+/**
+ * Kommt dieser Aufruf von unserer eigenen Seite?
+ *
+ * Das ist die Gegenleistung dafuer, dass der Sitzungs-Keks jetzt auch
+ * in fremdem Rahmen mitgeht (siehe lib/supabase/keks.ts): mit
+ * SameSite=none wuerde ihn sonst auch eine beliebige fremde Seite
+ * mitschicken lassen, die ein Formular auf unsere Schnittstelle
+ * abfeuert.
+ *
+ * Der Browser setzt "Origin" bei jedem schreibenden Aufruf - auch im
+ * Rahmen, und dort steht dann UNSERE Adresse, nicht die von onOffice.
+ * Genau deshalb funktioniert die Pruefung im Rahmen weiter.
+ *
+ * Ohne Origin ist es kein Browser: der Zeitplan von Vercel, curl, ein
+ * Dienst. Die Routen haben dafuer ihr eigenes Geheimnis; hier wird
+ * nichts abgewiesen, was nie ein Browser war.
+ */
+function fremdeHerkunft(request: NextRequest): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).host !== request.headers.get("host");
+  } catch {
+    return true;
+  }
+}
+
+const SCHREIBT = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 export async function middleware(request: NextRequest) {
+  // Die Schnittstellen bekommen KEINE Sitzungserneuerung und keine
+  // Weiterleitung - sie pruefen selbst, und eine Weiterleitung auf
+  // /anmelden wuerde jeden Zeitplan stillschweigend leerlaufen lassen.
+  // Nur die Herkunft wird angesehen.
+  if (request.nextUrl.pathname.startsWith("/api")) {
+    if (SCHREIBT.has(request.method) && fremdeHerkunft(request)) {
+      return NextResponse.json({ fehler: "Fremde Herkunft." }, { status: 403 });
+    }
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,7 +72,8 @@ export async function middleware(request: NextRequest) {
       setAll(liste) {
         for (const { name, value } of liste) request.cookies.set(name, value);
         response = NextResponse.next({ request });
-        for (const { name, value, options } of liste) response.cookies.set(name, value, options);
+        for (const { name, value, options } of liste)
+          response.cookies.set(name, value, mitKeksOptionen(options));
       },
     },
   });
@@ -63,13 +105,15 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Alles ausser Next-Interna, Dateien mit Endung - und /api.
+    // Alles ausser Next-Interna und Dateien mit Endung.
     //
-    // /api bleibt bewusst aussen vor: die Routen pruefen selbst, und zwar
-    // strenger, als es hier moeglich waere (x-api-secret, CRON_SECRET oder
-    // eine Adminsitzung). Wuerde die Middleware sie mitfangen, bekaeme der
-    // Zeitplan von Vercel eine Weiterleitung auf /anmelden statt der Route,
-    // und kein Lauf wuerde je stattfinden.
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // /api ist seit der Herkunftspruefung dabei, wird aber ganz oben in
+    // der Funktion wieder herausgenommen: dort passiert nur die
+    // Herkunftspruefung, keine Sitzungserneuerung und vor allem keine
+    // Weiterleitung. Frueher war /api hier ausgeschlossen, weil eine
+    // Weiterleitung auf /anmelden jeden Zeitplan von Vercel
+    // stillschweigend leerlaufen liesse - das gilt unveraendert, es
+    // steht jetzt nur an einer anderen Stelle.
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

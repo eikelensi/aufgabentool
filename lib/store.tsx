@@ -32,6 +32,7 @@ import {
 import { ALLOWED_EXTENSIONS } from "./data";
 import type {
   AppSettings,
+  AsanaBereich,
   AsanaNutzer,
   AsanaSpalte,
   BrokerContact,
@@ -106,7 +107,12 @@ interface StoreValue {
   asanaTasks: Task[];
   asanaNutzer: AsanaNutzer[];
   /** Karte in eine andere Spalte legen; die Pool-Spalte gibt sie ab. */
-  asanaVerschieben: (taskId: string, sectionGid: string) => Promise<Ergebnis>;
+  asanaVerschieben: (
+    taskId: string,
+    sectionGid: string,
+    brett?: AsanaBereich,
+    vorTaskId?: string | null,
+  ) => Promise<Ergebnis>;
   /** Eine Aufgabe im Asana-Bereich anlegen - sie entsteht in Asana. */
   asanaAnlegen: (werte: {
     titel: string;
@@ -1072,17 +1078,102 @@ export function StoreProvider({
       return error ? { ok: false, error: error.message } : { ok: true };
     }
 
-    async function asanaVerschieben(taskId: string, sectionGid: string): Promise<Ergebnis> {
+    /**
+     * Eine Asana-Karte bewegen - und zwar sofort.
+     *
+     * Vorher hing die Seite: erst zu Asana schreiben, dann ALLES neu
+     * laden, und solange lag ein Schleier ueber dem Board. Zwei
+     * Sekunden fuer einen Handgriff, der sich wie ein Zentimeter
+     * anfuehlen soll.
+     *
+     * Jetzt andersherum. Die Karte steht sofort da, wo sie
+     * hingehoert - die Stelle rechnen wir selbst aus, nach derselben
+     * Regel wie der Server (Mitte zwischen den Nachbarn). Der Aufruf
+     * laeuft danach, und niemand sieht ihn. Geht er schief, springt
+     * die Karte zurueck, wo sie war, und sagt warum. Das ist der
+     * ganze Handel: im Normalfall kein Warten, im Fehlerfall eine
+     * Bewegung zurueck.
+     *
+     * Nicht neu geladen wird bewusst: der Takt holt ohnehin alle
+     * halbe Minute nach, und bis dahin ist unsere Rechnung dieselbe
+     * wie die drueben.
+     */
+    async function asanaVerschieben(
+      taskId: string,
+      sectionGid: string,
+      brett: AsanaBereich = "projekt",
+      vorTaskId?: string | null,
+    ): Promise<Ergebnis> {
+      if (taskId === vorTaskId) return { ok: true };
+
+      const eigene = brett === "eigene";
+      const abschnittFeld = eigene ? "asanaEigeneSectionGid" : "asanaSectionGid";
+      const rangFeld = eigene ? "asanaEigeneRang" : "asanaRang";
+
+      const aufgabe = tasks.find((t) => t.id === taskId);
+      if (!aufgabe) return { ok: false, error: "Aufgabe nicht gefunden." };
+
+      const vorherAbschnitt = aufgabe[abschnittFeld] ?? null;
+      const vorherRang = aufgabe[rangFeld] ?? null;
+
+      // Die Karten der Zielspalte, ohne die gezogene - sonst rechnet
+      // man mit der eigenen alten Stelle.
+      const inSpalte = tasks
+        .filter((t) => t.id !== taskId && (t[abschnittFeld] ?? null) === sectionGid)
+        .sort((a, b) => (a[rangFeld] ?? Number.MAX_SAFE_INTEGER) - (b[rangFeld] ?? Number.MAX_SAFE_INTEGER));
+
+      const stelle = vorTaskId ? inSpalte.findIndex((t) => t.id === vorTaskId) : -1;
+
+      let neuerRang: number;
+      if (stelle < 0) {
+        neuerRang = (inSpalte.at(-1)?.[rangFeld] ?? 0) + 100;
+      } else {
+        const ziel = inSpalte[stelle][rangFeld] ?? null;
+        const davor = stelle > 0 ? (inSpalte[stelle - 1][rangFeld] ?? null) : null;
+        if (ziel === null) neuerRang = (davor ?? 0) + 100;
+        else if (davor === null) neuerRang = ziel - 100;
+        else neuerRang = (davor + ziel) / 2;
+      }
+
+      // Pool-Spalte: die Karte verschwindet aus dem Board. Das kann
+      // die Oberflaeche nicht erraten - dafuer wird nachgeladen.
+      const zielIstPool = asanaSpalten.find((sp) => sp.gid === sectionGid)?.istPool === true;
+
+      setTasks((alt) =>
+        alt.map((t) =>
+          t.id === taskId ? { ...t, [abschnittFeld]: sectionGid, [rangFeld]: neuerRang } : t,
+        ),
+      );
+
       try {
         const res = await fetch("/api/asana/verschieben", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskId, sectionGid }),
+          body: JSON.stringify({ taskId, sectionGid, vorTaskId: vorTaskId ?? undefined }),
         });
         const json = await res.json().catch(() => ({}));
-        await neuLaden();
-        return res.ok ? { ok: true, error: json.meldung } : { ok: false, error: json.fehler };
+
+        if (!res.ok) {
+          setTasks((alt) =>
+            alt.map((t) =>
+              t.id === taskId
+                ? { ...t, [abschnittFeld]: vorherAbschnitt, [rangFeld]: vorherRang }
+                : t,
+            ),
+          );
+          return { ok: false, error: json.fehler ?? "Asana hat die Karte nicht angenommen." };
+        }
+
+        if (zielIstPool) void neuLaden();
+        return { ok: true, error: json.meldung };
       } catch (err) {
+        setTasks((alt) =>
+          alt.map((t) =>
+            t.id === taskId
+              ? { ...t, [abschnittFeld]: vorherAbschnitt, [rangFeld]: vorherRang }
+              : t,
+          ),
+        );
         return { ok: false, error: (err as Error).message };
       }
     }
