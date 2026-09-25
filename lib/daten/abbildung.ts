@@ -222,6 +222,7 @@ export function zuEinstellungen(row: any): AppSettings {
     attachmentPushOnoffice: row?.attachment_push_onoffice ?? true,
     attachmentDefaultArt: row?.attachment_default_art ?? "Dokument",
     onofficeAdressAusschluss: row?.onoffice_adress_ausschluss ?? "",
+    menueStil: (row?.menue_stil ?? "text") as AppSettings["menueStil"],
   };
 }
 
@@ -241,6 +242,7 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
   if (patch.attachmentDefaultArt !== undefined) z.attachment_default_art = patch.attachmentDefaultArt;
   if (patch.onofficeAdressAusschluss !== undefined)
     z.onoffice_adress_ausschluss = patch.onofficeAdressAusschluss;
+  if (patch.menueStil !== undefined) z.menue_stil = patch.menueStil;
   return z;
 }
 

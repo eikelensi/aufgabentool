@@ -36,26 +36,29 @@ export interface ShellProfil {
 interface Menuepunkt {
   href: string;
   label: string;
+  /** Nur sichtbar, wenn die Verwaltung Symbole eingeschaltet hat. */
+  icon: string;
   bereich: Bereich;
 }
 
 const HAUPT: Menuepunkt[] = [
-  { href: "/dashboard", label: "Dashboard", bereich: "dashboard" },
-  { href: "/team", label: "Team", bereich: "uebersicht" },
-  { href: "/mein-tag", label: "Mein Tag", bereich: "mein_tag" },
-  { href: "/pool", label: "Aufgabenpool", bereich: "pool" },
-  { href: "/asana", label: "Asana", bereich: "asana" },
+  { href: "/dashboard", label: "Dashboard", icon: "📈", bereich: "dashboard" },
+  { href: "/team", label: "Team", icon: "👥", bereich: "uebersicht" },
+  { href: "/mein-tag", label: "Mein Tag", icon: "☀️", bereich: "mein_tag" },
+  { href: "/pool", label: "Aufgabenpool", icon: "📥", bereich: "pool" },
+  { href: "/asana", label: "Asana", icon: "🗂️", bereich: "asana" },
 ];
 
 const WEITERE: Menuepunkt[] = [
-  { href: "/verteilt", label: "Verteilt", bereich: "verteilt" },
-  { href: "/pinnwand", label: "Pinnwand", bereich: "pinnwand" },
-  { href: "/archiv", label: "Archiv", bereich: "archiv" },
+  { href: "/verteilt", label: "Verteilt", icon: "↗️", bereich: "verteilt" },
+  { href: "/pinnwand", label: "Pinnwand", icon: "📌", bereich: "pinnwand" },
+  { href: "/archiv", label: "Archiv", icon: "📦", bereich: "archiv" },
 ];
 
 const VERWALTUNG: Menuepunkt = {
   href: "/admin",
   label: "Verwaltung",
+  icon: "⚙️",
   bereich: "verwaltung",
 };
 
@@ -76,7 +79,8 @@ export default function Shell({
   /** Welche Rolle welchen Bereich sieht - kommt vom Server. */
   rechte: Bereichsrechte;
 }) {
-  const { neuLaden, bereit } = useStore();
+  const { neuLaden, bereit, settings } = useStore();
+  const stil = settings.menueStil;
   const pathname = usePathname();
   const [dark, setDark] = useState(false);
   const [newTask, setNewTask] = useState(false);
@@ -171,6 +175,11 @@ export default function Shell({
                 href={n.href}
                 className="btn"
                 aria-current={pathname.startsWith(n.href) ? "page" : undefined}
+                // Bei "nur Symbole" haengt der Name als Hinweis am
+                // Knopf - ein Menuepunkt, den man nur am Bild erkennt,
+                // ist geraten, nicht gelesen.
+                title={stil === "symbole" ? n.label : undefined}
+                aria-label={stil === "symbole" ? n.label : undefined}
                 style={
                   pathname.startsWith(n.href)
                     ? {
@@ -182,7 +191,12 @@ export default function Shell({
                     : { background: "transparent", borderColor: "transparent" }
                 }
               >
-                {n.label}
+                {stil !== "text" ? (
+                  <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>
+                    {n.icon}
+                  </span>
+                ) : null}
+                {stil !== "symbole" ? n.label : null}
               </Link>
             ))}
 
@@ -205,7 +219,8 @@ export default function Shell({
                       : { background: "transparent", borderColor: "transparent" }
                   }
                 >
-                  Mehr ▾
+                  {stil !== "text" ? <span aria-hidden>⋯</span> : null}
+                  {stil !== "symbole" ? "Mehr ▾" : null}
                 </button>
 
                 {mehrOffen ? (
@@ -222,6 +237,11 @@ export default function Shell({
                             : undefined
                         }
                       >
+                        {stil !== "text" ? (
+                          <span aria-hidden className="mr-1.5">
+                            {n.icon}
+                          </span>
+                        ) : null}
                         {n.label}
                       </Link>
                     ))}

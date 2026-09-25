@@ -13,6 +13,16 @@ import { AttachmentSection, FileDrop, PendingFiles } from "./Attachments";
 /* ------------------------------------------------------------------ */
 /* Pflichtnotiz beim Wechsel auf „Rückfragen offen“                      */
 /* ------------------------------------------------------------------ */
+/**
+ * Die beiden Stellen, an die eine Aufgabe nach Asana gegeben werden
+ * kann. Bewusst kurz gehalten: der Weg dorthin ist ein Handgriff im
+ * Bearbeiter-Feld, kein eigenes Fenster - genau wie der Aufgabenpool.
+ */
+const ASANA_ZIELE: { wert: "projekt" | "eike"; label: string }[] = [
+  { wert: "projekt", label: "Buchhaltung und HR – Lisa Peissig" },
+  { wert: "eike", label: "Eike Lensinger – persönlich" },
+];
+
 export function NoteDialog({
   task,
   onClose,
@@ -183,7 +193,7 @@ export interface Prefill {
 }
 
 export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose: () => void }) {
-  const { createTask, addAttachments, categories, profiles, brokers, darfAlles, me } =
+  const { createTask, addAttachments, categories, profiles, brokers, darfAlles, me, nachAsanaGeben } =
     useStore();
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [description, setDescription] = useState(prefill?.description ?? "");
@@ -223,6 +233,13 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
       source: prefill?.source ?? "manuell",
     });
     if (!newId) return;
+
+    // Nach Asana geben ist zwei Schritte: erst entsteht die Aufgabe
+    // hier, dann geht eine Kopie hinueber und der Bearbeiter wird
+    // gesetzt. Nicht abwarten - die Aufgabe steht, der Rest folgt.
+    if (assignee.startsWith("a:")) {
+      void nachAsanaGeben(newId, assignee.slice(2) as "projekt" | "eike");
+    }
 
     // Das Fenster geht zu, sobald die Aufgabe steht. Dateien laufen
     // danach weiter - ein Upload von zehn Megabyte darf niemanden vor
@@ -319,6 +336,14 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
                     {b.displayName}
                   </option>
                 ))}
+            </optgroup>
+            {/* Der Gegenweg zum Pool: raus aus dem Haus, nach Asana. */}
+            <optgroup label="Nach Asana geben">
+              {ASANA_ZIELE.map((z) => (
+                <option key={z.wert} value={`a:${z.wert}`}>
+                  {z.label}
+                </option>
+              ))}
             </optgroup>
           </select>
         </Field>
@@ -532,7 +557,7 @@ export function TaskDetailDialog({
 }) {
   const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, darfAlles, me,
     updateTask, profiles, brokers, categories, tasks,
-    asanaSpalten, asanaNutzer, asanaVerschieben, asanaZuteilen } = useStore();
+    asanaSpalten, asanaNutzer, asanaVerschieben, asanaZuteilen, nachAsanaGeben } = useStore();
   const [noteFor, setNoteFor] = useState(false);
   const [poolFor, setPoolFor] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
@@ -1015,6 +1040,13 @@ export function TaskDetailDialog({
                     onofficeBearbeiterId: null,
                     isPool: true,
                   });
+                } else if (wert.startsWith("a:")) {
+                  // Der Gegenweg zum Pool: die Aufgabe geht nach Asana.
+                  // Sie bleibt eine Aufgabe des Hauses - drueben
+                  // entsteht eine Kopie, und der Bearbeiter wird
+                  // gesetzt. Wird sie in Asana abgehakt, ist sie hier
+                  // und in onOffice erledigt.
+                  void nachAsanaGeben(task.id, wert.slice(2) as "projekt" | "eike");
                 } else if (wert.startsWith("p:")) {
                   // Ein Nutzer des Tools: er arbeitet hier, die Aufgabe
                   // erscheint bei ihm in "Mein Tag".
@@ -1052,8 +1084,31 @@ export function TaskDetailDialog({
                     </option>
                   ))}
               </optgroup>
+              {/* Nur solange sie noch nicht drueben liegt - zweimal
+                  hinueberzugeben legt zwei Karten an. */}
+              {!task.asanaTaskGid ? (
+                <optgroup label="Nach Asana geben">
+                  {ASANA_ZIELE.map((z) => (
+                    <option key={z.wert} value={`a:${z.wert}`}>
+                      {z.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
             </select>
           </Field>
+
+          {/* Liegt sie drueben, soll man das sehen - sonst wundert man
+              sich, warum eine Aufgabe von selbst erledigt wird. */}
+          {task.asanaTaskGid && task.bereich !== "asana" ? (
+            <p
+              className="rounded px-2 py-1.5 text-[11px] leading-relaxed"
+              style={{ background: "var(--info-bg)", color: "var(--info-fg)" }}
+            >
+              Diese Aufgabe liegt zusätzlich in Asana. Wird sie dort abgehakt, ist sie hier
+              und in onOffice erledigt.
+            </p>
+          ) : null}
 
           {/* Steht in onOffice ein Bearbeiter, den wir keinem Kollegen
               zuordnen koennen, sagen wir das - und nennen das Kuerzel,

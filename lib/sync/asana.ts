@@ -97,26 +97,32 @@ async function spiegleSpalten(): Promise<{ poolGid: string | null; namen: Map<st
     spalten.push(pool);
   }
 
-  // Die Pool-Spalte gehoert ans ENDE - und das ist eine Korrektur.
+  // Der Pool steht in Asana an DRITTER Stelle - und im Aufgabentool
+  // ganz links. Das ist kein Widerspruch, sondern zwei verschiedene
+  // Zwaenge:
   //
-  // Frueher stand sie ganz links, mit der Begruendung, der Weg zum
-  // Abgeben solle kurz sein. Das war ein teurer Denkfehler: Asana legt
-  // JEDE neu angelegte Aufgabe in den ersten Abschnitt eines Bretts.
-  // Damit galt alles, was drueben entstand, im selben Moment als
-  // abgegeben. Vorne gehoert der Eingang hin, hinten der Ausgang.
+  // Drueben darf er nicht vorne stehen. Asana legt jede neu angelegte
+  // Aufgabe in den ersten Abschnitt eines Bretts; stand dort der Pool,
+  // galt alles Neue im selben Moment als abgegeben. Vorne gehoert der
+  // Eingang hin.
   //
-  // Steht sie schon hinten, passiert nichts - Asana nimmt denselben
+  // Hier legt niemand etwas durch eine Spaltenposition an. Hier
+  // zaehlt der kurze Weg: der Pool wird oft gebraucht, also steht er
+  // links und nicht hinter zehn Spalten.
+  //
+  // Steht er schon richtig, passiert nichts - Asana nimmt denselben
   // Aufruf beliebig oft.
   const ohnePool = spalten.filter((s) => s.gid !== pool!.gid);
-  if (spalten.at(-1)?.gid !== pool.gid && ohnePool.length) {
+  const nachbar = ohnePool[1] ?? ohnePool[0];
+  if (spalten[2]?.gid !== pool.gid && nachbar) {
     try {
       await ruf({
         pfad: `/projects/${projektGid()}/sections/insert`,
         methode: "POST",
-        daten: { section: pool.gid, after_section: ohnePool[ohnePool.length - 1].gid },
+        daten: { section: pool.gid, after_section: nachbar.gid },
       });
       spalten.length = 0;
-      spalten.push(...ohnePool, pool);
+      spalten.push(...ohnePool.slice(0, 2), pool, ...ohnePool.slice(2));
     } catch {
       // Misslingt das Einsortieren, bleibt die Spalte, wo sie ist -
       // unschoen, aber kein Grund, den Abgleich abzubrechen.
@@ -129,10 +135,13 @@ async function spiegleSpalten(): Promise<{ poolGid: string | null; namen: Map<st
   const eingang =
     spalten.find((s) => /eingang/i.test(s.name) && s.gid !== pool!.gid) ?? ohnePool[0];
 
-  const zeilen = spalten.map((s, i) => ({
+  // Die Reihenfolge FUER UNS: Pool zuerst, der Rest wie drueben.
+  const lokal = [pool, ...spalten.filter((s) => s.gid !== pool!.gid)];
+
+  const zeilen = lokal.map((s, i) => ({
     gid: s.gid,
     name: s.name,
-    sort_order: (i + 1) * 10,
+    sort_order: i * 10 + 5,
     ist_pool: s.gid === pool!.gid,
     ist_eingang: s.gid === eingang?.gid,
     synced_at: new Date().toISOString(),

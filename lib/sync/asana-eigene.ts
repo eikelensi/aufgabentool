@@ -115,13 +115,12 @@ async function spiegleAbschnitte(
 
   const pool = abschnitte.find((a) => a.name.trim().toLowerCase() === POOL_ABSCHNITT);
 
-  // Der Pool ans ENDE, wie im Projektbereich - und aus demselben
-  // Grund: Asana legt neue Aufgaben in den ersten Abschnitt. Stand
-  // der Pool vorne, war alles Neue sofort abgegeben. Umsortiert wird
-  // nur hier, nicht in Asana: "Meine Aufgaben" ist seine Liste, da
-  // raeumen wir nicht auf.
+  // Im Aufgabentool steht der Pool ganz links: er wird oft gebraucht,
+  // und hier legt niemand etwas durch eine Spaltenposition an. In
+  // Asana bliebe er besser hinten - aber "Meine Aufgaben" ist seine
+  // Liste, da raeumen wir nicht auf. Umsortiert wird nur hier.
   const ohnePool = abschnitte.filter((a) => a.gid !== pool?.gid);
-  const sortiert = pool ? [...ohnePool, pool] : abschnitte;
+  const sortiert = pool ? [pool, ...ohnePool] : abschnitte;
 
   const eingang =
     ohnePool.find((a) => /eingang/i.test(a.name)) ?? ohnePool[0];

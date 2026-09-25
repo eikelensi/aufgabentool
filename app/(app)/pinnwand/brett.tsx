@@ -54,6 +54,7 @@ function Zettel({
   pin,
   kategorie,
   darfAendern,
+  onOeffnen,
   onBearbeiten,
   onLoeschen,
   onAnheften,
@@ -61,6 +62,7 @@ function Zettel({
   pin: Pin;
   kategorie?: PinKategorie;
   darfAendern: boolean;
+  onOeffnen: () => void;
   onBearbeiten: () => void;
   onLoeschen: () => void;
   onAnheften: () => void;
@@ -70,36 +72,50 @@ function Zettel({
 
   return (
     <article
-      className="panel relative flex flex-col p-3.5"
-      style={{ borderTop: `3px solid ${farbe}` }}
+      className="panel flex cursor-pointer flex-col overflow-hidden transition hover:border-[color:var(--color-ci-400)]"
+      style={{ height: 178 }}
+      onClick={onOeffnen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOeffnen();
+        }
+      }}
+      title="Zum Lesen anklicken"
     >
-      {/* Der Punkt auf der Kante - das einzige Zierstueck, und es
-          traegt eine Information: welches Thema. */}
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: -8,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 13,
-          height: 13,
-          borderRadius: "50%",
-          background: farbe,
-        }}
-      />
+      {/* Die Kopfzeile: immer dieselbe Hoehe, immer dieselben drei
+          Dinge - Thema, Datum, Werkzeuge. Vorher standen die Chips
+          unten und rutschten mit der Textlaenge; man musste jedes Mal
+          neu suchen, wo etwas steht. */}
+      <header
+        className="line flex shrink-0 items-center gap-1.5 border-b px-2.5 py-1.5"
+        style={{ background: "var(--panel-2)" }}
+      >
+        <span
+          aria-hidden
+          style={{ width: 8, height: 8, borderRadius: "50%", background: farbe, flexShrink: 0 }}
+        />
+        <span className="muted truncate text-[10.5px] font-medium uppercase tracking-wide">
+          {kategorie?.name ?? "ohne Thema"}
+        </span>
 
-      <header className="mb-1.5 flex items-start gap-2">
-        <h2 className="flex-1 text-[14px] font-semibold leading-snug">
-          {pin.angeheftet ? <span title="Oben festgehalten">📌 </span> : null}
-          {pin.titel}
-        </h2>
+        {datum ? (
+          <span className="chip ml-auto shrink-0" style={{ background: "var(--err-bg)", color: "var(--err-fg)", fontSize: 10 }}>
+            {datum}
+          </span>
+        ) : null}
+
         {darfAendern ? (
-          <span className="flex shrink-0 gap-0.5">
+          <span
+            className={`flex shrink-0 gap-0.5 ${datum ? "" : "ml-auto"}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               className="btn btn-ghost"
-              style={{ fontSize: 11, padding: "0 0.35rem" }}
+              style={{ fontSize: 10, padding: "0 0.25rem" }}
               title={pin.angeheftet ? "Nicht mehr oben festhalten" : "Oben festhalten"}
               onClick={onAnheften}
             >
@@ -108,7 +124,7 @@ function Zettel({
             <button
               type="button"
               className="btn btn-ghost"
-              style={{ fontSize: 11, padding: "0 0.35rem" }}
+              style={{ fontSize: 10, padding: "0 0.25rem" }}
               title="Pin bearbeiten"
               onClick={onBearbeiten}
             >
@@ -117,7 +133,7 @@ function Zettel({
             <button
               type="button"
               className="btn btn-ghost"
-              style={{ fontSize: 11, padding: "0 0.35rem" }}
+              style={{ fontSize: 10, padding: "0 0.25rem" }}
               title="Pin löschen"
               onClick={onLoeschen}
             >
@@ -127,29 +143,82 @@ function Zettel({
         ) : null}
       </header>
 
-      {pin.text ? (
-        <p className="mb-3 whitespace-pre-wrap text-[12.5px] leading-relaxed">
-          <MitLinks text={pin.text} />
-        </p>
-      ) : null}
+      <div className="flex min-h-0 flex-1 flex-col px-2.5 pb-2 pt-2">
+        <h2
+          className="mb-1 shrink-0 text-[13px] font-semibold leading-snug"
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {pin.titel}
+        </h2>
 
-      <div className="mt-auto flex flex-wrap items-center gap-1.5">
-        {kategorie ? (
-          <span className="chip" style={{ background: kategorie.farbe, color: "#fff" }}>
-            {kategorie.name}
-          </span>
-        ) : (
-          <span className="chip" style={{ background: "var(--panel-2)", color: "var(--muted)" }}>
-            ohne Thema
-          </span>
-        )}
+        {pin.text ? (
+          <p
+            className="muted text-[11.5px] leading-relaxed"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 4,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              // Lange Adressen sprengen sonst die Karte.
+              overflowWrap: "anywhere",
+            }}
+          >
+            {pin.text}
+          </p>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Der Zettel in gross.
+ *
+ * Auf der Karte steht nur der Anfang - vier Zeilen, damit alle Karten
+ * gleich hoch sind und das Brett ein Raster bleibt und kein
+ * Flickenteppich. Wer mehr will, klickt; hier steht dann alles, mit
+ * anklickbaren Adressen.
+ */
+function Lesefenster({
+  pin,
+  kategorie,
+  onClose,
+}: {
+  pin: Pin;
+  kategorie?: PinKategorie;
+  onClose: () => void;
+}) {
+  const datum = datumLesbar(pin.datum);
+  return (
+    <Modal title={pin.titel} onClose={onClose}>
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span
+          className="chip"
+          style={{ background: kategorie?.farbe ?? "var(--panel-2)", color: kategorie ? "#fff" : "var(--muted)" }}
+        >
+          {kategorie?.name ?? "ohne Thema"}
+        </span>
         {datum ? (
           <span className="chip" style={{ background: "var(--err-bg)", color: "var(--err-fg)" }}>
             {datum}
           </span>
         ) : null}
+        {pin.angeheftet ? <span className="muted text-[11px]">📌 oben festgehalten</span> : null}
       </div>
-    </article>
+
+      {pin.text ? (
+        <p className="whitespace-pre-wrap text-[13px] leading-relaxed">
+          <MitLinks text={pin.text} />
+        </p>
+      ) : (
+        <p className="muted text-[12px]">Kein Text – nur die Überschrift.</p>
+      )}
+    </Modal>
   );
 }
 
@@ -258,6 +327,7 @@ export default function Brett() {
   const [thema, setThema] = useState<string | null>(null);
   const [suche, setSuche] = useState("");
   const [dialog, setDialog] = useState<Partial<Pin> | null>(null);
+  const [lesen, setLesen] = useState<Pin | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
 
   const themen = useMemo(
@@ -369,13 +439,17 @@ export default function Brett() {
           }
         />
       ) : (
-        <div className="grid items-start gap-4 pt-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div
+          className="grid gap-2.5"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}
+        >
           {sichtbar.map((p) => (
             <Zettel
               key={p.id}
               pin={p}
               kategorie={themaVon(p.kategorieId)}
               darfAendern={darfPinnen}
+              onOeffnen={() => setLesen(p)}
               onBearbeiten={() => setDialog(p)}
               onAnheften={() => void pinSpeichern({ id: p.id, angeheftet: !p.angeheftet })}
               onLoeschen={async () => {
@@ -390,6 +464,14 @@ export default function Brett() {
           ))}
         </div>
       )}
+
+      {lesen ? (
+        <Lesefenster
+          pin={lesen}
+          kategorie={themaVon(lesen.kategorieId)}
+          onClose={() => setLesen(null)}
+        />
+      ) : null}
 
       {dialog ? (
         <PinDialog

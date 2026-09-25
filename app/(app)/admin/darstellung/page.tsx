@@ -4,6 +4,7 @@
 import { supabaseAdmin, serviceRoleVorhanden } from "@/lib/supabase/admin";
 import { sicherePalette } from "@/lib/design/farben";
 import FarbFormular from "./formular";
+import MenueStilFormular from "./menue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,8 @@ export default async function DarstellungSeite() {
 
   return (
     <div>
+      <MenueStilFormular />
+
       <p className="muted mb-4 max-w-[70ch] text-xs leading-relaxed">
         Diese Farben gelten für alle, nicht nur für dich. Heller und dunkler
         Modus werden getrennt gepflegt – oben wählst du, welchen du gerade

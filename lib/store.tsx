@@ -112,6 +112,12 @@ interface StoreValue {
   asanaTasks: Task[];
   asanaNutzer: AsanaNutzer[];
   /** Karte in eine andere Spalte legen; die Pool-Spalte gibt sie ab. */
+  /**
+   * Eine Aufgabe des Hauses nach Asana geben - der Gegenweg zum Pool.
+   * Sie bleibt eine Aufgabe des Tools, bekommt hier einen Bearbeiter
+   * und drueben eine Kopie.
+   */
+  nachAsanaGeben: (taskId: string, ziel: "projekt" | "eike") => Promise<Ergebnis>;
   asanaVerschieben: (
     taskId: string,
     sectionGid: string,
@@ -1222,6 +1228,24 @@ export function StoreProvider({
      * vorlaeufige Karte gegen die echte getauscht. Kommt ein Fehler,
      * verschwindet sie wieder und sagt warum.
      */
+    async function nachAsanaGeben(
+      taskId: string,
+      ziel: "projekt" | "eike",
+    ): Promise<Ergebnis> {
+      try {
+        const res = await fetch("/api/asana/uebergeben", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ taskId, ziel }),
+        });
+        const json = await res.json().catch(() => ({}));
+        await neuLaden();
+        return res.ok ? { ok: true, error: json.meldung } : { ok: false, error: json.fehler };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    }
+
     async function asanaAnlegen(werte: {
       titel: string;
       beschreibung?: string;
@@ -1667,6 +1691,7 @@ export function StoreProvider({
       asanaNutzer,
       asanaAnlegen,
       asanaVerschieben,
+      nachAsanaGeben,
       asanaZuteilen,
       sortiere,
       wartendeEigene: tasks.filter(

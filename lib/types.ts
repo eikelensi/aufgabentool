@@ -424,7 +424,22 @@ export interface AppSettings {
    * eigene Firmenadresse an fast jede Aufgabe - die ist kein Kunde.
    */
   onofficeAdressAusschluss: string;
+  /**
+   * Wie das Hauptmenue aussieht: nur Woerter, nur Symbole, oder
+   * beides. Umschaltbar, weil beides Anhaenger hat - auf einem
+   * schmalen Bildschirm gewinnen Symbole, auf einem breiten die
+   * Woerter.
+   */
+  menueStil: MenueStil;
 }
+
+export type MenueStil = "text" | "symbole" | "beides";
+
+export const MENUE_STIL_LABEL: Record<MenueStil, string> = {
+  text: "Nur Wörter",
+  symbole: "Nur Symbole",
+  beides: "Symbole und Wörter",
+};
 
 /**
  * Vergeben - aber an jemanden, der kein Nutzer dieses Tools ist.
