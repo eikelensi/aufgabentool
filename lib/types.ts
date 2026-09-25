@@ -425,12 +425,14 @@ export interface AppSettings {
    */
   onofficeAdressAusschluss: string;
   /**
-   * Wie das Hauptmenue aussieht: nur Woerter, nur Symbole, oder
-   * beides. Umschaltbar, weil beides Anhaenger hat - auf einem
-   * schmalen Bildschirm gewinnen Symbole, auf einem breiten die
-   * Woerter.
+   * Wie das Hauptmenue aussieht - je Gruppe, nicht fuer alle gleich.
+   *
+   * Wer den ganzen Tag im Tool arbeitet, kennt die Symbole nach zwei
+   * Tagen und will den Platz; wer dreimal die Woche hereinschaut,
+   * braucht die Woerter. Das ist keine Frage des Geschmacks, sondern
+   * der Rolle.
    */
-  menueStil: MenueStil;
+  menueStilJeGruppe: Record<MenueGruppe, MenueStil>;
 }
 
 export type MenueStil = "text" | "symbole" | "beides";
@@ -439,6 +441,31 @@ export const MENUE_STIL_LABEL: Record<MenueStil, string> = {
   text: "Nur Wörter",
   symbole: "Nur Symbole",
   beides: "Symbole und Wörter",
+};
+
+/**
+ * Die drei Gruppen, fuer die sich das Menue getrennt einstellen
+ * laesst. Geschaeftsfuehrung und Superadmin teilen sich eine - sie
+ * sehen ohnehin dasselbe.
+ */
+export type MenueGruppe = "admin" | "qm" | "user";
+
+export const MENUE_GRUPPE_LABEL: Record<MenueGruppe, string> = {
+  admin: "Administrator (Geschäftsführung, Superadmin)",
+  qm: "Qualitätsmanagement",
+  user: "Mitarbeiter",
+};
+
+export function menueGruppeVon(rolle: AppRole): MenueGruppe {
+  if (rolle === "qm") return "qm";
+  if (rolle === "user") return "user";
+  return "admin";
+}
+
+export const MENUE_STIL_VORGABE: Record<MenueGruppe, MenueStil> = {
+  admin: "text",
+  qm: "text",
+  user: "text",
 };
 
 /**

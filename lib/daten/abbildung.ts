@@ -13,6 +13,7 @@ import type {
   EmailTemplate,
   Meldung,
   NotificationEntry,
+  MenueStil,
   NotifyKind,
   Pin,
   PinKategorie,
@@ -22,6 +23,7 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "@/lib/types";
+import { MENUE_STIL_VORGABE } from "@/lib/types";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -222,7 +224,13 @@ export function zuEinstellungen(row: any): AppSettings {
     attachmentPushOnoffice: row?.attachment_push_onoffice ?? true,
     attachmentDefaultArt: row?.attachment_default_art ?? "Dokument",
     onofficeAdressAusschluss: row?.onoffice_adress_ausschluss ?? "",
-    menueStil: (row?.menue_stil ?? "text") as AppSettings["menueStil"],
+    // Fehlt oder ist unvollstaendig, gilt die Vorgabe - ein Menue,
+    // das wegen einer halben Zeile in der Datenbank verschwindet,
+    // waere der schlechteste denkbare Fehler.
+    menueStilJeGruppe: {
+      ...MENUE_STIL_VORGABE,
+      ...((row?.menue_stil_je_gruppe ?? {}) as Record<string, MenueStil>),
+    },
   };
 }
 
@@ -242,7 +250,7 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
   if (patch.attachmentDefaultArt !== undefined) z.attachment_default_art = patch.attachmentDefaultArt;
   if (patch.onofficeAdressAusschluss !== undefined)
     z.onoffice_adress_ausschluss = patch.onofficeAdressAusschluss;
-  if (patch.menueStil !== undefined) z.menue_stil = patch.menueStil;
+  if (patch.menueStilJeGruppe !== undefined) z.menue_stil_je_gruppe = patch.menueStilJeGruppe;
   return z;
 }
 

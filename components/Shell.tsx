@@ -8,7 +8,14 @@ import { useStore } from "@/lib/store";
 import { NewTaskDialog } from "./dialogs";
 import Meldungen from "./Meldungen";
 import Tagesgruss from "./Tagesgruss";
-import { ROLLE_LABEL, darfSehen, type AppRole, type Bereich, type Bereichsrechte } from "@/lib/types";
+import {
+  ROLLE_LABEL,
+  darfSehen,
+  menueGruppeVon,
+  type AppRole,
+  type Bereich,
+  type Bereichsrechte,
+} from "@/lib/types";
 
 export interface ShellProfil {
   id: string;
@@ -80,7 +87,9 @@ export default function Shell({
   rechte: Bereichsrechte;
 }) {
   const { neuLaden, bereit, settings } = useStore();
-  const stil = settings.menueStil;
+  // Je Gruppe verschieden: wer taeglich damit arbeitet, will Platz;
+  // wer selten hereinschaut, will Woerter.
+  const stil = settings.menueStilJeGruppe[menueGruppeVon(profil.role)];
   const pathname = usePathname();
   const [dark, setDark] = useState(false);
   const [newTask, setNewTask] = useState(false);
