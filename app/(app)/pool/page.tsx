@@ -25,7 +25,7 @@ export default function PoolPage() {
    * nach hinten: lieber unbekannt als faelschlich alt.
    */
   const pool = applyFilters(
-    visibleTasks.filter((t) => t.isPool && t.assigneeId === null),
+    visibleTasks.filter((t) => t.isPool && t.assigneeId === null && t.status !== "erledigt"),
     filter,
   ).sort((a, b) => {
     const links = a.poolSeit ? new Date(a.poolSeit).getTime() : Infinity;

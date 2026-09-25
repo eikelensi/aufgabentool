@@ -2,7 +2,7 @@
 
 /** Die interaktiven Teile der Mitarbeiterverwaltung. */
 
-import { useId, useState, useTransition } from "react";
+import React, { useId, useState, useTransition } from "react";
 import {
   ausOnofficeHolen,
   kollegeAktivSetzen,
@@ -365,6 +365,7 @@ export function KollegenBereich({
                 <tr className="line border-b">
                   <th className="px-3 py-2 font-medium">Name</th>
                   <th className="px-3 py-2 font-medium">E-Mail</th>
+                  <th className="px-3 py-2 font-medium">onOffice-Tag</th>
                   <th className="px-3 py-2 font-medium">Telefon</th>
                   <th className="px-3 py-2 font-medium">Durchwahl</th>
                   <th className="px-3 py-2 font-medium">Standort</th>
@@ -377,21 +378,14 @@ export function KollegenBereich({
                 {kollegen.map((k) => {
                   const nutzerDazu = nutzer.find((n) => n.id === k.profileId);
                   return (
-                    <tr key={k.id} className="line border-b last:border-0">
+                    <React.Fragment key={k.id}>
+                    <tr className="line border-b last:border-0">
                       <td className="px-3 py-2">
                         {k.displayName}
                         {k.shortCode ? (
                           <span className="muted ml-1.5 text-[11px]">({k.shortCode})</span>
                         ) : null}
-                        {k.onofficeTag ? (
-                          <span
-                            className="chip ml-1.5"
-                            style={{ background: "var(--panel-2)", color: "var(--muted)" }}
-                            title="onOffice-Tag"
-                          >
-                            #{k.onofficeTag}
-                          </span>
-                        ) : null}
+
                         {!k.isActive ? (
                           <span
                             className="chip ml-1.5"
@@ -402,6 +396,19 @@ export function KollegenBereich({
                         ) : null}
                       </td>
                       <td className="muted px-3 py-2 text-[12px]">{k.email}</td>
+                      <td className="px-3 py-2 text-[12px]">
+                        {k.onofficeTag ? (
+                          <span
+                            className="chip"
+                            style={{ background: "var(--panel-2)", color: "var(--muted)" }}
+                            title="Steht so im Aufgabenfeld „tags“ in onOffice"
+                          >
+                            #{k.onofficeTag}
+                          </span>
+                        ) : (
+                          <span className="muted">–</span>
+                        )}
+                      </td>
                       <td className="muted px-3 py-2 text-[12px]">{k.phone || "–"}</td>
                       <td className="muted px-3 py-2 text-[12px]">{k.extension || "–"}</td>
                       <td className="muted px-3 py-2 text-[12px]">{k.location || "–"}</td>
@@ -440,32 +447,43 @@ export function KollegenBereich({
                         </div>
                       </td>
                     </tr>
+
+                    {/* Das Formular gehoert HIERHIN, unter die Zeile,
+                        die man angeklickt hat. Vorher stand es unter
+                        der ganzen Tabelle - bei 25 Kollegen also
+                        zweitausend Pixel weiter unten. Wer auf
+                        "Bearbeiten" klickte, sah nichts passieren und
+                        schloss daraus, es gebe kein Feld. Es gab
+                        eines; es war nur ausserhalb des Bildes. */}
+                    {bearbeite === k.id ? (
+                      <tr>
+                        <td colSpan={9} className="px-3 pb-3">
+                          <div
+                            className="panel p-3"
+                            style={{ background: "var(--panel-2)" }}
+                          >
+                            <h3 className="text-sm font-semibold">
+                              {k.displayName} bearbeiten
+                            </h3>
+                            <KollegeFormular
+                              key={k.id}
+                              kollege={k}
+                              nutzer={nutzer}
+                              onFertig={setErgebnis}
+                              onAbbruch={() => setBearbeite(null)}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
             </table>
           </div>
 
-          {bearbeite ? (
-            <div className="panel mt-3 p-3">
-              <h2 className="text-sm font-semibold">
-                {kollegen.find((k) => k.id === bearbeite)?.displayName} bearbeiten
-              </h2>
-              {/* key: ohne das behaelt React beim Wechsel auf einen
-                  anderen Kollegen die Eingabefelder des vorigen -
-                  defaultValue wirkt nur beim ersten Aufbau. Die
-                  versteckte Kennung wechselt aber sehr wohl. Man
-                  bearbeitete also B und speicherte die Werte von A
-                  darueber. */}
-              <KollegeFormular
-                key={bearbeite}
-                kollege={kollegen.find((k) => k.id === bearbeite)}
-                nutzer={nutzer}
-                onFertig={setErgebnis}
-                onAbbruch={() => setBearbeite(null)}
-              />
-            </div>
-          ) : null}
+
         </>
       )}
     </>

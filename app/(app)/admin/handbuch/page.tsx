@@ -201,7 +201,9 @@ export default async function HandbuchSeite() {
         <p>
           Erledigte Aufgaben verschwinden nach{" "}
           <strong>{ausblenden} Stunden</strong> aus dem Tagesgeschäft. Gelöscht
-          wird nichts.
+          wird nichts. Aus dem <strong>Pool</strong> verschwinden sie sofort:
+          eine erledigte Aufgabe braucht niemanden mehr, der sie übernimmt – auch
+          dann nicht, wenn nie ein Bearbeiter eingetragen war.
         </p>
       </Abschnitt>
 
@@ -281,8 +283,18 @@ export default async function HandbuchSeite() {
           hervorgehoben.
         </p>
         <p>
-          <strong>Private Aufgaben</strong> sieht nur der Ersteller. Sie lösen
-          keine Mails aus und werden nicht eskaliert.
+          <strong>Private Aufgaben</strong> gehören genau einer Person und
+          stehen in ihrem Board. Nur sie sieht sie; es geht keine Mail heraus,
+          nichts wird eskaliert, und in keiner Auswertung taucht sie auf. Nach
+          onOffice und Asana geht sie auch nicht.
+        </p>
+        <p className="muted">
+          Privat setzen darf man nur, was einem selbst gehört: <em>ich</em> habe
+          sie angelegt, <em>ich</em> bin Bearbeiter, und sie war <em>nie</em> im
+          Pool. Was jemand anderes eingestellt hat, darf man nicht vor ihm
+          verstecken; und was aus dem Pool kam, gehört dem Haus und verschwindet
+          nicht nachträglich hinter einem Haken. Eine private Aufgabe lässt sich
+          deshalb auch nicht verteilen.
         </p>
       </Abschnitt>
 

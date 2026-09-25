@@ -186,6 +186,7 @@ export function zuAufgabe(row: any): Task {
     poolGrund: row.pool_grund ?? null,
     poolZurueckAm: row.pool_zurueck_am ?? null,
     poolSeit: row.pool_seit ?? null,
+    jeImPool: Boolean(row.je_im_pool),
     poolZurueckVon: row.pool_zurueck_von ?? null,
     reminder3dSentAt: row.reminder_3d_sent_at ?? null,
     escalation7dSentAt: row.escalation_7d_sent_at ?? null,

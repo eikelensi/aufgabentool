@@ -24,7 +24,7 @@ export default function MeinTagPage() {
   // Ansichten desselben Stapels duerfen ihn nicht verschieden
   // sortieren, sonst sucht man zweimal.
   const pool = visibleTasks
-    .filter((t) => t.isPool && t.assigneeId === null)
+    .filter((t) => t.isPool && t.assigneeId === null && t.status !== "erledigt")
     .sort((a, b) => {
       const links = a.poolSeit ? new Date(a.poolSeit).getTime() : Infinity;
       const rechts = b.poolSeit ? new Date(b.poolSeit).getTime() : Infinity;

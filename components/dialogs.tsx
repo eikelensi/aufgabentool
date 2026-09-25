@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/lib/store";
+import { darfPrivatWerden } from "@/lib/types";
 import { addressLink, estateLink, taskLink } from "@/lib/onoffice/links";
 import { isoDate } from "@/lib/data";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
@@ -377,13 +378,22 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
               onChange={(e) => {
                 setPrivate(e.target.checked);
                 if (e.target.checked) {
-                  setAssignee(me.id);
+                  // "p:" davor - ohne das kam hier die nackte Kennung
+                  // an, die Auswahl erkannte sie nicht als Nutzer, und
+                  // die private Aufgabe entstand OHNE Bearbeiter.
+                  // Genau das darf es nicht mehr geben.
+                  setAssignee(`p:${me.id}`);
                   setBroker("");
                 }
               }}
             />
             <span>
-              Private Aufgabe – nur für mich sichtbar, keine Erinnerung oder Eskalation an andere
+              <strong>Private Aufgabe</strong>
+              <span className="muted">
+                {" "}
+                – gehört dir und steht in deinem Board. Nur du siehst sie, es geht keine Mail
+                heraus und sie wird nicht eskaliert. Verteilen lässt sie sich nicht.
+              </span>
             </span>
           </label>
         </div>
@@ -520,7 +530,7 @@ export function TaskDetailDialog({
   task: Task;
   onClose: () => void;
 }) {
-  const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, darfAlles,
+  const { profileById, categoryById, brokerById, kollegeNachKuerzel, moveTask, darfAlles, me,
     updateTask, profiles, brokers, categories, tasks,
     asanaSpalten, asanaNutzer, asanaVerschieben, asanaZuteilen } = useStore();
   const [noteFor, setNoteFor] = useState(false);
@@ -783,22 +793,37 @@ export function TaskDetailDialog({
                 </Field>
               </div>
 
-              <label className="flex items-start gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={entwurf.isPrivate}
-                  onChange={(e) => setEntwurf((v) => ({ ...v, isPrivate: e.target.checked }))}
-                />
-                <span>
-                  <strong>Privat</strong>
-                  <span className="muted">
-                    {" "}
-                    – nur der Ersteller sieht die Aufgabe. Keine Mails, keine Eskalation, in
-                    keiner Auswertung.
+              {/* Privat darf nur werden, was mir gehoert und nie im
+                  Pool lag - siehe darfPrivatWerden(). Ist es schon
+                  privat, muss man es auch wieder aufmachen koennen,
+                  sonst waere der Haken eine Falltuer. */}
+              {darfPrivatWerden(task, me.id) || task.isPrivate ? (
+                <label className="flex items-start gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={entwurf.isPrivate}
+                    onChange={(e) => setEntwurf((v) => ({ ...v, isPrivate: e.target.checked }))}
+                  />
+                  <span>
+                    <strong>Privat</strong>
+                    <span className="muted">
+                      {" "}
+                      – gehört dir und steht in deinem Board. Nur du siehst sie, es geht keine
+                      Mail heraus und sie wird nicht eskaliert.
+                    </span>
                   </span>
-                </span>
-              </label>
+                </label>
+              ) : (
+                <p className="muted text-[11px] leading-relaxed">
+                  Privat setzen geht hier nicht:{" "}
+                  {task.creatorId !== me.id
+                    ? "diese Aufgabe hat jemand anderes eingestellt."
+                    : task.jeImPool || task.isPool
+                      ? "diese Aufgabe kam aus dem Pool und gehört damit dem Haus."
+                      : "eine private Aufgabe muss dir selbst gehören."}
+                </p>
+              )}
             </>
           ) : null}
 

@@ -113,7 +113,7 @@ export default function TeamPage() {
               key="pool"
               label="Aufgabeneingang"
               sub="unbesetzt"
-              tasks={tasks.filter((t) => t.isPool && t.assigneeId === null)}
+              tasks={tasks.filter((t) => t.isPool && t.assigneeId === null && t.status !== "erledigt")}
               assigneeId={null}
               over={over}
               setOver={setOver}

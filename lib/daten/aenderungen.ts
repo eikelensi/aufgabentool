@@ -25,6 +25,26 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-25",
+    titel: "Mitarbeiterverwaltung: das Formular stand außerhalb des Bildes",
+    text: "Das Bearbeiten-Formular wurde unter der ganzen Tabelle gezeichnet – bei 25 Kollegen also zweitausend Pixel weiter unten. Wer auf „Bearbeiten“ klickte, sah nichts passieren und schloss daraus, es gebe kein Feld. Es gab eines. Jetzt klappt es direkt unter der angeklickten Zeile auf. Der onOffice-Tag steht außerdem als eigene Spalte in der Tabelle.",
+    bereich: "Verwaltung",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-25",
+    titel: "Erledigtes verlässt den Pool sofort",
+    text: "Eine Aufgabe ohne Bearbeiter, die erledigt wurde, blieb im Pool liegen – sichtbar, übernehmbar, irgendwann mit rotem Warnrand. Sie ist aber fertig. Jetzt verlässt sie den Pool im selben Moment.",
+    bereich: "Aufgabenpool",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-25",
+    titel: "Private Aufgaben gehören jemandem",
+    text: "Privat war bisher ein Zettel ohne Besitzer: sichtbar nur für den Ersteller, aber auf keinem Board. Jetzt gehört eine private Aufgabe genau einer Person und steht in ihrem Board – ohne Mail, ohne Eskalation, ohne Auswertung. Privat setzen darf man nur, was man selbst angelegt hat, was einem selbst gehört und was nie im Pool war: Fremdes versteckt man nicht, und was das Haus verteilt hat, gehört dem Haus.",
+    bereich: "Alle Aufgaben",
+  },
+  {
+    datum: "2026-09-25",
     titel: "Der Pool wird zur Schlange: älteste links, mit Warnrand",
     text: "Jede Aufgabe bekommt beim Eintritt in den Pool Datum und Uhrzeit. Die älteste steht links, die jüngste rechts – in „Mein Tag“ wie im Aufgabenpool. Auf der Karte steht, wie lange sie schon liegt; wird es zu lang, bekommt sie erst einen orangen, dann einen roten Rand. Die beiden Zeiten sind unter Einstellungen in Minuten einstellbar, 0 schaltet eine Stufe ab.",
     bereich: "Aufgabenpool, Mein Tag, Einstellungen",

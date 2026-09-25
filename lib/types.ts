@@ -319,6 +319,13 @@ export interface Task {
    * Chancen, den Zeitpunkt zu vergessen.
    */
   poolSeit?: string | null;
+  /**
+   * Lag die Aufgabe jemals im Pool?
+   *
+   * Einmal wahr, bleibt wahr. Entscheidet, ob sie privat werden darf:
+   * was aus dem Pool kam, gehoert dem Haus und nicht einem Einzelnen.
+   */
+  jeImPool?: boolean;
   poolZurueckVon?: string | null;
   reminder3dSentAt?: string | null;
   escalation7dSentAt?: string | null;
@@ -374,6 +381,28 @@ export interface AppSettings {
  * eigenen Bereich, sonst faellt ein paar hundert Aufgaben zwischen die
  * Ansichten - siehe app/(app)/verteilt.
  */
+/**
+ * Darf diese Aufgabe privat werden?
+ *
+ * Drei Bedingungen, und jede hat einen Grund:
+ *
+ *  - ICH habe sie angelegt. Was jemand anderes mir gegeben hat, darf
+ *    ich nicht vor ihm verstecken.
+ *  - Sie gehoert MIR. Privat ohne Bearbeiter waere ein Zettel ohne
+ *    Besitzer - auf keinem Board, in keiner Auswertung.
+ *  - Sie war NIE im Pool. Was das Haus verteilt hat, gehoert dem
+ *    Haus; es nachtraeglich hinter einem Haken verschwinden zu
+ *    lassen, waere ein stiller Diebstahl aus der gemeinsamen Liste.
+ */
+export function darfPrivatWerden(t: Task, meineId: string): boolean {
+  return (
+    t.creatorId === meineId &&
+    t.assigneeId === meineId &&
+    !t.isPool &&
+    !t.jeImPool
+  );
+}
+
 export function istVerteilt(t: Task): boolean {
   return (
     !t.assigneeId &&
