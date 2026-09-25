@@ -18,28 +18,46 @@ export interface ShellProfil {
 }
 
 /**
- * Das Hauptmenue.
+ * Das Hauptmenue - in drei Klassen, nicht in einer Reihe.
  *
- * Nur, was im Tagesgeschaeft gebraucht wird. Der onOffice-Eingang ist
- * ein Werkzeug zum Nachsehen, kein Arbeitsplatz - er steht jetzt in der
- * Verwaltung. Oben Platz zu lassen ist mehr wert, als alles erreichbar
- * zu haben.
+ * Wer alles sehen darf, sah bisher auch alles: neun Punkte, jeder mit
+ * einem Symbol, dazu Logo, Knoepfe und Name. Das war keine Navigation
+ * mehr, sondern eine Wand. Ein Menuepunkt, den man einmal im Monat
+ * braucht, verdient keinen Platz neben einem, den man stuendlich
+ * braucht.
  *
- * Die Zeichen sind bewusst schlicht und stehen VOR dem Wort, nicht
- * statt seiner: ein Menuepunkt, den man nur am Symbol erkennt, ist
- * geraten, nicht gelesen.
+ * OBEN steht das Tagesgeschaeft. Unter "Mehr" das, was man gezielt
+ * aufsucht. Die Verwaltung sitzt rechts als Zahnrad bei den anderen
+ * Werkzeugen - sie ist kein Ort, an dem man arbeitet.
+ *
+ * Ohne Symbole: neun verschiedene Emojis machen eine Leiste bunt,
+ * nicht verstaendlich. Die Woerter tun die Arbeit.
  */
-const NAV: { href: string; label: string; icon: string; bereich: Bereich }[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "📈", bereich: "dashboard" },
-  { href: "/team", label: "Team", icon: "👥", bereich: "uebersicht" },
-  { href: "/mein-tag", label: "Mein Tag", icon: "☀️", bereich: "mein_tag" },
-  { href: "/pool", label: "Aufgabenpool", icon: "📥", bereich: "pool" },
-  { href: "/verteilt", label: "Verteilt", icon: "↗️", bereich: "verteilt" },
-  { href: "/asana", label: "Asana", icon: "🗂️", bereich: "asana" },
-  { href: "/pinnwand", label: "Pinnwand", icon: "📌", bereich: "pinnwand" },
-  { href: "/archiv", label: "Archiv", icon: "📦", bereich: "archiv" },
-  { href: "/admin", label: "Verwaltung", icon: "⚙️", bereich: "verwaltung" },
+interface Menuepunkt {
+  href: string;
+  label: string;
+  bereich: Bereich;
+}
+
+const HAUPT: Menuepunkt[] = [
+  { href: "/dashboard", label: "Dashboard", bereich: "dashboard" },
+  { href: "/team", label: "Team", bereich: "uebersicht" },
+  { href: "/mein-tag", label: "Mein Tag", bereich: "mein_tag" },
+  { href: "/pool", label: "Aufgabenpool", bereich: "pool" },
+  { href: "/asana", label: "Asana", bereich: "asana" },
 ];
+
+const WEITERE: Menuepunkt[] = [
+  { href: "/verteilt", label: "Verteilt", bereich: "verteilt" },
+  { href: "/pinnwand", label: "Pinnwand", bereich: "pinnwand" },
+  { href: "/archiv", label: "Archiv", bereich: "archiv" },
+];
+
+const VERWALTUNG: Menuepunkt = {
+  href: "/admin",
+  label: "Verwaltung",
+  bereich: "verwaltung",
+};
 
 function initialen(name: string): string {
   const teile = name.trim().split(/\s+/).filter(Boolean);
@@ -63,6 +81,7 @@ export default function Shell({
   const [dark, setDark] = useState(false);
   const [newTask, setNewTask] = useState(false);
   const [menuOffen, setMenuOffen] = useState(false);
+  const [mehrOffen, setMehrOffen] = useState(false);
 
   const isAdmin = profil.role === "gf" || profil.role === "superadmin";
 
@@ -74,6 +93,25 @@ export default function Shell({
   // schaltet die Seite um, damit man sieht, was man einstellt. Ohne das
   // zeigte der Knopf danach die Sonne, waehrend es dunkel ist, und der
   // naechste Druck ginge in die falsche Richtung.
+  // Ein Klappmenue, das nach dem Klick offen bleibt, verdeckt genau
+  // die Seite, zu der man gerade wollte.
+  useEffect(() => {
+    setMehrOffen(false);
+    setMenuOffen(false);
+  }, [pathname]);
+
+  // Und eines, das nur der eigene Knopf schliesst, faengt Klicks ab,
+  // die woanders hinsollten.
+  useEffect(() => {
+    if (!mehrOffen && !menuOffen) return;
+    const zu = () => {
+      setMehrOffen(false);
+      setMenuOffen(false);
+    };
+    window.addEventListener("click", zu);
+    return () => window.removeEventListener("click", zu);
+  }, [mehrOffen, menuOffen]);
+
   useEffect(() => {
     const wurzel = document.documentElement;
     const lies = () => setDark(wurzel.dataset.theme === "dark");
@@ -96,7 +134,11 @@ export default function Shell({
 
   // Was jemand sieht, steht in der Verwaltung und nicht im Code - bis
   // auf den Superadmin, der immer alles sieht.
-  const nav = NAV.filter((n) => darfSehen(profil.role, n.bereich, rechte));
+  const sichtbar = (p: Menuepunkt) => darfSehen(profil.role, p.bereich, rechte);
+  const haupt = HAUPT.filter(sichtbar);
+  const weitere = WEITERE.filter(sichtbar);
+  const darfVerwaltung = sichtbar(VERWALTUNG);
+  const inWeiteren = weitere.some((p) => pathname.startsWith(p.href));
 
   return (
     <div className="min-h-screen">
@@ -119,26 +161,41 @@ export default function Shell({
             </span>
           </Link>
 
-          {/* Umbrechen statt scrollen. Mit sieben Punkten, dem Logo und
-              den Knoepfen rechts ist die Zeile voll; die scrollbare
-              Variante schob den letzten Punkt aus dem Bild, und wer
-              nicht wischt, glaubt, es gibt ihn nicht. Zwei Zeilen sind
-              haesslicher als eine, aber ehrlicher. */}
+          {/* Das Tagesgeschaeft, und nur das. "/" ist nur die Weiche
+              und traegt keinen eigenen Punkt: wer dort landet, wird
+              eine Umleitung spaeter auf seiner Startseite stehen. */}
           <nav className="flex flex-wrap items-center gap-1">
-            {nav.map((n) => {
-              // "/" ist nur die Weiche und traegt keinen eigenen
-              // Menuepunkt mehr; wer dort landet, ist eine Umleitung
-              // spaeter auf seiner Startseite.
-              const active = pathname.startsWith(n.href);
-              return (
-                <Link
-                  key={n.href}
-                  href={n.href}
+            {haupt.map((n) => (
+              <Link
+                key={n.href}
+                href={n.href}
+                className="btn"
+                aria-current={pathname.startsWith(n.href) ? "page" : undefined}
+                style={
+                  pathname.startsWith(n.href)
+                    ? {
+                        background: "var(--color-ci-400)",
+                        borderColor: "var(--color-ci-400)",
+                        color: "var(--auf-akzent)",
+                        fontWeight: 600,
+                      }
+                    : { background: "transparent", borderColor: "transparent" }
+                }
+              >
+                {n.label}
+              </Link>
+            ))}
+
+            {weitere.length ? (
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
                   className="btn"
-                  aria-current={active ? "page" : undefined}
-                  title={n.label}
+                  aria-haspopup="menu"
+                  aria-expanded={mehrOffen}
+                  onClick={() => setMehrOffen((o) => !o)}
                   style={
-                    active
+                    inWeiteren
                       ? {
                           background: "var(--color-ci-400)",
                           borderColor: "var(--color-ci-400)",
@@ -148,16 +205,30 @@ export default function Shell({
                       : { background: "transparent", borderColor: "transparent" }
                   }
                 >
-                  <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>
-                    {n.icon}
-                  </span>
-                  {/* Auf schmalen Bildschirmen bleibt nur das Zeichen -
-                      da zaehlt jeder Millimeter. Am Knopf haengt der
-                      Name als Hinweis, damit niemand raten muss. */}
-                  <span className="hidden sm:inline">{n.label}</span>
-                </Link>
-              );
-            })}
+                  Mehr ▾
+                </button>
+
+                {mehrOffen ? (
+                  <div className="panel absolute left-0 z-50 mt-1 w-[190px] p-1.5" role="menu">
+                    {weitere.map((n) => (
+                      <Link
+                        key={n.href}
+                        href={n.href}
+                        role="menuitem"
+                        className="block rounded px-2 py-1.5 text-[13px] hover:underline"
+                        style={
+                          pathname.startsWith(n.href)
+                            ? { color: "var(--color-ci-500)", fontWeight: 600 }
+                            : undefined
+                        }
+                      >
+                        {n.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
@@ -168,7 +239,31 @@ export default function Shell({
               {dark ? "☀️" : "🌙"}
             </button>
 
-            <div className="relative">
+            {/* Die Verwaltung ist kein Ort, an dem man arbeitet -
+                sie steht bei den Werkzeugen und nicht im Tagesmenue.
+                Auffaellig wird sie nur, wenn man darin ist. */}
+            {darfVerwaltung ? (
+              <Link
+                href="/admin"
+                className="btn btn-ghost"
+                title="Verwaltung"
+                aria-label="Verwaltung"
+                aria-current={pathname.startsWith("/admin") ? "page" : undefined}
+                style={
+                  pathname.startsWith("/admin")
+                    ? {
+                        background: "var(--color-ci-400)",
+                        borderColor: "var(--color-ci-400)",
+                        color: "var(--auf-akzent)",
+                      }
+                    : undefined
+                }
+              >
+                ⚙️
+              </Link>
+            ) : null}
+
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
               <button
                 className="flex items-center gap-1.5 rounded-md px-1 py-0.5"
                 onClick={() => setMenuOffen((o) => !o)}
