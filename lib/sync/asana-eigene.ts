@@ -213,15 +213,34 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
   // Was kennen wir schon? Ueber die Asana-Nummer, nicht ueber den
   // Titel - Titel aendern sich.
   const gids = aufgaben.map((a) => a.gid);
-  const bekannt = new Map<string, { id: string; bereich: string; status: string }>();
+  const bekannt = new Map<
+    string,
+    {
+      id: string;
+      bereich: string;
+      status: string;
+      asana_modified_at: string | null;
+      asana_eigene_section_gid: string | null;
+      asana_eigene_rang: number | null;
+    }
+  >();
   if (gids.length) {
     const { data } = await sb
       .from("tasks")
-      .select("id, asana_task_gid, bereich, status")
+      .select(
+        "id, asana_task_gid, bereich, status, asana_modified_at, asana_eigene_section_gid, asana_eigene_rang",
+      )
       .in("asana_task_gid", gids);
     for (const t of data ?? []) {
       if (t.asana_task_gid) {
-        bekannt.set(t.asana_task_gid, { id: t.id, bereich: t.bereich, status: t.status });
+        bekannt.set(t.asana_task_gid, {
+          id: t.id,
+          bereich: t.bereich,
+          status: t.status,
+          asana_modified_at: t.asana_modified_at ?? null,
+          asana_eigene_section_gid: t.asana_eigene_section_gid ?? null,
+          asana_eigene_rang: t.asana_eigene_rang ?? null,
+        });
       }
     }
   }
@@ -267,6 +286,32 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
       continue;
     }
 
+    /**
+     * Unveraendert? Dann NICHTS schreiben.
+     *
+     * Das hat hier lange gefehlt, und es hat wehgetan: dieser Abgleich
+     * hat bei jedem Lauf jede bekannte Aufgabe neu geschrieben. Jede
+     * geschriebene Zeile meldet sich per Realtime an jeden offenen
+     * Browser, und jeder Browser laedt daraufhin ALLES neu. Bei
+     * hundert Aufgaben und einem Lauf alle dreissig Sekunden sind das
+     * ein paar hundert Schreibvorgaenge pro Minute - das Tool stand
+     * still, ohne dass jemand etwas getan hatte.
+     *
+     * Drei Dinge entscheiden: das Aenderungsdatum drueben, der
+     * Abschnitt und die Reihenfolge. Ruehrt sich keines davon, ist
+     * nichts zu tun.
+     */
+    if (
+      vorhanden &&
+      aufgabe.modified_at &&
+      vorhanden.asana_modified_at &&
+      new Date(vorhanden.asana_modified_at).getTime() === new Date(aufgabe.modified_at).getTime() &&
+      vorhanden.asana_eigene_section_gid === abschnittGid &&
+      vorhanden.asana_eigene_rang === rang
+    ) {
+      continue;
+    }
+
     const zeile: Record<string, unknown> = {
       title: aufgabe.name || "(ohne Titel)",
       description: aufgabe.notes || null,
@@ -275,6 +320,7 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
       asana_eigene_section_gid: abschnittGid,
       asana_assignee_gid: aufgabe.assignee?.gid ?? null,
       asana_eigene_rang: rang,
+      asana_modified_at: aufgabe.modified_at ?? null,
       due_date: aufgabe.due_on ?? null,
       updated_at: new Date().toISOString(),
     };
@@ -293,14 +339,21 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
         // Status werden nachgezogen - alles andere fuehrt inzwischen
         // das Tool.
         if (vorhanden.bereich !== "asana") {
-          await sb
-            .from("tasks")
-            .update({
-              asana_eigene_section_gid: abschnittGid,
-              asana_eigene_rang: rang,
-              ...(aufgabe.completed ? { status: "erledigt", completed_at: zeile.completed_at } : {}),
-            })
-            .eq("id", vorhanden.id);
+          const fertig = aufgabe.completed && vorhanden.status !== "erledigt";
+          const gewandert =
+            vorhanden.asana_eigene_section_gid !== abschnittGid ||
+            vorhanden.asana_eigene_rang !== rang;
+          if (fertig || gewandert) {
+            await sb
+              .from("tasks")
+              .update({
+                asana_eigene_section_gid: abschnittGid,
+                asana_eigene_rang: rang,
+                asana_modified_at: aufgabe.modified_at ?? null,
+                ...(fertig ? { status: "erledigt", completed_at: zeile.completed_at } : {}),
+              })
+              .eq("id", vorhanden.id);
+          }
         } else {
           await sb.from("tasks").update(zeile).eq("id", vorhanden.id);
         }

@@ -8,14 +8,19 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { KEKS_OPTIONEN } from "./keks";
+import { keksOptionen } from "./keks";
 
 export function supabaseBrowser() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    // Damit der Keks auch gilt, wenn die Seite in einem fremden
-    // Rahmen laeuft - siehe keks.ts.
-    { cookieOptions: KEKS_OPTIONEN },
+    // Nur wenn die Seite wirklich in einem fremden Rahmen laeuft -
+    // im eigenen Tab bleibt alles bei der Voreinstellung. Siehe
+    // keks.ts; das pauschale Umstellen hat Anmeldungen zerrissen.
+    {
+      cookieOptions: keksOptionen(
+        typeof window !== "undefined" && window.self !== window.top,
+      ),
+    },
   );
 }

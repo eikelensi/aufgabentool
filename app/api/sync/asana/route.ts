@@ -2,6 +2,7 @@
  * Den Asana-Bereich abgleichen. Zeitplan oder Admin-Knopf.
  */
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { synchronisiereAsana } from "@/lib/sync/asana";
 import { synchronisiereEigene } from "@/lib/sync/asana-eigene";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
@@ -21,9 +22,46 @@ async function darfLaufen(request: Request): Promise<boolean> {
   return istAdmin(await aktuellesProfil());
 }
 
+/**
+ * Wie oft darf jemand von aussen nachfragen?
+ *
+ * Das Board fragt alle zwei Minuten - und zwar jeder offene Tab
+ * einzeln, dazu bei jedem Zurueckkommen zum Fenster. Drei Tabs und
+ * ein paar Wechsel reichen, um daraus einen Dauerlauf zu machen. Also
+ * eine Bremse an der Stelle, an der sie wirkt: hier.
+ *
+ * Der Zeitplan (Vercel, mit Geheimnis) faehrt daran vorbei - er weiss
+ * selbst, wann er dran ist.
+ */
+const MINDESTABSTAND_MS = 60_000;
+
+async function zuFrueh(): Promise<boolean> {
+  try {
+    const { data } = await supabaseAdmin()
+      .from("onoffice_sync_cursor")
+      .select("last_run_at")
+      .eq("resource", "asana")
+      .maybeSingle();
+    if (!data?.last_run_at) return false;
+    return Date.now() - new Date(data.last_run_at).getTime() < MINDESTABSTAND_MS;
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request: Request) {
   if (!(await darfLaufen(request))) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
+  }
+
+  const vomZeitplan =
+    (process.env.INTERNAL_API_SECRET &&
+      request.headers.get("x-api-secret") === process.env.INTERNAL_API_SECRET) ||
+    (process.env.CRON_SECRET &&
+      request.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`);
+
+  if (!vomZeitplan && (await zuFrueh())) {
+    return NextResponse.json({ ok: true, uebersprungen: true, meldung: "Gerade erst gelaufen." });
   }
 
   try {

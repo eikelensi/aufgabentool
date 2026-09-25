@@ -114,7 +114,14 @@ async function spiegleSpalten(): Promise<{ poolGid: string | null; namen: Map<st
   // Aufruf beliebig oft.
   const ohnePool = spalten.filter((s) => s.gid !== pool!.gid);
   const nachbar = ohnePool[1] ?? ohnePool[0];
-  if (spalten[2]?.gid !== pool.gid && nachbar) {
+  // NUR, wenn er zu weit vorne steht. Frueher stand hier "wenn er
+  // nicht genau an Position drei steht" - und weil Asana ihn nicht
+  // immer genau dorthin legt, lief das bei JEDEM Abgleich wieder.
+  // Ein Schreibvorgang in fremde Daten, alle dreissig Sekunden, mit
+  // allem, was daran haengt. Drittens oder weiter hinten ist gut
+  // genug; entscheidend ist nur, dass er nicht der erste ist.
+  const poolIndex = spalten.findIndex((s) => s.gid === pool!.gid);
+  if (poolIndex >= 0 && poolIndex < 2 && nachbar) {
     try {
       await ruf({
         pfad: `/projects/${projektGid()}/sections/insert`,

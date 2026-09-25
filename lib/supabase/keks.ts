@@ -1,39 +1,67 @@
 /**
  * Wie die Sitzungs-Kekse gesetzt werden - an genau einer Stelle.
  *
- * Der Anlass: das Tool soll sich in onOffice als Dashboard-Kachel
- * einhaengen lassen. Darin laeuft es in einem Rahmen auf einer FREMDEN
- * Seite, und fuer den Browser ist unser Keks dann ein Keks von
- * Dritten. Mit der Voreinstellung (SameSite=Lax) schickt er ihn dort
- * nicht mit - die Anmeldung scheiterte, ohne dass irgendetwas kaputt
- * war.
+ * Vorgeschichte, weil sie wichtig ist: damit das Tool in onOffice als
+ * Dashboard-Kachel laufen kann, hatte ich die Kekse pauschal auf
+ * SameSite=none, Secure und Partitioned gestellt. Im Rahmen war das
+ * richtig. Ueberall sonst war es ein Fehler.
  *
- * Drei Angaben loesen das:
+ * Der Grund: ein "Partitioned"-Keks ist fuer den Browser ein ANDERER
+ * Keks als der gleichnamige ohne dieses Merkmal. Nach dem Umstellen
+ * lagen beide nebeneinander, beide wurden mitgeschickt, und der
+ * Server las mal den einen und mal den anderen. Ergebnis: Anmeldungen,
+ * die nach kurzer Zeit wieder weg waren, und im Protokoll
+ * "Invalid Refresh Token: Refresh Token Not Found".
  *
- *   sameSite: "none"  - darf auch in fremdem Rahmen mit.
- *   secure: true      - dafuer zwingend, sonst nimmt ihn kein Browser.
- *   partitioned: true - der Keks gehoert zur Kombination "unsere
- *                       Seite IN onOffice" und nicht allgemein zu uns.
- *                       Das ist es, was ihn an Chromes Sperre fuer
- *                       Drittanbieter-Kekse vorbeibringt.
+ * Deshalb jetzt danach unterschieden, OB die Seite ueberhaupt in einem
+ * fremden Rahmen laeuft:
  *
- * Die Kehrseite von "partitioned": die Anmeldung im Rahmen ist eine
- * ANDERE als die im eigenen Tab. Wer beides nutzt, meldet sich zweimal
- * an. Das ist der Preis, und er ist niedriger als "geht nicht".
+ *   im eigenen Tab  - die Voreinstellung, genau wie vorher. Kein
+ *                     Sonderfall, keine zweite Keksfamilie.
+ *   in einem Rahmen - SameSite=none, Secure, Partitioned. Dort ist es
+ *                     noetig, und dort stoert es niemanden: der Keks
+ *                     gehoert zur Kombination "wir IN onOffice" und
+ *                     kommt dem im eigenen Tab nicht in die Quere.
  *
- * Nur ueber HTTPS. In der oertlichen Entwicklung (http://localhost)
- * wuerde "secure" den Keks verwerfen und die Anmeldung unmoeglich
- * machen - dort bleibt alles wie bisher.
+ * Die Kehrseite bleibt: die Anmeldung im Rahmen ist eine andere als
+ * die im eigenen Tab. Das ist der Preis, und er ist niedriger als
+ * "geht nicht".
  */
 import type { CookieOptions } from "@supabase/ssr";
 
 const IM_BETRIEB = process.env.NODE_ENV === "production";
 
-export const KEKS_OPTIONEN: CookieOptions = IM_BETRIEB
-  ? { sameSite: "none", secure: true, partitioned: true }
-  : {};
+/** Die Namen, unter denen Supabase seine Sitzung ablegt. */
+export function istSitzungskeks(name: string): boolean {
+  return name.startsWith("sb-");
+}
 
-/** Vorgaben unter die von Supabase gelegt - Name und Pfad bleiben deren Sache. */
-export function mitKeksOptionen(options: CookieOptions | undefined): CookieOptions {
-  return { ...options, ...KEKS_OPTIONEN };
+/**
+ * Laeuft diese Anfrage in einem fremden Rahmen?
+ *
+ * Der Browser sagt es selbst. "sec-fetch-dest: iframe" steht an der
+ * Anfrage, die den Rahmen fuellt; "sec-fetch-site: cross-site" an
+ * allem, was darin danach passiert. Fehlen beide (alte Browser,
+ * serverseitige Aufrufe), gilt: kein Rahmen - die vorsichtigere
+ * Annahme.
+ */
+export function imFremdenRahmen(kopf: {
+  get(name: string): string | null | undefined;
+}): boolean {
+  const dest = kopf.get("sec-fetch-dest") ?? "";
+  const site = kopf.get("sec-fetch-site") ?? "";
+  if (dest === "iframe" || dest === "frame" || dest === "embed") return true;
+  return site === "cross-site" && dest !== "document";
+}
+
+export function keksOptionen(imRahmen: boolean): CookieOptions {
+  if (!imRahmen || !IM_BETRIEB) return {};
+  return { sameSite: "none", secure: true, partitioned: true };
+}
+
+export function mitKeksOptionen(
+  options: CookieOptions | undefined,
+  imRahmen: boolean,
+): CookieOptions {
+  return { ...options, ...keksOptionen(imRahmen) };
 }

@@ -87,7 +87,10 @@ export default function AsanaBoard() {
     };
     document.addEventListener("visibilitychange", beiRueckkehr);
     window.addEventListener("focus", beiRueckkehr);
-    const takt = setInterval(() => void holen(), 30_000);
+    // Zwei Minuten, nicht dreissig Sekunden. Jeder offene Tab
+    // fragt einzeln; der Server bremst zusaetzlich (siehe
+    // /api/sync/asana), aber die erste Bremse gehoert hierher.
+    const takt = setInterval(() => void holen(), 120_000);
 
     return () => {
       document.removeEventListener("visibilitychange", beiRueckkehr);

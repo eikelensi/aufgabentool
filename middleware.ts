@@ -9,7 +9,7 @@
  */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { mitKeksOptionen } from "@/lib/supabase/keks";
+import { imFremdenRahmen, istSitzungskeks, mitKeksOptionen } from "@/lib/supabase/keks";
 
 /** Seiten, die ohne Anmeldung erreichbar sein muessen. */
 const OFFEN = ["/anmelden", "/passwort-setzen", "/auth"];
@@ -55,6 +55,42 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  const imRahmen = imFremdenRahmen(request.headers);
+
+  /**
+   * Aufraeumen nach einem eigenen Fehler.
+   *
+   * Eine Zeit lang hat der Server die Sitzungskekse pauschal als
+   * "Partitioned" gesetzt - auch im eigenen Tab. Fuer den Browser ist
+   * das ein ZWEITER Keks neben dem normalen; beide wurden
+   * mitgeschickt, der Server las mal den einen und mal den anderen,
+   * und die Anmeldung fiel reihenweise auseinander.
+   *
+   * Der falsche Zwilling verschwindet nicht von selbst: er muss mit
+   * genau denselben Merkmalen geloescht werden, mit denen er gesetzt
+   * wurde. Genau das passiert hier - und nur ausserhalb eines
+   * Rahmens, wo er nichts zu suchen hat.
+   *
+   * Angewandt wird es auf JEDE Antwort, die diese Datei verlaesst:
+   * Supabase baut die Antwort zwischendurch neu, und eine
+   * Weiterleitung ist ohnehin eine andere. Wer das vergisst, loescht
+   * genau in den Faellen nicht, in denen es noetig waere.
+   */
+  const raeumeAuf = <T extends NextResponse>(res: T): T => {
+    if (imRahmen || process.env.NODE_ENV !== "production") return res;
+    for (const keks of request.cookies.getAll()) {
+      if (!istSitzungskeks(keks.name)) continue;
+      res.cookies.set(keks.name, "", {
+        path: "/",
+        maxAge: 0,
+        sameSite: "none",
+        secure: true,
+        partitioned: true,
+      });
+    }
+    return res;
+  };
+
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -62,7 +98,7 @@ export async function middleware(request: NextRequest) {
 
   // Ohne Zugangsdaten keine Anmeldepflicht - sonst waere die App in einer
   // halb eingerichteten Umgebung vollstaendig unbenutzbar.
-  if (!url || !key) return response;
+  if (!url || !key) return raeumeAuf(response);
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -73,7 +109,7 @@ export async function middleware(request: NextRequest) {
         for (const { name, value } of liste) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         for (const { name, value, options } of liste)
-          response.cookies.set(name, value, mitKeksOptionen(options));
+          response.cookies.set(name, value, mitKeksOptionen(options, imRahmen));
       },
     },
   });
@@ -89,7 +125,7 @@ export async function middleware(request: NextRequest) {
     ziel.pathname = "/anmelden";
     // Nach der Anmeldung dorthin zurueck, wo die Person hinwollte.
     ziel.searchParams.set("weiter", pfad + request.nextUrl.search);
-    return NextResponse.redirect(ziel);
+    return raeumeAuf(NextResponse.redirect(ziel));
   }
 
   // Angemeldet und trotzdem auf der Anmeldeseite: weiterleiten.
@@ -97,10 +133,10 @@ export async function middleware(request: NextRequest) {
     const ziel = request.nextUrl.clone();
     ziel.pathname = "/";
     ziel.search = "";
-    return NextResponse.redirect(ziel);
+    return raeumeAuf(NextResponse.redirect(ziel));
   }
 
-  return response;
+  return raeumeAuf(response);
 }
 
 export const config = {
