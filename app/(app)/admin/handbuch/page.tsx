@@ -560,6 +560,26 @@ export default async function HandbuchSeite() {
           gäbe sie dem zurück, der sie gerade abgegeben hat.
         </p>
         <p>
+          <strong>Zwei Bretter, eine Seite.</strong> Oben schaltet ein
+          Umschalter zwischen <em>Projekt</em> (das gespiegelte Asana-Projekt)
+          und <em>Eigene</em> (die persönlichen Aufgaben aus „Meine Aufgaben“ in
+          Asana, mit deren Abschnitten). Beide haben einen Pool-Ausgang und
+          dieselbe Logik.
+        </p>
+        <p>
+          Eine Aufgabe, die in beidem vorkommt, steht auf <em>beiden</em>{" "}
+          Brettern – und bleibt dabei EINE Aufgabe. Wird sie abgehakt, ist sie
+          auf beiden erledigt; wird sie abgegeben, verlässt sie beide. Zwei
+          Karten wären zwei Wahrheiten, und eine davon wäre immer falsch.
+        </p>
+        <p className="muted">
+          Den Umschalter sieht nur der Superadmin: die persönlichen Aufgaben
+          gehören genau einem Menschen, nämlich dem, dessen Zugriffstoken in der
+          Umgebung hinterlegt ist. Der Pool-Abschnitt dort wird nicht automatisch
+          angelegt – Abschnitte in „Meine Aufgaben“ lassen sich über die
+          Schnittstelle nicht erzeugen. Er muss in Asana von Hand „Pool“ heißen.
+        </p>
+        <p>
           <strong>Abhaken ohne Öffnen:</strong> vor jedem Titel sitzt ein Kreis.
           Ein Klick erledigt die Aufgabe – hier, in Asana und als Kommentar
           drüben. Ein zweiter Klick macht sie wieder auf; solange die Meldung

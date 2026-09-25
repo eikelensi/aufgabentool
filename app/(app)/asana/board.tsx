@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import TaskCard from "@/components/TaskCard";
 import { TaskDetailDialog } from "@/components/dialogs";
 import { EmptyState, Field, Modal } from "@/components/ui";
-import type { Task } from "@/lib/types";
+import type { AsanaBereich, Task } from "@/lib/types";
 
 /**
  * Das Board der Geschaeftsfuehrung.
@@ -19,8 +19,24 @@ import type { Task } from "@/lib/types";
  * und hinterher raten, wo die Aufgabe geblieben ist.
  */
 export default function AsanaBoard() {
-  const { asanaSpalten, asanaTasks, asanaNutzer, asanaAnlegen, moveTask, neuLaden, bereit } =
+  const { asanaSpalten, asanaTasks, asanaNutzer, asanaAnlegen, moveTask, me, neuLaden, bereit } =
     useStore();
+
+  /**
+   * Zwei Bretter, eine Seite.
+   *
+   * "Projekt" spiegelt das Asana-Projekt der Geschaeftsfuehrung,
+   * "Eigene Aufgaben" die persoenliche Liste. Eine Aufgabe, die in
+   * beidem vorkommt, steht auf beiden - sie ist trotzdem EINE
+   * Aufgabe: wird sie hier abgehakt, ist sie es drueben auch, und auf
+   * dem anderen Brett ebenso.
+   *
+   * Die persoenlichen Aufgaben gehoeren genau einem Menschen, naemlich
+   * dem, dessen Zugriffstoken hinterlegt ist. Deshalb sieht den
+   * Umschalter nur der Superadmin.
+   */
+  const darfEigene = me.role === "superadmin";
+  const [brett, setBrett] = useState<AsanaBereich>("projekt");
   const [offen, setOffen] = useState<Task | null>(null);
   const [zieht, setZieht] = useState<Task | null>(null);
   const leiste = useRef<HTMLDivElement>(null);
@@ -98,7 +114,8 @@ export default function AsanaBoard() {
   };
 
   const verschiebe = async (task: Task, sectionGid: string) => {
-    if (task.asanaSectionGid === sectionGid) return;
+    const jetzt = brett === "eigene" ? task.asanaEigeneSectionGid : task.asanaSectionGid;
+    if (jetzt === sectionGid) return;
     setLaeuft(true);
     setMeldung(null);
     try {
@@ -118,6 +135,8 @@ export default function AsanaBoard() {
 
   if (!bereit) return <p className="muted text-xs">Lade…</p>;
 
+  const spaltenDesBretts = asanaSpalten.filter((sp) => sp.bereich === brett);
+
   if (asanaSpalten.length === 0) {
     return (
       <EmptyState text="Noch keine Spalten – der Abgleich mit Asana läuft alle fünf Minuten und war noch nicht dran." />
@@ -127,7 +146,34 @@ export default function AsanaBoard() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h1 className="text-base font-semibold">Buchhaltung und HR</h1>
+        <h1 className="text-base font-semibold">
+          {brett === "eigene" ? "Meine Aufgaben" : "Buchhaltung und HR"}
+        </h1>
+
+        {darfEigene ? (
+          <span className="flex items-center gap-1">
+            {(
+              [
+                ["projekt", "Projekt"],
+                ["eigene", "Eigene"],
+              ] as [AsanaBereich, string][]
+            ).map(([wert, label]) => (
+              <button
+                key={wert}
+                type="button"
+                className="btn"
+                style={
+                  brett === wert
+                    ? { background: "var(--color-ci-400)", color: "var(--auf-akzent)" }
+                    : undefined
+                }
+                onClick={() => setBrett(wert)}
+              >
+                {label}
+              </button>
+            ))}
+          </span>
+        ) : null}
         {/* Elf Spalten passen auf keinen Bildschirm. Wischen geht auf
             dem Trackpad, aber nicht jeder arbeitet an einem - also
             zwei Knoepfe, die dasselbe tun. */}
@@ -135,7 +181,9 @@ export default function AsanaBoard() {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => setNeueIn(asanaSpalten.find((sp) => !sp.istPool)?.gid ?? "")}
+            onClick={() =>
+              setNeueIn(spaltenDesBretts.find((sp) => !sp.istPool)?.gid ?? "")
+            }
           >
             + Aufgabe
           </button>
@@ -179,6 +227,9 @@ export default function AsanaBoard() {
           Asana führt: Titel, Text, Zuständigkeit und Spalte kommen von dort. Diese Seite
           fragt beim Öffnen und alle 30 Sekunden nach{holt ? " – gerade jetzt" : ""}. Der
           Kreis vor dem Titel hakt eine Aufgabe ab, ohne sie zu öffnen.
+          {darfEigene
+            ? " Eine Aufgabe, die in beidem vorkommt, steht auf beiden Brettern – abgehakt ist sie auf beiden."
+            : ""}
         </span>
       </div>
 
@@ -227,10 +278,10 @@ export default function AsanaBoard() {
         className="scroll-x flex items-start gap-3 pb-2"
         style={{ opacity: laeuft ? 0.6 : 1 }}
       >
-        {asanaSpalten.map((spalte) => {
+        {spaltenDesBretts.map((spalte) => {
           const karten = asanaTasks.filter(
             (t) =>
-              t.asanaSectionGid === spalte.gid &&
+              (brett === "eigene" ? t.asanaEigeneSectionGid : t.asanaSectionGid) === spalte.gid &&
               (zeigeFertige || t.status !== "erledigt"),
           );
           return (
@@ -269,7 +320,8 @@ export default function AsanaBoard() {
                 <p className="muted text-[11px] leading-relaxed">
                   Hierher gezogen heißt: abgegeben. Die Aufgabe geht in den Aufgabenpool,
                   verschwindet hier und meldet sich bei Geschäftsführung und
-                  Qualitätsmanagement.
+                  Qualitätsmanagement. Wer in Asana zuständig war, wird als „Auftrag von“
+                  eingetragen.
                 </p>
               ) : null}
 
@@ -305,7 +357,7 @@ export default function AsanaBoard() {
             if (res.ok) void holen();
             return res;
           }}
-          spalten={asanaSpalten.filter((sp) => !sp.istPool)}
+          spalten={spaltenDesBretts.filter((sp) => !sp.istPool)}
           nutzer={asanaNutzer}
         />
       ) : null}

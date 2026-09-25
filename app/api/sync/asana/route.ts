@@ -3,6 +3,7 @@
  */
 import { NextResponse } from "next/server";
 import { synchronisiereAsana } from "@/lib/sync/asana";
+import { synchronisiereEigene } from "@/lib/sync/asana-eigene";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 
 export const runtime = "nodejs";
@@ -26,8 +27,30 @@ export async function GET(request: Request) {
   }
 
   try {
+    // Zwei Bereiche, ein Abgleich: das Projekt der Geschaeftsfuehrung
+    // und die persoenlichen Aufgaben. Nacheinander und nicht parallel,
+    // denn eine Aufgabe kann in beidem vorkommen - und dann soll der
+    // zweite Lauf sehen, was der erste angelegt hat, statt sie ein
+    // zweites Mal anzulegen.
     const ergebnis = await synchronisiereAsana();
-    return NextResponse.json(ergebnis, { status: ergebnis.fehler.length ? 207 : 200 });
+
+    let eigene = null;
+    try {
+      eigene = await synchronisiereEigene();
+    } catch (err) {
+      ergebnis.fehler.push(`Eigene Aufgaben: ${(err as Error).message}`);
+    }
+
+    const zusammen = {
+      ...ergebnis,
+      eigene,
+      meldung: eigene
+        ? `${ergebnis.meldung} · Eigene: ${eigene.meldung}`
+        : ergebnis.meldung,
+      fehler: [...ergebnis.fehler, ...(eigene?.fehler ?? [])],
+    };
+
+    return NextResponse.json(zusammen, { status: zusammen.fehler.length ? 207 : 200 });
   } catch (err) {
     return NextResponse.json({ fehler: (err as Error).message }, { status: 500 });
   }

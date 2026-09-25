@@ -29,6 +29,11 @@ export interface AsanaAufgabe {
   assignee?: AsanaNutzer | null;
   /** Wer die Aufgabe in Asana angelegt hat. */
   created_by?: AsanaNutzer | null;
+  /**
+   * Der Abschnitt in "Meine Aufgaben" - die persoenliche Ordnung des
+   * Bearbeiters, unabhaengig von jeder Projektspalte.
+   */
+  assignee_section?: AsanaSection | null;
   memberships?: AsanaMitgliedschaft[];
   permalink_url?: string;
 }

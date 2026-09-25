@@ -63,11 +63,24 @@ export const ROLLE_LABEL: Record<AppRole, string> = {
 };
 
 /** Eine Spalte des Asana-Boards. */
+export type AsanaBereich = "projekt" | "eigene";
+
+export const ASANA_BEREICH_LABEL: Record<AsanaBereich, string> = {
+  projekt: "Projekt",
+  eigene: "Eigene Aufgaben",
+};
+
 export interface AsanaSpalte {
   gid: string;
   name: string;
   sortOrder: number;
   istPool: boolean;
+  /**
+   * Woher die Spalte kommt: aus dem gespiegelten Projekt oder aus
+   * "Meine Aufgaben". Zwei Bretter, eine Tabelle - die Aufgaben sind
+   * dieselben, die Ordnung ist es nicht.
+   */
+  bereich: AsanaBereich;
 }
 
 /** Wer in Asana zustaendig sein kann - auch ohne Zugang zum Tool. */
@@ -280,6 +293,14 @@ export interface Task {
   bereich: "task" | "asana";
   asanaTaskGid?: string | null;
   asanaSectionGid?: string | null;
+  /**
+   * Der Abschnitt in "Meine Aufgaben".
+   *
+   * Unabhaengig von asanaSectionGid: eine Aufgabe kann in beidem
+   * liegen und steht dann auf beiden Brettern. Sie bleibt trotzdem
+   * EINE Aufgabe - erledigt ist erledigt, auf beiden.
+   */
+  asanaEigeneSectionGid?: string | null;
   asanaAssigneeGid?: string | null;
   /** Zugewiesen, aber hinter dem Trichter - fuer den Bearbeiter unsichtbar. */
   wartet: boolean;

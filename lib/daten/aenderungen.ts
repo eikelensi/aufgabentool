@@ -25,6 +25,12 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-25",
+    titel: "Asana: zwei Bretter, Projekt und eigene Aufgaben",
+    text: "Der Asana-Bereich hat jetzt oben einen Umschalter: „Projekt“ spiegelt wie bisher das Asana-Projekt, „Eigene“ die persönlichen Aufgaben aus „Meine Aufgaben“ samt deren Abschnitten. Beide haben einen Pool-Ausgang mit derselben Logik. Eine Aufgabe, die in beidem vorkommt, steht auf beiden Brettern und bleibt dabei eine einzige – abgehakt ist sie auf beiden, abgegeben verlässt sie beide.",
+    bereich: "Asana",
+  },
+  {
+    datum: "2026-09-25",
     titel: "Mitarbeiterverwaltung: Speichern sagt jetzt, was passiert ist",
     text: "Ging beim Speichern eines Kollegen etwas schief, brach die Aktion ab und auf dem Bildschirm passierte sichtbar nichts – kein Fehler, keine Meldung, keine Spur im Protokoll. Jetzt wird jeder Fehlschlag angezeigt (oben über der Tabelle und im Formular) und im Änderungsprotokoll festgehalten. Bei Erfolg steht in der Meldung, welche Felder gespeichert wurden.",
     bereich: "Verwaltung",

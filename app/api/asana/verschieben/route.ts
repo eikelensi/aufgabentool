@@ -23,8 +23,11 @@ export async function POST(request: Request) {
   const profil = await aktuellesProfil();
   if (!profil) return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
 
-  // Der Bereich gehoert der Geschaeftsfuehrung; wer ihn nicht sieht,
-  // schiebt darin auch nichts.
+  // Der Projektbereich gehoert der Geschaeftsfuehrung. Die
+  // persoenlichen Aufgaben gehoeren genau einem Menschen - dem, dessen
+  // Zugriffstoken in ASANA_TOKEN steht. Das Tool kann nicht pruefen,
+  // wer das ist; es kann nur den Kreis so eng ziehen, dass nur einer
+  // darin steht.
   if (!["superadmin", "gf"].includes(profil.role)) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
   }
@@ -46,7 +49,7 @@ export async function POST(request: Request) {
 
   const [{ data: aufgabe }, { data: spalte }] = await Promise.all([
     sb.from("tasks").select("id, title, asana_task_gid, bereich").eq("id", taskId).maybeSingle(),
-    sb.from("asana_sections").select("gid, name, ist_pool").eq("gid", sectionGid).maybeSingle(),
+    sb.from("asana_sections").select("gid, name, ist_pool, bereich").eq("gid", sectionGid).maybeSingle(),
   ]);
 
   if (!aufgabe?.asana_task_gid) {
@@ -56,36 +59,66 @@ export async function POST(request: Request) {
     return NextResponse.json({ fehler: "Diese Spalte gibt es nicht." }, { status: 404 });
   }
 
+  const eigene = spalte.bereich === "eigene";
+
+  if (eigene && profil.role !== "superadmin") {
+    return NextResponse.json(
+      { fehler: "Die persönlichen Asana-Aufgaben gehören nicht dir." },
+      { status: 403 },
+    );
+  }
+
+  /**
+   * Eine Karte verschieben - zweierlei, je nach Brett.
+   *
+   * Im Projekt legt man sie in eine Spalte (/sections/.../addTask).
+   * In "Meine Aufgaben" gibt es keine Spalten, sondern einen
+   * Abschnitt AN DER AUFGABE: assignee_section. Derselbe Handgriff,
+   * zwei Aufrufe - wer das verwechselt, bekommt von Asana ein
+   * freundliches "nicht gefunden" und wundert sich.
+   */
+  const schiebe = async () => {
+    if (eigene) {
+      await ruf({
+        pfad: `/tasks/${aufgabe.asana_task_gid}`,
+        methode: "PUT",
+        daten: { assignee_section: sectionGid },
+      });
+      return;
+    }
+    await ruf({
+      pfad: `/sections/${sectionGid}/addTask`,
+      methode: "POST",
+      daten: { task: aufgabe.asana_task_gid },
+    });
+  };
+
   try {
     if (spalte.ist_pool) {
       // Erst drueben in die Pool-Spalte legen, dann hier abgeben. In
       // dieser Reihenfolge, damit die Karte in Asana nicht dort
       // stehenbleibt, wo sie war, wenn das Abgeben scheitert - dann
       // waere im Board nichts zu sehen und im Pool doch etwas.
-      await ruf({
-        pfad: `/sections/${sectionGid}/addTask`,
-        methode: "POST",
-        daten: { task: aufgabe.asana_task_gid },
-      });
-
+      await schiebe();
       await gibAbAnDenPool(aufgabe.id, aufgabe.asana_task_gid, aufgabe.title, profil.id);
 
       return NextResponse.json({
         ok: true,
         abgegeben: true,
-        meldung: `„${aufgabe.title}“ liegt jetzt im Aufgabenpool – in Asana steht sie in der Pool-Spalte.`,
+        meldung: `„${aufgabe.title}“ liegt jetzt im Aufgabenpool – in Asana steht sie im Pool-Abschnitt.`,
       });
     }
 
-    await ruf({
-      pfad: `/sections/${sectionGid}/addTask`,
-      methode: "POST",
-      daten: { task: aufgabe.asana_task_gid },
-    });
+    await schiebe();
 
     await sb
       .from("tasks")
-      .update({ asana_section_gid: sectionGid, updated_at: new Date().toISOString() })
+      .update({
+        ...(eigene
+          ? { asana_eigene_section_gid: sectionGid }
+          : { asana_section_gid: sectionGid }),
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", aufgabe.id);
 
     return NextResponse.json({ ok: true, meldung: `Verschoben nach „${spalte.name}“.` });

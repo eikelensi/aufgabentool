@@ -103,6 +103,7 @@ export function zuAsanaSpalte(row: any): AsanaSpalte {
     name: row.name,
     sortOrder: row.sort_order ?? 100,
     istPool: Boolean(row.ist_pool),
+    bereich: row.bereich === "eigene" ? "eigene" : "projekt",
   };
 }
 
@@ -175,6 +176,7 @@ export function zuAufgabe(row: any): Task {
     bereich: row.bereich ?? "task",
     asanaTaskGid: row.asana_task_gid ?? null,
     asanaSectionGid: row.asana_section_gid ?? null,
+    asanaEigeneSectionGid: row.asana_eigene_section_gid ?? null,
     asanaAssigneeGid: row.asana_assignee_gid ?? null,
     wartet: Boolean(row.wartet),
     attachments: (row.task_attachments ?? []).map(zuAnhang),
