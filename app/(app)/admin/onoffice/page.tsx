@@ -11,6 +11,8 @@
 
 import { onofficeConfigured } from "@/lib/onoffice/client";
 import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
+import { tagsProbe, type ProbeErgebnis } from "@/lib/onoffice/tags-probe";
+import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 import { STATUS_LABEL } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -37,7 +39,105 @@ function formatDate(iso: string | null): string {
   return `${d}.${m}.${y.slice(2)}`;
 }
 
-export default async function OnofficePage() {
+/**
+ * Die Tag-Probe, direkt auf der Seite.
+ *
+ * Bewusst ein einfaches GET-Formular: kein Skript im Browser, keine
+ * Serveraktion, und vor allem kein Umweg ueber /api - dorthin nimmt die
+ * Adresszeile keine Sitzung mit, weil die Middleware /api auslaesst.
+ * Hier laeuft alles im Server-Rendern dieser Seite, und die ist
+ * angemeldet.
+ */
+function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | null }) {
+  return (
+    <div className="panel mb-4 p-3">
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <label className="text-sm font-medium" htmlFor="tagProbe">
+          Tag-Probe
+        </label>
+        <input
+          id="tagProbe"
+          name="tagProbe"
+          defaultValue={wert}
+          placeholder="Aufgabennummer, z. B. 31987"
+          className="line w-56 rounded border px-2 py-1 text-[13px]"
+        />
+        <button type="submit" className="btn text-[13px]">
+          Prüfen
+        </button>
+        <span className="muted text-[11px]">
+          Liest nur – probiert vier Wege, ob onOffice das Feld „tags“ herausgibt.
+        </span>
+      </form>
+
+      {ergebnis ? (
+        <div className="mt-3 text-[12px]">
+          <p className="mb-2">
+            <strong>Aufgabe {ergebnis.taskId}:</strong> {ergebnis.fazit}
+          </p>
+          <ul className="space-y-1">
+            {ergebnis.versuche.map((v) => (
+              <li key={v.weg} className="line border-l-2 pl-2">
+                <code className="text-[11px]">{v.weg}</code>{" "}
+                {v.geklappt ? (
+                  <>
+                    <span style={{ color: "var(--ok-fg)" }}>gelesen</span>
+                    {" – tags: "}
+                    <strong>
+                      {v.tags === null || v.tags === undefined || v.tags === ""
+                        ? "kam nicht mit"
+                        : JSON.stringify(v.tags)}
+                    </strong>
+                    <span className="muted block text-[10px]">
+                      Felder: {(v.felder ?? []).join(", ") || "–"}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ color: "var(--err-fg)" }}>abgelehnt</span>
+                    <span className="muted block text-[10px]">{v.meldung}</span>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-3 mb-1 font-medium">
+            Felder in der onOffice-Konfiguration, die nach „Tag“ aussehen:
+          </p>
+          {ergebnis.feldFehler ? (
+            <p className="muted text-[11px]">{ergebnis.feldFehler}</p>
+          ) : ergebnis.feldkandidaten.length === 0 ? (
+            <p className="muted text-[11px]">
+              Keines. Dann kennt die Schnittstelle das Feld nicht – es muss von onOffice
+              für die API freigeschaltet werden.
+            </p>
+          ) : (
+            <ul className="space-y-0.5 text-[11px]">
+              {ergebnis.feldkandidaten.map((f) => (
+                <li key={f.name}>
+                  <code>{f.name}</code>
+                  <span className="muted">
+                    {" – "}
+                    {f.label ?? "ohne Beschriftung"}
+                    {f.typ ? ` (${f.typ})` : ""}
+                    {f.werte?.length ? ` · Werte: ${f.werte.slice(0, 12).join(", ")}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export default async function OnofficePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   if (!onofficeConfigured()) {
     return (
       <div className="panel p-4" style={{ maxWidth: 620 }}>
@@ -50,6 +150,20 @@ export default async function OnofficePage() {
         </p>
       </div>
     );
+  }
+
+  const sp = await searchParams;
+  const roh = sp.tagProbe;
+  const probeWert = (Array.isArray(roh) ? roh[0] : roh)?.trim() ?? "";
+
+  let probe: ProbeErgebnis | null = null;
+  if (probeWert && Number.isFinite(Number(probeWert))) {
+    // Noch einmal nachsehen, wer fragt. Die Probe ruft onOffice auf,
+    // das soll nicht an der Vermutung haengen, das Layout habe schon
+    // geprueft.
+    if (istAdmin(await aktuellesProfil())) {
+      probe = await tagsProbe(Number(probeWert));
+    }
   }
 
   let tasks: OnofficeTask[] = [];
@@ -80,6 +194,8 @@ export default async function OnofficePage() {
           Echte Aufgaben aus dem CRM, geändert seit {formatDate(since)}. Nur lesend.
         </p>
       </div>
+
+      <TagProbe wert={probeWert} ergebnis={probe} />
 
       {error ? (
         <div
