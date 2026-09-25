@@ -536,6 +536,15 @@ export async function synchronisiereAufgaben(
     payload: {
       unbekannteNamen: ergebnis.unbekannteNamen.slice(0, 50),
       fehler: ergebnis.fehler.slice(0, 20),
+      // Die Hinweise gehoerten von Anfang an hierher. Sie sagen, was
+      // der Lauf NICHT konnte - welches Feld der Mandant abgelehnt
+      // hat, welches Tag zu niemandem passte. Ohne sie steht im
+      // Protokoll "73 uebernommen" und alles sieht gut aus, waehrend
+      // die Haelfte der Arbeit still ausgefallen ist.
+      hinweise: ergebnis.hinweise.slice(0, 20),
+      tagsZugeordnet: ergebnis.tagsZugeordnet,
+      unbekannteTags: ergebnis.unbekannteTags.slice(0, 30),
+      verknuepfungenGeholt: ergebnis.verknuepfungenGeholt,
     },
   });
 
