@@ -25,6 +25,20 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-25",
+    titel: "Mitarbeiterverwaltung: Speichern sagt jetzt, was passiert ist",
+    text: "Ging beim Speichern eines Kollegen etwas schief, brach die Aktion ab und auf dem Bildschirm passierte sichtbar nichts – kein Fehler, keine Meldung, keine Spur im Protokoll. Jetzt wird jeder Fehlschlag angezeigt (oben über der Tabelle und im Formular) und im Änderungsprotokoll festgehalten. Bei Erfolg steht in der Meldung, welche Felder gespeichert wurden.",
+    bereich: "Verwaltung",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-25",
+    titel: "Beim Wechsel des Kollegen blieben die alten Werte stehen",
+    text: "Wer „Bearbeiten“ bei einem Kollegen anklickte, während das Formular eines anderen offen war, sah weiter dessen Werte – gespeichert wurde aber auf den neu gewählten. Damit konnte man Name, Telefon und Standort des einen versehentlich über den anderen schreiben. Das Formular wird jetzt bei jedem Wechsel neu aufgebaut.",
+    bereich: "Verwaltung",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-25",
     titel: "Abgegebene Asana-Aufgaben blieben in onOffice vergeben",
     text: "Wurde eine Karte aus dem Asana-Bereich in den Pool gegeben, stand in onOffice weiter der alte Bearbeiter – und weil onOffice bei diesem Feld führt, holte der nächste Abgleich die Aufgabe prompt wieder aus dem Pool heraus und gab sie demselben Menschen zurück. Die Abgabe hielt keine fünf Minuten, und man konnte nicht sehen, warum. Jetzt wird der Bearbeiter drüben geleert, sobald die Aufgabe den Bereich verlässt.",
     bereich: "Asana, onOffice-Abgleich",

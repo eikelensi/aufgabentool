@@ -2,7 +2,7 @@
 
 /** Die interaktiven Teile der Mitarbeiterverwaltung. */
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import {
   ausOnofficeHolen,
   kollegeAktivSetzen,
@@ -59,6 +59,8 @@ function Feld({
   typ = "text",
   breit = false,
   hinweis,
+  pflicht = false,
+  praefix = "",
 }: {
   name: string;
   label: string;
@@ -68,16 +70,31 @@ function Feld({
   breit?: boolean;
   /** Ein Satz unter dem Feld, wenn der Name allein nicht reicht. */
   hinweis?: string;
+  /** Ohne diese Angabe nimmt der Server das Formular nicht an. */
+  pflicht?: boolean;
+  /**
+   * Eigene Kennung je Formular.
+   *
+   * Vorher hiess jedes Feld schlicht "phone" oder "extension" - und
+   * eine id darf auf einer Seite nur einmal vorkommen. Stand irgendwo
+   * sonst dieselbe, fuehrte der Klick auf die Beschriftung woandershin
+   * und das Feld nahm keine Eingabe an. Der NAME bleibt, was er war,
+   * denn den liest der Server.
+   */
+  praefix?: string;
 }) {
+  const kennung = praefix ? `${praefix}-${name}` : name;
   return (
     <div className={breit ? "sm:col-span-2" : undefined}>
-      <label className="mb-1 block text-xs font-medium" htmlFor={name}>
+      <label className="mb-1 block text-xs font-medium" htmlFor={kennung}>
         {label}
+        {pflicht ? <span style={{ color: "var(--err-fg)" }}> *</span> : null}
       </label>
       <input
-        id={name}
+        id={kennung}
         name={name}
         type={typ}
+        required={pflicht}
         className="field"
         defaultValue={wert ?? ""}
         placeholder={platzhalter}
@@ -100,6 +117,7 @@ function KollegeFormular({
 }) {
   const [laeuft, starte] = useTransition();
   const [fehler, setFehler] = useState<Ergebnis | null>(null);
+  const praefix = useId();
 
   return (
     <form
@@ -108,10 +126,11 @@ function KollegeFormular({
         starte(async () => {
           const r = await kollegeSpeichern(formData);
           setFehler(r.ok ? null : r);
-          if (r.ok) {
-            onFertig(r);
-            onAbbruch();
-          }
+          // Auch Fehlschlaege nach oben geben: das Formular kann
+          // ausserhalb des Bildes liegen, die Meldung ueber der
+          // Tabelle nicht.
+          onFertig(r);
+          if (r.ok) onAbbruch();
         })
       }
     >
@@ -122,39 +141,36 @@ function KollegeFormular({
         <Feld
           name="display_name"
           label="Name"
+          pflicht
           wert={kollege?.displayName}
-          platzhalter="Weis, Markus"
-        />
-        <Feld name="email" label="E-Mail" typ="email" wert={kollege?.email} />
-        <Feld name="short_code" label="Kürzel" wert={kollege?.shortCode} platzhalter="mw" />
+          platzhalter="Weis, Markus" praefix={praefix} />
+        <Feld name="email" label="E-Mail" typ="email" wert={kollege?.email} pflicht praefix={praefix} />
+        <Feld name="short_code" label="Kürzel" wert={kollege?.shortCode} platzhalter="mw" praefix={praefix} />
         <Feld
           name="onoffice_tag"
           label="onOffice-Tag"
           wert={kollege?.onofficeTag}
           platzhalter="Weis"
-          hinweis="Was in onOffice im Aufgabenfeld „tags“ steht, wenn diese Aufgabe für ihn ist. Daraus wird hier „Auftrag von“ – und umgekehrt."
-        />
+          hinweis="Was in onOffice im Aufgabenfeld „tags“ steht, wenn diese Aufgabe für ihn ist. Daraus wird hier „Auftrag von“ – und umgekehrt." praefix={praefix} />
         <Feld
           name="onoffice_user_id"
           label="onOffice-Benutzer-ID"
-          wert={kollege?.onofficeUserId}
-        />
-        <Feld name="phone" label="Telefon" wert={kollege?.phone} platzhalter="06233 000000" />
-        <Feld name="extension" label="Durchwahl" wert={kollege?.extension} platzhalter="12" />
+          wert={kollege?.onofficeUserId} praefix={praefix} />
+        <Feld name="phone" label="Telefon" wert={kollege?.phone} platzhalter="06233 000000" praefix={praefix} />
+        <Feld name="extension" label="Durchwahl" wert={kollege?.extension} platzhalter="12" praefix={praefix} />
         <Feld
           name="location"
           label="Standort"
           wert={kollege?.location}
           platzhalter="Frankenthal"
-          breit
-        />
+          breit praefix={praefix} />
 
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-xs font-medium" htmlFor="profile_id">
+          <label className="mb-1 block text-xs font-medium" htmlFor={`${praefix}-profile_id`}>
             Gehört zu einem Nutzer des Tools <span className="muted font-normal">(optional)</span>
           </label>
           <select
-            id="profile_id"
+            id={`${praefix}-profile_id`}
             name="profile_id"
             className="field"
             defaultValue={kollege?.profileId ?? ""}
@@ -382,7 +398,14 @@ export function KollegenBereich({
               <h2 className="text-sm font-semibold">
                 {kollegen.find((k) => k.id === bearbeite)?.displayName} bearbeiten
               </h2>
+              {/* key: ohne das behaelt React beim Wechsel auf einen
+                  anderen Kollegen die Eingabefelder des vorigen -
+                  defaultValue wirkt nur beim ersten Aufbau. Die
+                  versteckte Kennung wechselt aber sehr wohl. Man
+                  bearbeitete also B und speicherte die Werte von A
+                  darueber. */}
               <KollegeFormular
+                key={bearbeite}
                 kollege={kollegen.find((k) => k.id === bearbeite)}
                 nutzer={nutzer}
                 onFertig={setErgebnis}

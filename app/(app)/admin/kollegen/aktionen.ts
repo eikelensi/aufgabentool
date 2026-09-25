@@ -36,7 +36,49 @@ function nameAusMail(email: string): string {
   return gross(lokal);
 }
 
+/**
+ * Einen fehlgeschlagenen Versuch festhalten.
+ *
+ * Weil genau das gefehlt hat: das Speichern kam nicht an, auf dem
+ * Bildschirm stand nichts, und im Protokoll auch nicht - es gab
+ * schlicht nichts, woran man haette sehen koennen, woran es liegt.
+ * Ein Fehlschlag, den niemand sieht, ist schlimmer als einer, der
+ * laut ist.
+ */
+async function haltFest(was: string, einzelheiten: Record<string, unknown>): Promise<void> {
+  try {
+    const sb = supabaseAdmin();
+    await sb.from("audit_log").insert({
+      entity: "broker_contacts",
+      entity_id: String(einzelheiten.id ?? "-"),
+      action: "fehlgeschlagen",
+      quelle: "person",
+      diff: { fehler: was, ...einzelheiten },
+    });
+  } catch {
+    /* wenn nicht einmal das geht, bleibt die Meldung auf dem Bildschirm */
+  }
+}
+
 export async function kollegeSpeichern(formData: FormData): Promise<Ergebnis> {
+  // Ein Netz um das GANZE: vorher war nur verlangeAdmin() abgesichert.
+  // Warf irgendetwas danach - der Adminschluessel, die Datenbank, ein
+  // Feld, das der Server nicht kennt -, brach die Serveraktion ab und
+  // im Browser passierte sichtbar nichts. Genau so sah der Fehler aus,
+  // den niemand finden konnte.
+  try {
+    return await speichereWirklich(formData);
+  } catch (err) {
+    const meldung = (err as Error).message || String(err);
+    await haltFest(meldung, { id: text(formData, "id") });
+    return {
+      ok: false,
+      meldung: `Beim Speichern ist etwas schiefgegangen: ${meldung}`,
+    };
+  }
+}
+
+async function speichereWirklich(formData: FormData): Promise<Ergebnis> {
   try {
     await verlangeAdmin();
   } catch (err) {
@@ -70,17 +112,35 @@ export async function kollegeSpeichern(formData: FormData): Promise<Ergebnis> {
     : await sb.from("broker_contacts").insert(zeile);
 
   if (error) {
+    await haltFest(error.message, { id, email, felder: Object.keys(zeile) });
+
     if (/broker_contacts_email_idx|duplicate key/i.test(error.message)) {
       return {
         ok: false,
-        meldung: `${email} steht schon in der Liste. Eine Mailadresse gehört zu genau einem Kollegen.`,
+        meldung:
+          `${email} steht schon in der Liste. Eine Mailadresse gehört zu genau einem ` +
+          `Kollegen.${id ? "" : " (Es wurde versucht, einen NEUEN Eintrag anzulegen – " +
+            "wenn du eigentlich einen bestehenden bearbeitet hast, ist die Kennung " +
+            "unterwegs verlorengegangen.)"}`,
       };
     }
     return { ok: false, meldung: error.message };
   }
 
   revalidatePath("/admin/kollegen");
-  return { ok: true, meldung: id ? "Gespeichert." : `${displayName} angelegt.` };
+  // Sagen, WAS gespeichert wurde. "Gespeichert." allein liess offen,
+  // ob die Aenderung auch die Felder erwischt hat, die man geaendert
+  // hatte.
+  const gefuellt = Object.entries(zeile)
+    .filter(([feld, wert]) => wert !== null && feld !== "sync_source")
+    .map(([feld]) => feld);
+
+  return {
+    ok: true,
+    meldung: id
+      ? `Gespeichert: ${gefuellt.join(", ")}.`
+      : `${displayName} angelegt.`,
+  };
 }
 
 export async function kollegeAktivSetzen(id: string, aktiv: boolean): Promise<Ergebnis> {
