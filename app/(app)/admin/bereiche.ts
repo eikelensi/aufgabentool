@@ -64,6 +64,11 @@ export const GRUPPEN: Gruppe[] = [
         label: "Dateien",
         zweck: "Obergrenze je Datei und ob neue Anhänge zusätzlich nach onOffice gehen.",
       },
+      {
+        href: "/admin/pinnwand",
+        label: "Pinnwand",
+        zweck: "Die Themen der Pinnwand und ihre Farben.",
+      },
     ],
   },
   {

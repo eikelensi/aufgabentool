@@ -28,6 +28,9 @@ import {
   zuKollege,
   zuProfil,
   zuVorlage,
+  zuPin,
+  zuPinKategorie,
+  pinZurZeile,
 } from "@/lib/daten/abbildung";
 import { ALLOWED_EXTENSIONS } from "./data";
 import type {
@@ -41,6 +44,8 @@ import type {
   Meldung,
   NotificationEntry,
   NotifyKind,
+  Pin,
+  PinKategorie,
   Profile,
   Task,
   TaskStatus,
@@ -171,6 +176,16 @@ interface StoreValue {
   updateSettings: (patch: Partial<AppSettings>) => Promise<Ergebnis>;
   runEscalationJob: () => Promise<{ reminders: number; escalations: number; meldung?: string }>;
 
+  /* ---------------------------------------------------------- Pinnwand */
+  pins: Pin[];
+  pinKategorien: PinKategorie[];
+  /** Darf anpinnen, aendern, loeschen - dieselbe Grenze wie bei den Aufgaben. */
+  darfPinnen: boolean;
+  pinSpeichern: (pin: Partial<Pin> & { id?: string }) => Promise<Ergebnis>;
+  pinLoeschen: (id: string) => Promise<Ergebnis>;
+  pinKategorieSpeichern: (k: Partial<PinKategorie> & { id?: string }) => Promise<Ergebnis>;
+  pinKategorieLoeschen: (id: string) => Promise<Ergebnis>;
+
   profileById: (id: string | null) => Profile | undefined;
   categoryById: (id: string | null) => Category | undefined;
   brokerById: (id: string | null) => BrokerContact | undefined;
@@ -214,12 +229,14 @@ export function StoreProvider({
   const [meldungen, setMeldungen] = useState<Meldung[]>([]);
   const [asanaSpalten, setAsanaSpalten] = useState<AsanaSpalte[]>([]);
   const [asanaNutzer, setAsanaNutzer] = useState<AsanaNutzer[]>([]);
+  const [pins, setPins] = useState<Pin[]>([]);
+  const [pinKategorien, setPinKategorien] = useState<PinKategorie[]>([]);
 
   const neuLaden = useCallback(async () => {
     const sb = supabaseBrowser();
     setFehler(null);
 
-    const [a, p, k, ka, v, e, n, m, as, an] = await Promise.all([
+    const [a, p, k, ka, v, e, n, m, as, an, pn, pk] = await Promise.all([
       sb
         .from("tasks")
         .select(AUFGABE_SPALTEN)
@@ -246,6 +263,16 @@ export function StoreProvider({
         .eq("sichtbar", true)
         .order("sort_order"),
       sb.from("asana_users").select("gid, name, email, profile_id").order("name"),
+      sb
+        .from("pins")
+        .select("id, titel, text, kategorie_id, datum, angeheftet, sort_order, created_by, created_at, updated_at")
+        .order("angeheftet", { ascending: false })
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: false }),
+      sb
+        .from("pin_kategorien")
+        .select("id, name, farbe, sort_order, is_active")
+        .order("sort_order"),
     ]);
 
     const ersterFehler = [a.error, p.error, k.error, ka.error, v.error, e.error].find(Boolean);
@@ -263,6 +290,8 @@ export function StoreProvider({
     if (m.data) setMeldungen(m.data.map(zuMeldung));
     if (as.data) setAsanaSpalten(as.data.map(zuAsanaSpalte));
     if (an.data) setAsanaNutzer(an.data.map(zuAsanaNutzer));
+    if (pn.data) setPins(pn.data.map(zuPin));
+    if (pk.data) setPinKategorien(pk.data.map(zuPinKategorie));
 
     setBereit(true);
   }, []);
@@ -1400,6 +1429,105 @@ export function StoreProvider({
       }
     }
 
+    /* -------------------------------------------------------- Pinnwand */
+
+    /**
+     * Einen Zettel anheften oder aendern.
+     *
+     * Optimistisch wie das Asana-Board: der Zettel steht sofort da.
+     * Geht das Schreiben schief, wird neu geladen - dann ist der
+     * Stand wieder der der Datenbank und nicht der unserer Hoffnung.
+     */
+    async function pinSpeichern(pin: Partial<Pin> & { id?: string }): Promise<Ergebnis> {
+      const zeile = pinZurZeile(pin);
+      if (!Object.keys(zeile).length) return { ok: true };
+
+      if (pin.id) {
+        setPins((alt) => alt.map((p) => (p.id === pin.id ? ({ ...p, ...pin } as Pin) : p)));
+        const { error } = await sb
+          .from("pins")
+          .update({ ...zeile, updated_by: profil.id, updated_at: new Date().toISOString() })
+          .eq("id", pin.id);
+        if (error) {
+          await neuLaden();
+          return { ok: false, error: error.message };
+        }
+        return { ok: true };
+      }
+
+      // Neu: ganz nach vorne, damit man sieht, was man gerade
+      // angeheftet hat. Wer ihn woanders haben will, schiebt ihn.
+      const kleinster = pins.reduce(
+        (min, p) => Math.min(min, p.sortOrder ?? Number.MAX_SAFE_INTEGER),
+        Number.MAX_SAFE_INTEGER,
+      );
+      const sort = kleinster === Number.MAX_SAFE_INTEGER ? 100 : kleinster - 100;
+
+      const { data, error } = await sb
+        .from("pins")
+        .insert({ ...zeile, sort_order: sort, created_by: profil.id })
+        .select(
+          "id, titel, text, kategorie_id, datum, angeheftet, sort_order, created_by, created_at, updated_at",
+        )
+        .maybeSingle();
+
+      if (error) return { ok: false, error: error.message };
+      if (data) setPins((alt) => [zuPin(data), ...alt]);
+      return { ok: true };
+    }
+
+    async function pinLoeschen(id: string): Promise<Ergebnis> {
+      const vorher = pins;
+      setPins((alt) => alt.filter((p) => p.id !== id));
+      const { error } = await sb.from("pins").delete().eq("id", id);
+      if (error) {
+        setPins(vorher);
+        return { ok: false, error: error.message };
+      }
+      return { ok: true };
+    }
+
+    async function pinKategorieSpeichern(
+      k: Partial<PinKategorie> & { id?: string },
+    ): Promise<Ergebnis> {
+      const zeile: Record<string, unknown> = {};
+      if (k.name !== undefined) zeile.name = k.name;
+      if (k.farbe !== undefined) zeile.farbe = k.farbe;
+      if (k.sortOrder !== undefined) zeile.sort_order = k.sortOrder;
+      if (k.isActive !== undefined) zeile.is_active = k.isActive;
+      if (!Object.keys(zeile).length) return { ok: true };
+
+      if (k.id) {
+        setPinKategorien((alt) =>
+          alt.map((x) => (x.id === k.id ? ({ ...x, ...k } as PinKategorie) : x)),
+        );
+        const { error } = await sb.from("pin_kategorien").update(zeile).eq("id", k.id);
+        if (error) {
+          await neuLaden();
+          return { ok: false, error: error.message };
+        }
+        return { ok: true };
+      }
+
+      const { error } = await sb.from("pin_kategorien").insert(zeile);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    /**
+     * Ein Thema loeschen.
+     *
+     * Die Zettel bleiben - sie stehen dann ohne Thema da. Genauso
+     * verhaelt sich das Loeschen einer Aufgaben-Kategorie; etwas
+     * wegzuwerfen, weil sein Etikett weg ist, waere eine boese
+     * Ueberraschung.
+     */
+    async function pinKategorieLoeschen(id: string): Promise<Ergebnis> {
+      const { error } = await sb.from("pin_kategorien").delete().eq("id", id);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
     // Was aus dem Tagesgeschaeft gefallen ist, weil es lange genug
     // erledigt ist. Dieselbe Grenze, nur andersherum gelesen.
     const archivTasks = tasks
@@ -1453,6 +1581,17 @@ export function StoreProvider({
       categoryById,
       brokerById,
       kollegeNachKuerzel,
+      pins,
+      pinKategorien,
+      // Dieselbe Grenze wie bei den Aufgaben: lesen alle, aendern
+      // die, die auch sonst verteilen und korrigieren. Durchgesetzt
+      // wird sie in der Datenbank; hier steht sie nur, damit die
+      // Oberflaeche keine Knoepfe zeigt, die nichts tun.
+      darfPinnen: ["superadmin", "gf", "qm"].includes(profil.role),
+      pinSpeichern,
+      pinLoeschen,
+      pinKategorieSpeichern,
+      pinKategorieLoeschen,
       // Die beiden Bereiche teilen sich eine Tabelle, aber keine
       // Ansicht: eine Aufgabe der Geschaeftsfuehrung hat in "Mein Tag"
       // nichts verloren, solange sie nicht abgegeben wurde.
@@ -1488,6 +1627,8 @@ export function StoreProvider({
     meldungen,
     asanaSpalten,
     asanaNutzer,
+    pins,
+    pinKategorien,
     settings,
     profil,
     neuLaden,

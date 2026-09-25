@@ -40,7 +40,8 @@ export type Bereich =
   | "uebersicht"
   | "verwaltung"
   | "archiv"
-  | "asana";
+  | "asana"
+  | "pinnwand";
 
 export const BEREICH_LABEL: Record<Bereich, string> = {
   dashboard: "Dashboard",
@@ -53,7 +54,42 @@ export const BEREICH_LABEL: Record<Bereich, string> = {
   verwaltung: "Verwaltung",
   archiv: "Archiv",
   asana: "Asana (Geschäftsführung)",
+  pinnwand: "Pinnwand",
 };
+
+/**
+ * Ein Zettel an der Pinnwand.
+ *
+ * Frueher ein eigenes Projekt ("Teamboard") mit eigener Anmeldung,
+ * eigener Datenbank und eigener Adresse - fuer eine Handvoll Notizen.
+ * Hier ist es ein Bereich wie jeder andere.
+ *
+ * Bewusst KEINE Aufgabe: kein Bearbeiter, keine Frist, keine
+ * Eskalation. Ein Pin ist etwas, das man wissen muss, nicht etwas,
+ * das jemand tun muss. Wer daraus eine Aufgabe macht, legt eine an.
+ */
+export interface Pin {
+  id: string;
+  titel: string;
+  text: string;
+  kategorieId: string | null;
+  /** Ein Datum auf dem Zettel, wenn es eins gibt. Sonst null. */
+  datum: string | null;
+  /** Oben festhalten, damit Wichtiges nicht mit dem Alter nach unten rutscht. */
+  angeheftet: boolean;
+  sortOrder: number | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PinKategorie {
+  id: string;
+  name: string;
+  farbe: string;
+  sortOrder: number;
+  isActive: boolean;
+}
 
 export const ROLLE_LABEL: Record<AppRole, string> = {
   superadmin: "Superadmin",

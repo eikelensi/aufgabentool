@@ -14,6 +14,8 @@ import type {
   Meldung,
   NotificationEntry,
   NotifyKind,
+  Pin,
+  PinKategorie,
   Profile,
   Task,
   TaskNote,
@@ -279,5 +281,43 @@ export function zuBenachrichtigung(row: any): NotificationEntry {
     status: row.status === "failed" ? "skipped" : row.status,
     dedupeKey: row.dedupe_key,
     createdAt: row.created_at,
+  };
+}
+
+/* ------------------------------------------------------------------ Pinnwand */
+
+export function zuPin(row: any): Pin {
+  return {
+    id: row.id,
+    titel: row.titel,
+    text: row.text ?? "",
+    kategorieId: row.kategorie_id ?? null,
+    datum: row.datum ?? null,
+    angeheftet: Boolean(row.angeheftet),
+    sortOrder: row.sort_order ?? null,
+    createdBy: row.created_by ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function pinZurZeile(patch: Partial<Pin>): Record<string, unknown> {
+  const z: Record<string, unknown> = {};
+  if (patch.titel !== undefined) z.titel = patch.titel;
+  if (patch.text !== undefined) z.text = patch.text || null;
+  if (patch.kategorieId !== undefined) z.kategorie_id = patch.kategorieId;
+  if (patch.datum !== undefined) z.datum = patch.datum || null;
+  if (patch.angeheftet !== undefined) z.angeheftet = patch.angeheftet;
+  if (patch.sortOrder !== undefined) z.sort_order = patch.sortOrder;
+  return z;
+}
+
+export function zuPinKategorie(row: any): PinKategorie {
+  return {
+    id: row.id,
+    name: row.name,
+    farbe: row.farbe ?? "#88cc44",
+    sortOrder: row.sort_order ?? 0,
+    isActive: row.is_active ?? true,
   };
 }
