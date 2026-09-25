@@ -25,6 +25,19 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-25",
+    titel: "Abgegebene Asana-Aufgaben blieben in onOffice vergeben",
+    text: "Wurde eine Karte aus dem Asana-Bereich in den Pool gegeben, stand in onOffice weiter der alte Bearbeiter – und weil onOffice bei diesem Feld führt, holte der nächste Abgleich die Aufgabe prompt wieder aus dem Pool heraus und gab sie demselben Menschen zurück. Die Abgabe hielt keine fünf Minuten, und man konnte nicht sehen, warum. Jetzt wird der Bearbeiter drüben geleert, sobald die Aufgabe den Bereich verlässt.",
+    bereich: "Asana, onOffice-Abgleich",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-25",
+    titel: "Die Abgabe hinterlässt einen Vermerk in Asana",
+    text: "Die Karte bleibt in Asana in der Pool-Spalte stehen. Dort steht jetzt auch, was passiert ist: wann sie abgegeben wurde, wer als Auftraggeber erkannt wurde und dass sie in onOffice wieder frei ist. Wer sie sich später zieht, hängt wie bisher ein „Verteilt an“ darunter.",
+    bereich: "Asana",
+  },
+  {
+    datum: "2026-09-25",
     titel: "Asana-Aufgaben bringen ihren Auftraggeber in den Pool mit",
     text: "Wird eine Karte aus dem Asana-Bereich in den Pool gegeben, wird der Zuständige aus Asana als „Auftrag von“ eingetragen – ist niemand zugeteilt, der Ersteller. Wer sich die Aufgabe zieht, weiß damit ohne Nachfragen, für wen er arbeitet, und derselbe Mensch bekommt die Erledigt-Mail. Zugeordnet wird über die Mailadresse; der Name nur, wenn er eindeutig ist.",
     bereich: "Asana, Aufgabenpool",

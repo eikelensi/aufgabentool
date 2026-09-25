@@ -26,6 +26,7 @@ import { haeufigsteArt } from "@/lib/sync/onoffice-neu";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { schreibeAuftragNachOnoffice } from "@/lib/sync/auftrag";
+import { schreibeBearbeiterNachOnoffice } from "@/lib/sync/bearbeiter";
 import type { TaskStatus } from "@/lib/types";
 
 /** Wie die Spalte heisst, die eine Aufgabe abgibt. */
@@ -390,10 +391,55 @@ export async function gibAbAnDenPool(
 
   if (zeilen.length) await sb.from("notifications").insert(zeilen);
 
-  // Und das Tag nach onOffice, damit dort dasselbe steht. Scheitert
-  // es, bleibt die Abgabe trotzdem stehen - sie ist das Wichtigere.
+  // ---------------------------------------------------------------
+  // Und jetzt die Uebergabe nach draussen. Drei Dinge, und keines
+  // davon darf die Abgabe selbst scheitern lassen - die steht schon.
+  // ---------------------------------------------------------------
+
+  // 1. Der Bearbeiter in onOffice MUSS geleert werden.
+  //
+  // Das fehlte, und es war kein Schoenheitsfehler: onOffice fuehrt
+  // bei diesem Feld. Stand dort weiter der Name dessen, der die
+  // Aufgabe gerade abgegeben hat, holte der naechste Abgleich sie
+  // prompt wieder aus dem Pool heraus und gab sie ihm zurueck - die
+  // Abgabe hielt keine fuenf Minuten, und niemand konnte sehen,
+  // warum.
+  const bearbeiter = await schreibeBearbeiterNachOnoffice(taskId, durch).catch(
+    (err: Error) => ({ uebertragen: false, meldung: err.message }),
+  );
+
+  // 2. Das Tag mit dem Auftraggeber.
   if (auftrag.brokerId) {
     await schreibeAuftragNachOnoffice(taskId).catch(() => undefined);
+  }
+
+  // 3. Ein Vermerk in Asana. Die Karte bleibt dort in der
+  //    Pool-Spalte stehen und schwiege sonst darueber, dass sie das
+  //    Haus verlassen hat.
+  if (asanaKonfiguriert()) {
+    const zeitpunkt = new Date().toLocaleString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const text = [
+      `Abgegeben an den Aufgabenpool — ${zeitpunkt}`,
+      auftrag.quelle ? `Auftrag von: ${auftrag.quelle}` : null,
+      bearbeiter.uebertragen
+        ? "In onOffice ist der Bearbeiter jetzt leer – die Aufgabe ist dort frei."
+        : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await ruf({
+      pfad: `/tasks/${asanaGid}/stories`,
+      methode: "POST",
+      daten: { text },
+    }).catch(() => undefined);
   }
 }
 

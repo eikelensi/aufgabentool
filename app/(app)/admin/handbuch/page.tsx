@@ -546,6 +546,20 @@ export default async function HandbuchSeite() {
           abgegebene Aufgabe in Asana abgehakt, verlässt sie auch hier den Pool.
         </p>
         <p>
+          <strong>Was bei der Abgabe mitgeht.</strong> Wer in Asana zuständig
+          war, wird als „Auftrag von“ eingetragen – ist niemand zugeteilt, der
+          Ersteller. Wer sich die Aufgabe aus dem Pool zieht, weiß damit ohne
+          Nachfragen, für wen er arbeitet, und derselbe Mensch bekommt die Mail,
+          wenn sie fertig ist. Zugeordnet wird über die Mailadresse; passt der
+          Name auf zwei Kollegen, bleibt das Feld leer.
+        </p>
+        <p className="muted">
+          Gleichzeitig wird der <strong>Bearbeiter in onOffice geleert</strong>.
+          Das muss sein: dort führt dieses Feld. Bliebe der alte Name stehen,
+          holte der nächste Abgleich die Aufgabe wieder aus dem Pool heraus und
+          gäbe sie dem zurück, der sie gerade abgegeben hat.
+        </p>
+        <p>
           <strong>Abhaken ohne Öffnen:</strong> vor jedem Titel sitzt ein Kreis.
           Ein Klick erledigt die Aufgabe – hier, in Asana und als Kommentar
           drüben. Ein zweiter Klick macht sie wieder auf; solange die Meldung
