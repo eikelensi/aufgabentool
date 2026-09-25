@@ -16,8 +16,35 @@ const RAHMEN = [
   "https://*.onoffice.com",
 ].join(" ");
 
+/**
+ * Die alte Teamboard-Adresse.
+ *
+ * Das Teamboard ist jetzt die Pinnwand im Aufgabentool. Wer die alte
+ * Adresse im Lesezeichen hat oder sie jemandem weitergegeben hat, soll
+ * dort landen, wo die Zettel wirklich haengen - und nicht auf der
+ * Startseite, wo er erst suchen muesste.
+ *
+ * Bewusst KEINE dauerhafte Weiterleitung (308): die merkt sich der
+ * Browser und laesst sich spaeter nur schwer wieder loswerden. Solange
+ * niemand weiss, ob die Adresse einmal etwas anderes tun soll, ist
+ * eine vorlaeufige ehrlicher.
+ */
+const ALTE_TEAMBOARD_ADRESSE = "teamboard.4-wk.de";
+const PINNWAND = "https://task.4waendekanzlei.de/pinnwand";
+
 const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
+
+  async redirects() {
+    return [
+      {
+        source: "/:pfad*",
+        has: [{ type: "host", value: ALTE_TEAMBOARD_ADRESSE }],
+        destination: PINNWAND,
+        permanent: false,
+      },
+    ];
+  },
 
   async headers() {
     return [
