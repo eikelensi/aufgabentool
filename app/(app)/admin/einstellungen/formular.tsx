@@ -195,6 +195,21 @@ export default function EinstellungenFormular({ anbindung }: { anbindung: Anbind
               onChange={(e) => updateSettings({ poolAlarmMinuten: Number(e.target.value) })}
             />
           </Field>
+          {/* onOffice haengt die eigene Firmenadresse (hilfe@,
+              Kundennummer 11) an fast jede Aufgabe. Ohne diese Liste
+              stand sie im Tool als "Kunde" und verdeckte den echten. */}
+          <Field
+            label="onOffice: Adressen, die kein Kunde sind"
+            hint="Datensatz-IDs, mit Komma getrennt. Diese Adressen werden nie als Kunde an eine Aufgabe geschrieben."
+          >
+            <input
+              type="text"
+              className="field"
+              placeholder="z. B. 59305"
+              value={settings.onofficeAdressAusschluss}
+              onChange={(e) => updateSettings({ onofficeAdressAusschluss: e.target.value })}
+            />
+          </Field>
           <Field label="Versandweg">
             <select
               className="field"

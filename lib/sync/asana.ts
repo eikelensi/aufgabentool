@@ -504,12 +504,19 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
   const gids = aufgaben.map((a) => a.gid);
   const bekannt = new Map<
     string,
-    { id: string; asana_modified_at: string | null; bereich: string; status: string; is_pool: boolean }
+    {
+      id: string;
+      asana_modified_at: string | null;
+      bereich: string;
+      status: string;
+      is_pool: boolean;
+      asana_rang: number | null;
+    }
   >();
   if (gids.length) {
     const { data } = await sb
       .from("tasks")
-      .select("id, asana_task_gid, asana_modified_at, bereich, status, is_pool")
+      .select("id, asana_task_gid, asana_modified_at, bereich, status, is_pool, asana_rang")
       .in("asana_task_gid", gids);
     for (const t of data ?? []) {
       if (t.asana_task_gid) {
@@ -519,6 +526,7 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
           bereich: t.bereich,
           status: t.status,
           is_pool: Boolean(t.is_pool),
+          asana_rang: t.asana_rang ?? null,
         });
       }
     }
@@ -751,12 +759,43 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     }
   }
 
+  /**
+   * Die Reihenfolge aus Asana uebernehmen.
+   *
+   * Asana liefert die Aufgaben eines Projekts in Brettreihenfolge -
+   * genau so, wie sie drueben untereinander stehen. Diese Stelle
+   * uebertraegt das in asana_rang, damit das Board hier dieselbe
+   * Reihenfolge zeigt und nicht die des Zufalls.
+   *
+   * Bewusst NACH der grossen Schleife und bewusst nur da, wo sich
+   * etwas geaendert hat: ein Umsortieren aendert in Asana nicht
+   * zwangslaeufig das modified_at, faellt also oben durch. Und wer
+   * hier stumpf alle 41 Zeilen schreibt, schickt 41 Realtime-Meldungen
+   * an jeden offenen Browser - fuer nichts.
+   *
+   * Abstand 100, damit zwischen zwei Karten immer Platz fuer eine
+   * dritte bleibt, wenn im Tool verschoben wird.
+   */
+  let umsortiert = 0;
+  for (const [i, aufgabe] of aufgaben.entries()) {
+    const vorhanden = bekannt.get(aufgabe.gid);
+    if (!vorhanden) continue;
+    const soll = (i + 1) * 100;
+    if (vorhanden.asana_rang === soll) continue;
+    const { error } = await sb
+      .from("tasks")
+      .update({ asana_rang: soll })
+      .eq("id", vorhanden.id);
+    if (!error) umsortiert++;
+  }
+
   const teile = [
     `${ergebnis.gelesen} gelesen`,
     `${ergebnis.uebernommen} uebernommen (${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert)`,
     `${ergebnis.kommentare} Kommentare`,
     `${ergebnis.inOnoffice} in onOffice angelegt`,
     `${ergebnis.inDenPool} in den Pool`,
+    `${umsortiert} neu einsortiert`,
   ];
   if (ergebnis.fehler.length) teile.push(`${ergebnis.fehler.length} Fehler`);
   ergebnis.meldung = teile.join(", ");

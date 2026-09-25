@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { ALLOWED_EXTENSIONS } from "@/lib/data";
 import type { Attachment, AttachmentSync, Task } from "@/lib/types";
 import { SYNC_LABEL } from "@/lib/types";
-import { taskLink } from "@/lib/onoffice/links";
+import { addressLink, estateLink } from "@/lib/onoffice/links";
 import { formatDateTime } from "./ui";
 
 export function formatBytes(n: number): string {
@@ -173,14 +173,25 @@ function Row({ task, attachment }: { task: Task; attachment: Attachment }) {
 
       {/* Was wir nicht herunterladen koennen, soll wenigstens einen Klick
           entfernt sein: die Aufgabe in onOffice, wo die Datei haengt. */}
-      {!attachment.hasContent && task.onofficeTaskId ? (
+      {/* Auf die Aufgabe selbst fuehrt kein Link - onOffice stellt
+          Direktlinks nur fuer Objekte und Adressen aus. Also dorthin,
+          wo die Datei haengt. */}
+      {!attachment.hasContent && (task.onofficeEstateId || task.onofficeAddressId) ? (
         <a
           className="btn"
-          href={taskLink(task.onofficeTaskId)}
+          href={
+            task.onofficeEstateId
+              ? estateLink(task.onofficeEstateId)
+              : addressLink(task.onofficeAddressId!)
+          }
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          title={`Aufgabe ${task.onofficeTaskId} in onOffice öffnen`}
+          title={
+            task.onofficeEstateId
+              ? `Objekt ${task.onofficeEstateNo ?? task.onofficeEstateId} in onOffice öffnen`
+              : `Adresse ${task.onofficeAddressNo ?? task.onofficeAddressId} in onOffice öffnen`
+          }
         >
           In onOffice ↗
         </a>

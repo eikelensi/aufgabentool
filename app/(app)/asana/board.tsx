@@ -39,6 +39,8 @@ export default function AsanaBoard() {
   const [brett, setBrett] = useState<AsanaBereich>("projekt");
   const [offen, setOffen] = useState<Task | null>(null);
   const [zieht, setZieht] = useState<Task | null>(null);
+  /** Ueber welcher Karte die gezogene gerade schwebt - fuer die Linie. */
+  const [ueber, setUeber] = useState<string | null>(null);
   const leiste = useRef<HTMLDivElement>(null);
   const [neueIn, setNeueIn] = useState<string | null>(null);
   // Erledigtes verstopft ein Board, das zum Arbeiten da ist - es ist
@@ -113,16 +115,26 @@ export default function AsanaBoard() {
     );
   };
 
-  const verschiebe = async (task: Task, sectionGid: string) => {
+  /**
+   * Eine Karte bewegen - in eine andere Spalte, an eine andere Stelle
+   * oder beides.
+   *
+   * vorTaskId ist die Karte, ueber der losgelassen wurde: die gezogene
+   * landet direkt davor. Ohne vorTaskId haengt sie unten an. Ein Zug
+   * innerhalb derselben Spalte ist nur dann nichts, wenn auch keine
+   * Stelle genannt wurde - sonst waere Umsortieren nicht moeglich.
+   */
+  const verschiebe = async (task: Task, sectionGid: string, vorTaskId?: string) => {
+    if (vorTaskId === task.id) return;
     const jetzt = brett === "eigene" ? task.asanaEigeneSectionGid : task.asanaSectionGid;
-    if (jetzt === sectionGid) return;
+    if (jetzt === sectionGid && !vorTaskId) return;
     setLaeuft(true);
     setMeldung(null);
     try {
       const res = await fetch("/api/asana/verschieben", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: task.id, sectionGid }),
+        body: JSON.stringify({ taskId: task.id, sectionGid, vorTaskId }),
       });
       const json = await res.json().catch(() => ({}));
       setMeldung(json.meldung ?? json.fehler ?? null);
@@ -279,17 +291,27 @@ export default function AsanaBoard() {
         style={{ opacity: laeuft ? 0.6 : 1 }}
       >
         {spaltenDesBretts.map((spalte) => {
-          const karten = asanaTasks.filter(
-            (t) =>
-              (brett === "eigene" ? t.asanaEigeneSectionGid : t.asanaSectionGid) === spalte.gid &&
-              (zeigeFertige || t.status !== "erledigt"),
-          );
+          // Reihenfolge wie in Asana: asana_rang, gefuellt vom
+          // Abgleich und beim Verschieben. Karten ohne Rang haengen
+          // hinten an - sonst spraengen sie beim ersten Abgleich
+          // durchs Brett.
+          const rangVon = (t: Task) =>
+            (brett === "eigene" ? t.asanaEigeneRang : t.asanaRang) ?? Number.MAX_SAFE_INTEGER;
+
+          const karten = asanaTasks
+            .filter(
+              (t) =>
+                (brett === "eigene" ? t.asanaEigeneSectionGid : t.asanaSectionGid) === spalte.gid &&
+                (zeigeFertige || t.status !== "erledigt"),
+            )
+            .sort((a, b) => rangVon(a) - rangVon(b));
           return (
             <section
               key={spalte.gid}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
+                setUeber(null);
                 if (zieht) void verschiebe(zieht, spalte.gid);
                 setZieht(null);
               }}
@@ -326,16 +348,44 @@ export default function AsanaBoard() {
               ) : null}
 
               <div className="flex flex-col gap-2">
+                {/* Jede Karte ist auch ein Ziel: wer auf ihr loslaesst,
+                    schiebt die gezogene Karte DAVOR. Die Spalte selbst
+                    bleibt das Ziel fuer "ganz nach unten". Die Linie
+                    zeigt, wo sie landet - ohne sie raet man. */}
                 {karten.map((t) => (
-                  <TaskCard
+                  <div
                     key={t.id}
-                    task={t}
-                    onOpen={setOffen}
-                    onDragStart={setZieht}
-                    abhaken={(x) => void abhaken(x)}
-                    showAssignee
-                    compact
-                  />
+                    onDragOver={(e) => {
+                      if (!zieht || zieht.id === t.id) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setUeber(t.id);
+                    }}
+                    onDragLeave={() => setUeber((u) => (u === t.id ? null : u))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setUeber(null);
+                      if (zieht) void verschiebe(zieht, spalte.gid, t.id);
+                      setZieht(null);
+                    }}
+                    style={{
+                      borderTop:
+                        ueber === t.id
+                          ? "2px solid var(--color-ci-500)"
+                          : "2px solid transparent",
+                      paddingTop: 2,
+                    }}
+                  >
+                    <TaskCard
+                      task={t}
+                      onOpen={setOffen}
+                      onDragStart={setZieht}
+                      abhaken={(x) => void abhaken(x)}
+                      showAssignee
+                      compact
+                    />
+                  </div>
                 ))}
               </div>
             </section>

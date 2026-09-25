@@ -301,6 +301,18 @@ export interface Task {
    * EINE Aufgabe - erledigt ist erledigt, auf beiden.
    */
   asanaEigeneSectionGid?: string | null;
+  /**
+   * Reihenfolge im Asana-Board. Klein heisst weiter oben.
+   *
+   * Asana fuehrt die Reihenfolge, der Abgleich schreibt sie hier hinein.
+   * Beim Verschieben im Board setzt das Tool sofort einen Zwischenwert,
+   * damit die Karte nicht erst beim naechsten Abgleich an ihren Platz
+   * springt. Null heisst: noch nie eingeordnet - solche Karten haengen
+   * hinten an.
+   */
+  asanaRang?: number | null;
+  /** Dasselbe fuer das Brett "Meine Aufgaben". */
+  asanaEigeneRang?: number | null;
   asanaAssigneeGid?: string | null;
   /** Zugewiesen, aber hinter dem Trichter - fuer den Bearbeiter unsichtbar. */
   wartet: boolean;
@@ -370,6 +382,12 @@ export interface AppSettings {
   attachmentMaxMb: number;
   attachmentPushOnoffice: boolean;
   attachmentDefaultArt: string;
+  /**
+   * onOffice-Adressen, die nie als "Kunde" an einer Aufgabe stehen.
+   * Kommagetrennte Datensatz-IDs. Hintergrund: onOffice haengt die
+   * eigene Firmenadresse an fast jede Aufgabe - die ist kein Kunde.
+   */
+  onofficeAdressAusschluss: string;
 }
 
 /**

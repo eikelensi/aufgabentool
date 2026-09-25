@@ -346,12 +346,41 @@ export async function holeVerknuepfungen(
   fehler.push(...relFehler);
   if (map.size === 0) return { gefuellt: 0, fehler };
 
+  /**
+   * Nicht jede verknuepfte Adresse ist ein Kunde.
+   *
+   * onOffice haengt an fast jede Aufgabe die eigene Firmenadresse -
+   * bei uns hilfe@, Kundennummer 11, Datensatz 59305. Im Tool stand
+   * sie dann bei 44 Aufgaben als "Kunde", und der echte Kunde kam nie
+   * zum Vorschein. Das ist kein Fehler der Relation: die Adresse HAENGT
+   * dort wirklich dran, sie bedeutet nur nichts.
+   *
+   * Welche Adressen so zu behandeln sind, steht in der Verwaltung -
+   * fest verdrahtet waere es beim naechsten Mandanten wieder falsch.
+   */
+  const { data: einst } = await sb
+    .from("app_settings")
+    .select("onoffice_adress_ausschluss")
+    .eq("id", true)
+    .maybeSingle();
+
+  const ausgeschlossen = new Set(
+    String(einst?.onoffice_adress_ausschluss ?? "")
+      .split(/[,;\s]+/)
+      .map((x) => x.trim())
+      .filter(Boolean),
+  );
+
+  const ersterKunde = (ids: string[]): string | undefined =>
+    ids.find((id) => !ausgeschlossen.has(id));
+
   // Erst alle IDs sammeln, dann die Nummern in einem Zug holen.
   const objektIds = new Set<string>();
   const kundenIds = new Set<string>();
   for (const rel of map.values()) {
     if (rel.estateIds[0]) objektIds.add(rel.estateIds[0]);
-    if (rel.addressIds[0]) kundenIds.add(rel.addressIds[0]);
+    const k = ersterKunde(rel.addressIds);
+    if (k) kundenIds.add(k);
   }
 
   const [objektNr, kundenNr] = await Promise.all([
@@ -382,7 +411,7 @@ export async function holeVerknuepfungen(
 
     const zeile: Record<string, unknown> = {};
     const objekt = rel.estateIds[0];
-    const kunde = rel.addressIds[0];
+    const kunde = ersterKunde(rel.addressIds);
 
     if (objekt && String(alt.onoffice_estate_id ?? "") !== objekt) {
       zeile.onoffice_estate_id = objekt;

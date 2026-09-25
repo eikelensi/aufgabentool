@@ -48,7 +48,7 @@ import type {
 const AUFGABE_SPALTEN = `
   id, title, description, status, priority, category_id, creator_id, assignee_id,
   bereich, asana_task_gid, asana_section_gid, asana_eigene_section_gid,
-  asana_assignee_gid, wartet,
+  asana_assignee_gid, asana_rang, asana_eigene_rang, wartet,
   broker_contact_id, onoffice_bearbeiter_id, is_pool, is_private, visible_from, due_date,
   onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_id,
   onoffice_address_no, onoffice_tag, source,

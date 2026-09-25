@@ -240,7 +240,13 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
     return ergebnis;
   }
 
+  // Der Zaehler fuer die Reihenfolge. Asana gibt "Meine Aufgaben" in
+  // Brettreihenfolge heraus; Abstand 100, damit beim Verschieben im
+  // Tool immer ein Wert dazwischenpasst.
+  let rang = 0;
+
   for (const aufgabe of aufgaben) {
+    rang += 100;
     const abschnitt = aufgabe.assignee_section;
     const abschnittGid = abschnitt?.gid ?? null;
     const abschnittName = abschnittGid ? (namen.get(abschnittGid) ?? abschnitt?.name ?? "") : "";
@@ -265,6 +271,7 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
       asana_task_gid: aufgabe.gid,
       asana_eigene_section_gid: abschnittGid,
       asana_assignee_gid: aufgabe.assignee?.gid ?? null,
+      asana_eigene_rang: rang,
       due_date: aufgabe.due_on ?? null,
       updated_at: new Date().toISOString(),
     };
@@ -287,6 +294,7 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
             .from("tasks")
             .update({
               asana_eigene_section_gid: abschnittGid,
+              asana_eigene_rang: rang,
               ...(aufgabe.completed ? { status: "erledigt", completed_at: zeile.completed_at } : {}),
             })
             .eq("id", vorhanden.id);

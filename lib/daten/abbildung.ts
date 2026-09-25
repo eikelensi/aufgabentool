@@ -177,6 +177,8 @@ export function zuAufgabe(row: any): Task {
     asanaTaskGid: row.asana_task_gid ?? null,
     asanaSectionGid: row.asana_section_gid ?? null,
     asanaEigeneSectionGid: row.asana_eigene_section_gid ?? null,
+    asanaRang: row.asana_rang ?? null,
+    asanaEigeneRang: row.asana_eigene_rang ?? null,
     asanaAssigneeGid: row.asana_assignee_gid ?? null,
     wartet: Boolean(row.wartet),
     attachments: (row.task_attachments ?? []).map(zuAnhang),
@@ -217,6 +219,7 @@ export function zuEinstellungen(row: any): AppSettings {
     attachmentMaxMb: row?.attachment_max_mb ?? 25,
     attachmentPushOnoffice: row?.attachment_push_onoffice ?? true,
     attachmentDefaultArt: row?.attachment_default_art ?? "Dokument",
+    onofficeAdressAusschluss: row?.onoffice_adress_ausschluss ?? "",
   };
 }
 
@@ -234,6 +237,8 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
   if (patch.attachmentMaxMb !== undefined) z.attachment_max_mb = patch.attachmentMaxMb;
   if (patch.attachmentPushOnoffice !== undefined) z.attachment_push_onoffice = patch.attachmentPushOnoffice;
   if (patch.attachmentDefaultArt !== undefined) z.attachment_default_art = patch.attachmentDefaultArt;
+  if (patch.onofficeAdressAusschluss !== undefined)
+    z.onoffice_adress_ausschluss = patch.onofficeAdressAusschluss;
   return z;
 }
 

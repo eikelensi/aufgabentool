@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useStore } from "@/lib/store";
 import { darfPrivatWerden } from "@/lib/types";
-import { addressLink, estateLink, taskLink } from "@/lib/onoffice/links";
+import { addressLink, estateLink } from "@/lib/onoffice/links";
 import { isoDate } from "@/lib/data";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
 import { STATUS_LABEL, istVerteilt } from "@/lib/types";
@@ -923,15 +923,11 @@ export function TaskDetailDialog({
         </Row>
         <Row label="Aufgabennummer in onOffice">
           {task.onofficeTaskId ? (
-            <a
-              className="underline"
-              style={{ color: "var(--color-ci-500)" }}
-              href={taskLink(task.onofficeTaskId)}
-              target="_blank"
-              rel="noreferrer"
-            >
+            /* Kein Link: onOffice stellt Direktlinks nur fuer Objekte,
+               Adressen und Aktivitaeten aus - fuer Aufgaben nicht. */
+            <span title="onOffice stellt für Aufgaben keinen Direktlink aus">
               #{task.onofficeTaskId}
-            </a>
+            </span>
           ) : (
             <span className="muted">nur hier angelegt</span>
           )}

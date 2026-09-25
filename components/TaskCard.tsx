@@ -251,8 +251,11 @@ export default function TaskCard({
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
         {task.onofficeTaskId ? (
           <NummerChip
-            href={taskLink(task.onofficeTaskId)}
-            titel={`Aufgabe ${task.onofficeTaskId} in onOffice öffnen`}
+            href={taskLink()}
+            titel={
+              `Aufgabe ${task.onofficeTaskId} in onOffice – onOffice stellt für ` +
+              "Aufgaben keinen Direktlink aus, nur für Objekte und Adressen"
+            }
           >
             #{task.onofficeTaskId}
           </NummerChip>
