@@ -97,34 +97,44 @@ async function spiegleSpalten(): Promise<{ poolGid: string | null; namen: Map<st
     spalten.push(pool);
   }
 
-  // Die Pool-Spalte steht ganz links, vor dem Eingang: sie ist der
-  // Ausgang dieses Bereichs, und man soll nicht durch zehn Spalten
-  // scrollen, um etwas abzugeben. Steht sie schon dort, passiert
-  // nichts - Asana nimmt denselben Aufruf beliebig oft.
-  if (spalten[0]?.gid !== pool.gid) {
-    const erste = spalten.find((s) => s.gid !== pool!.gid);
+  // Die Pool-Spalte gehoert ans ENDE - und das ist eine Korrektur.
+  //
+  // Frueher stand sie ganz links, mit der Begruendung, der Weg zum
+  // Abgeben solle kurz sein. Das war ein teurer Denkfehler: Asana legt
+  // JEDE neu angelegte Aufgabe in den ersten Abschnitt eines Bretts.
+  // Damit galt alles, was drueben entstand, im selben Moment als
+  // abgegeben. Vorne gehoert der Eingang hin, hinten der Ausgang.
+  //
+  // Steht sie schon hinten, passiert nichts - Asana nimmt denselben
+  // Aufruf beliebig oft.
+  const ohnePool = spalten.filter((s) => s.gid !== pool!.gid);
+  if (spalten.at(-1)?.gid !== pool.gid && ohnePool.length) {
     try {
-      if (erste) {
-        await ruf({
-          pfad: `/projects/${projektGid()}/sections/insert`,
-          methode: "POST",
-          daten: { section: pool.gid, before_section: erste.gid },
-        });
-      }
-      const ohne = spalten.filter((s) => s.gid !== pool!.gid);
+      await ruf({
+        pfad: `/projects/${projektGid()}/sections/insert`,
+        methode: "POST",
+        daten: { section: pool.gid, after_section: ohnePool[ohnePool.length - 1].gid },
+      });
       spalten.length = 0;
-      spalten.push(pool, ...ohne);
+      spalten.push(...ohnePool, pool);
     } catch {
       // Misslingt das Einsortieren, bleibt die Spalte, wo sie ist -
       // unschoen, aber kein Grund, den Abgleich abzubrechen.
     }
   }
 
+  // Welcher Abschnitt ist der Eingang? Der, der so heisst; sonst der
+  // erste, der nicht der Pool ist. Danach richtet sich, wo eine neue
+  // Aufgabe landet, wenn niemand eine Spalte nennt.
+  const eingang =
+    spalten.find((s) => /eingang/i.test(s.name) && s.gid !== pool!.gid) ?? ohnePool[0];
+
   const zeilen = spalten.map((s, i) => ({
     gid: s.gid,
     name: s.name,
     sort_order: (i + 1) * 10,
     ist_pool: s.gid === pool!.gid,
+    ist_eingang: s.gid === eingang?.gid,
     synced_at: new Date().toISOString(),
   }));
 

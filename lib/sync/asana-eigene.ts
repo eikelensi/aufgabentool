@@ -115,13 +115,16 @@ async function spiegleAbschnitte(
 
   const pool = abschnitte.find((a) => a.name.trim().toLowerCase() === POOL_ABSCHNITT);
 
-  // Der Pool ganz nach links, wie im Projektbereich: er ist der
-  // Ausgang, und man soll nicht durch die halbe Liste scrollen, um
-  // etwas abzugeben. Umsortiert wird nur hier, nicht in Asana -
-  // "Meine Aufgaben" ist seine Liste, da raeumen wir nicht auf.
-  const sortiert = pool
-    ? [pool, ...abschnitte.filter((a) => a.gid !== pool.gid)]
-    : abschnitte;
+  // Der Pool ans ENDE, wie im Projektbereich - und aus demselben
+  // Grund: Asana legt neue Aufgaben in den ersten Abschnitt. Stand
+  // der Pool vorne, war alles Neue sofort abgegeben. Umsortiert wird
+  // nur hier, nicht in Asana: "Meine Aufgaben" ist seine Liste, da
+  // raeumen wir nicht auf.
+  const ohnePool = abschnitte.filter((a) => a.gid !== pool?.gid);
+  const sortiert = pool ? [...ohnePool, pool] : abschnitte;
+
+  const eingang =
+    ohnePool.find((a) => /eingang/i.test(a.name)) ?? ohnePool[0];
 
   await sb.from("asana_sections").upsert(
     sortiert.map((a, i) => ({
@@ -130,6 +133,7 @@ async function spiegleAbschnitte(
       bereich: "eigene",
       sort_order: (i + 1) * 10,
       ist_pool: a.gid === pool?.gid,
+      ist_eingang: a.gid === eingang?.gid,
       synced_at: new Date().toISOString(),
     })),
     { onConflict: "gid" },

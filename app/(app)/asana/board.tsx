@@ -399,13 +399,22 @@ export default function AsanaBoard() {
         <NeueAsanaAufgabe
           spalteGid={neueIn}
           onClose={() => setNeueIn(null)}
-          onAnlegen={async (werte) => {
-            const res = await asanaAnlegen(werte);
-            // Nachfragen, aber ohne darauf zu warten: die Karte steht
-            // schon im Board, der Abgleich ergaenzt nur noch, was wir
-            // beim Anlegen nicht wissen konnten.
-            if (res.ok) void holen();
-            return res;
+          onAnlegen={(werte) => {
+            // Ohne await: die Karte steht schon oben im Brett, das
+            // Fenster geht sofort zu. Gemeldet wird nur, wenn Asana
+            // sie NICHT angenommen hat - dann verschwindet sie auch
+            // wieder.
+            setMeldung(null);
+            void asanaAnlegen({ ...werte, bereich: brett }).then((res) => {
+              if (!res.ok) {
+                setMeldung(res.error ?? "Asana hat die Aufgabe nicht angenommen.");
+                return;
+              }
+              // Nachfragen, aber ohne darauf zu warten: der Abgleich
+              // ergaenzt nur noch, was wir beim Anlegen nicht wissen
+              // konnten.
+              void holen();
+            });
           }}
           spalten={spaltenDesBretts.filter((sp) => !sp.istPool)}
           nutzer={asanaNutzer}
@@ -438,7 +447,7 @@ function NeueAsanaAufgabe({
     sectionGid?: string;
     assigneeGid?: string | null;
     dueOn?: string | null;
-  }) => Promise<{ ok: boolean; error?: string }>;
+  }) => void;
   onClose: () => void;
 }) {
   const [titel, setTitel] = useState("");
@@ -446,27 +455,29 @@ function NeueAsanaAufgabe({
   const [spalte, setSpalte] = useState(spalteGid || (spalten[0]?.gid ?? ""));
   const [wer, setWer] = useState("");
   const [faellig, setFaellig] = useState("");
-  const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
 
-  const speichern = async () => {
+  /**
+   * Abschicken und zumachen - in dieser Reihenfolge.
+   *
+   * Frueher wartete das Fenster auf Asana: anlegen, einsortieren,
+   * hier eintragen, ein bis drei Sekunden, in denen nichts geschah
+   * und niemand wusste, ob es geklappt hat. Jetzt geht es sofort zu;
+   * die Karte steht schon oben im Brett, und falls Asana sie doch
+   * nicht annimmt, verschwindet sie wieder und das Brett sagt warum.
+   */
+  const speichern = () => {
     if (!titel.trim()) {
       setFehler("Ohne Titel geht es nicht.");
       return;
     }
-    setLaeuft(true);
-    const res = await onAnlegen({
+    onAnlegen({
       titel,
       beschreibung,
       sectionGid: spalte || undefined,
       assigneeGid: wer || null,
       dueOn: faellig || null,
     });
-    setLaeuft(false);
-    if (!res.ok) {
-      setFehler(res.error ?? "Asana hat die Aufgabe nicht angenommen.");
-      return;
-    }
     onClose();
   };
 
@@ -541,10 +552,10 @@ function NeueAsanaAufgabe({
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="btn btn-primary" onClick={speichern} disabled={laeuft}>
-            {laeuft ? "Legt an…" : "Aufgabe anlegen"}
+          <button type="button" className="btn btn-primary" onClick={speichern}>
+            Aufgabe anlegen
           </button>
-          <button type="button" className="btn" onClick={onClose} disabled={laeuft}>
+          <button type="button" className="btn" onClick={onClose}>
             Abbrechen
           </button>
         </div>

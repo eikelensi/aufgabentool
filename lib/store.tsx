@@ -125,6 +125,7 @@ interface StoreValue {
     sectionGid?: string;
     assigneeGid?: string | null;
     dueOn?: string | null;
+    bereich?: AsanaBereich;
   }) => Promise<Ergebnis>;
   /** Zustaendigkeit und Frist in Asana setzen. */
   asanaZuteilen: (
@@ -1207,24 +1208,90 @@ export function StoreProvider({
       }
     }
 
+    /**
+     * Eine Asana-Aufgabe anlegen - und das Fenster nicht warten lassen.
+     *
+     * Der Weg dorthin ist laenger, als er aussieht: in Asana anlegen,
+     * in den richtigen Abschnitt einsortieren, hier eintragen. Das
+     * dauert ein bis drei Sekunden, und solange stand das Fenster
+     * offen und niemand wusste, ob etwas passiert.
+     *
+     * Also andersherum: die Karte steht sofort im Brett - ganz oben,
+     * wo neue Aufgaben hingehoeren -, das Fenster geht sofort zu, und
+     * der Rest laeuft im Hintergrund. Kommt die Antwort, wird die
+     * vorlaeufige Karte gegen die echte getauscht. Kommt ein Fehler,
+     * verschwindet sie wieder und sagt warum.
+     */
     async function asanaAnlegen(werte: {
       titel: string;
       beschreibung?: string;
       sectionGid?: string;
       assigneeGid?: string | null;
       dueOn?: string | null;
+      bereich?: AsanaBereich;
     }): Promise<Ergebnis> {
+      const brett: AsanaBereich = werte.bereich === "eigene" ? "eigene" : "projekt";
+      const abschnittFeld = brett === "eigene" ? "asanaEigeneSectionGid" : "asanaSectionGid";
+      const rangFeld = brett === "eigene" ? "asanaEigeneRang" : "asanaRang";
+
+      // Oben heisst: kleiner als alles, was in dieser Spalte steht.
+      const kleinster = tasks
+        .filter((t) => (t[abschnittFeld] ?? null) === (werte.sectionGid ?? null))
+        .reduce(
+          (min, t) => Math.min(min, t[rangFeld] ?? Number.MAX_SAFE_INTEGER),
+          Number.MAX_SAFE_INTEGER,
+        );
+      const rang = (kleinster === Number.MAX_SAFE_INTEGER ? 100 : kleinster) - 100;
+
+      const vorlaeufigeId = `neu-${Math.random().toString(36).slice(2, 10)}`;
+      const jetzt = new Date().toISOString();
+      const wer = asanaNutzer.find((n) => n.gid === werte.assigneeGid);
+
+      const vorlaeufig = {
+        id: vorlaeufigeId,
+        title: werte.titel.trim(),
+        description: werte.beschreibung?.trim() || "",
+        status: "offen",
+        priority: "normal",
+        bereich: "asana",
+        categoryId: null,
+        creatorId: profil.id,
+        assigneeId: wer?.profileId ?? null,
+        isPool: false,
+        isPrivate: false,
+        visibleFrom: jetzt.slice(0, 10),
+        dueDate: werte.dueOn || null,
+        createdAt: jetzt,
+        source: "manuell",
+        asanaTaskGid: null,
+        asanaAssigneeGid: werte.assigneeGid ?? null,
+        [abschnittFeld]: werte.sectionGid ?? null,
+        [rangFeld]: rang,
+        notes: [],
+        attachments: [],
+        history: [],
+      } as unknown as Task;
+
+      setTasks((alt) => [vorlaeufig, ...alt]);
+
       try {
         const res = await fetch("/api/asana/anlegen", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(werte),
+          body: JSON.stringify({ ...werte, bereich: brett }),
         });
         const json = await res.json().catch(() => ({}));
-        // Nicht abwarten: die Antwort steht, die Karte kommt gleich.
+
+        // So oder so faellt die vorlaeufige Karte weg: bei Erfolg,
+        // weil die echte nachkommt, bei einem Fehler, weil es sie nie
+        // gab.
+        setTasks((alt) => alt.filter((t) => t.id !== vorlaeufigeId));
+        if (!res.ok) return { ok: false, error: json.fehler };
+
         void neuLaden();
-        return res.ok ? { ok: true } : { ok: false, error: json.fehler };
+        return { ok: true };
       } catch (err) {
+        setTasks((alt) => alt.filter((t) => t.id !== vorlaeufigeId));
         return { ok: false, error: (err as Error).message };
       }
     }
