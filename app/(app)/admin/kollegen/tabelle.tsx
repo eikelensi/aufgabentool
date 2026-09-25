@@ -51,39 +51,35 @@ function Meldung({ ergebnis }: { ergebnis: Ergebnis | null }) {
   );
 }
 
-function Feld({
-  name,
+/**
+ * Ein Feld dieses Formulars.
+ *
+ * Gesteuert, nicht "uncontrolled": was hier steht, steht auch im
+ * Zustand, und was gespeichert wird, ist genau das. Vorher wurden die
+ * Werte erst beim Absenden aus dem Formular gelesen - und wenn dieser
+ * Weg klemmt, tippt man in Felder, die niemand ausliest.
+ */
+function Eingabe({
   label,
   wert,
+  setzen,
   platzhalter,
   typ = "text",
   breit = false,
   hinweis,
   pflicht = false,
-  praefix = "",
+  kennung,
 }: {
-  name: string;
   label: string;
-  wert?: string | null;
+  wert: string;
+  setzen: (v: string) => void;
   platzhalter?: string;
   typ?: string;
   breit?: boolean;
-  /** Ein Satz unter dem Feld, wenn der Name allein nicht reicht. */
   hinweis?: string;
-  /** Ohne diese Angabe nimmt der Server das Formular nicht an. */
   pflicht?: boolean;
-  /**
-   * Eigene Kennung je Formular.
-   *
-   * Vorher hiess jedes Feld schlicht "phone" oder "extension" - und
-   * eine id darf auf einer Seite nur einmal vorkommen. Stand irgendwo
-   * sonst dieselbe, fuehrte der Klick auf die Beschriftung woandershin
-   * und das Feld nahm keine Eingabe an. Der NAME bleibt, was er war,
-   * denn den liest der Server.
-   */
-  praefix?: string;
+  kennung: string;
 }) {
-  const kennung = praefix ? `${praefix}-${name}` : name;
   return (
     <div className={breit ? "sm:col-span-2" : undefined}>
       <label className="mb-1 block text-xs font-medium" htmlFor={kennung}>
@@ -92,11 +88,10 @@ function Feld({
       </label>
       <input
         id={kennung}
-        name={name}
         type={typ}
-        required={pflicht}
         className="field"
-        defaultValue={wert ?? ""}
+        value={wert}
+        onChange={(e) => setzen(e.target.value)}
         placeholder={platzhalter}
       />
       {hinweis ? <p className="muted mt-1 text-[11px] leading-relaxed">{hinweis}</p> : null}
@@ -104,6 +99,16 @@ function Feld({
   );
 }
 
+/**
+ * Kollegen anlegen und bearbeiten.
+ *
+ * KEIN <form action={...}> mehr. Das Speichern kam auf diesem Weg nie
+ * beim Server an - nicht ein einziges Mal, seit es die Tabelle gibt,
+ * und ohne Fehlermeldung. Woran es lag, liess sich von aussen nicht
+ * feststellen; also nimmt diese Seite jetzt denselben Weg wie die
+ * Einstellungen, der nachweislich traegt: ein Knopf, ein Aufruf, die
+ * Werte aus dem Zustand.
+ */
 function KollegeFormular({
   kollege,
   nutzer,
@@ -119,51 +124,99 @@ function KollegeFormular({
   const [fehler, setFehler] = useState<Ergebnis | null>(null);
   const praefix = useId();
 
+  const [werte, setWerte] = useState({
+    display_name: kollege?.displayName ?? "",
+    email: kollege?.email ?? "",
+    short_code: kollege?.shortCode ?? "",
+    onoffice_tag: kollege?.onofficeTag ?? "",
+    onoffice_user_id: kollege?.onofficeUserId ?? "",
+    phone: kollege?.phone ?? "",
+    extension: kollege?.extension ?? "",
+    location: kollege?.location ?? "",
+    profile_id: kollege?.profileId ?? "",
+  });
+
+  const setze = (feld: keyof typeof werte) => (v: string) =>
+    setWerte((alt) => ({ ...alt, [feld]: v }));
+
+  const speichern = () =>
+    starte(async () => {
+      // FormData von Hand: die Serveraktion liest weiter FormData,
+      // damit sie unveraendert bleibt - nur der Weg dorthin ist neu.
+      const daten = new FormData();
+      if (kollege) daten.set("id", kollege.id);
+      for (const [feld, wert] of Object.entries(werte)) daten.set(feld, wert);
+
+      const r = await kollegeSpeichern(daten);
+      setFehler(r.ok ? null : r);
+      onFertig(r);
+      if (r.ok) onAbbruch();
+    });
+
   return (
-    <form
-      className="line mt-3 border-t pt-3"
-      action={(formData) =>
-        starte(async () => {
-          const r = await kollegeSpeichern(formData);
-          setFehler(r.ok ? null : r);
-          // Auch Fehlschlaege nach oben geben: das Formular kann
-          // ausserhalb des Bildes liegen, die Meldung ueber der
-          // Tabelle nicht.
-          onFertig(r);
-          if (r.ok) onAbbruch();
-        })
-      }
-    >
+    <div className="line mt-3 border-t pt-3">
       <Meldung ergebnis={fehler} />
-      {kollege ? <input type="hidden" name="id" value={kollege.id} /> : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Feld
-          name="display_name"
+        <Eingabe
+          kennung={`${praefix}-display_name`}
           label="Name"
           pflicht
-          wert={kollege?.displayName}
-          platzhalter="Weis, Markus" praefix={praefix} />
-        <Feld name="email" label="E-Mail" typ="email" wert={kollege?.email} pflicht praefix={praefix} />
-        <Feld name="short_code" label="Kürzel" wert={kollege?.shortCode} platzhalter="mw" praefix={praefix} />
-        <Feld
-          name="onoffice_tag"
+          wert={werte.display_name}
+          setzen={setze("display_name")}
+          platzhalter="Weis, Markus"
+        />
+        <Eingabe
+          kennung={`${praefix}-email`}
+          label="E-Mail"
+          typ="email"
+          pflicht
+          wert={werte.email}
+          setzen={setze("email")}
+        />
+        <Eingabe
+          kennung={`${praefix}-short_code`}
+          label="Kürzel"
+          wert={werte.short_code}
+          setzen={setze("short_code")}
+          platzhalter="mw"
+        />
+        <Eingabe
+          kennung={`${praefix}-onoffice_tag`}
           label="onOffice-Tag"
-          wert={kollege?.onofficeTag}
+          wert={werte.onoffice_tag}
+          setzen={setze("onoffice_tag")}
           platzhalter="Weis"
-          hinweis="Was in onOffice im Aufgabenfeld „tags“ steht, wenn diese Aufgabe für ihn ist. Daraus wird hier „Auftrag von“ – und umgekehrt." praefix={praefix} />
-        <Feld
-          name="onoffice_user_id"
+          hinweis="Was in onOffice im Aufgabenfeld „tags“ steht, wenn die Aufgabe für ihn ist. Daraus wird hier „Auftrag von“ – und umgekehrt."
+        />
+        <Eingabe
+          kennung={`${praefix}-onoffice_user_id`}
           label="onOffice-Benutzer-ID"
-          wert={kollege?.onofficeUserId} praefix={praefix} />
-        <Feld name="phone" label="Telefon" wert={kollege?.phone} platzhalter="06233 000000" praefix={praefix} />
-        <Feld name="extension" label="Durchwahl" wert={kollege?.extension} platzhalter="12" praefix={praefix} />
-        <Feld
-          name="location"
+          wert={werte.onoffice_user_id}
+          setzen={setze("onoffice_user_id")}
+        />
+        <Eingabe
+          kennung={`${praefix}-phone`}
+          label="Telefon"
+          wert={werte.phone}
+          setzen={setze("phone")}
+          platzhalter="06233 000000"
+        />
+        <Eingabe
+          kennung={`${praefix}-extension`}
+          label="Durchwahl"
+          wert={werte.extension}
+          setzen={setze("extension")}
+          platzhalter="12"
+        />
+        <Eingabe
+          kennung={`${praefix}-location`}
           label="Standort"
-          wert={kollege?.location}
+          wert={werte.location}
+          setzen={setze("location")}
           platzhalter="Frankenthal"
-          breit praefix={praefix} />
+          breit
+        />
 
         <div className="sm:col-span-2">
           <label className="mb-1 block text-xs font-medium" htmlFor={`${praefix}-profile_id`}>
@@ -171,9 +224,9 @@ function KollegeFormular({
           </label>
           <select
             id={`${praefix}-profile_id`}
-            name="profile_id"
             className="field"
-            defaultValue={kollege?.profileId ?? ""}
+            value={werte.profile_id}
+            onChange={(e) => setze("profile_id")(e.target.value)}
           >
             <option value="">— kein Zugang, nur zuordenbar —</option>
             {nutzer.map((n) => (
@@ -191,14 +244,14 @@ function KollegeFormular({
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <button className="btn btn-primary" type="submit" disabled={laeuft}>
+        <button className="btn btn-primary" type="button" onClick={speichern} disabled={laeuft}>
           {laeuft ? "Speichere…" : kollege ? "Änderungen speichern" : "Anlegen"}
         </button>
         <button className="btn btn-ghost" type="button" onClick={onAbbruch} disabled={laeuft}>
           Abbrechen
         </button>
       </div>
-    </form>
+    </div>
   );
 }
 

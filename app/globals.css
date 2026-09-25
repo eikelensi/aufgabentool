@@ -341,6 +341,20 @@ button:focus-visible,
   opacity: 0.45;
 }
 
+/* Wie lange etwas schon im Pool liegt, sieht man sonst nicht - eine
+   Karte von vor zehn Minuten sieht aus wie eine von vorgestern. Also
+   ein Rand, der mit der Zeit lauter wird. Die Grenzen stehen in der
+   Verwaltung; wer sie auf 0 setzt, schaltet die Stufe ab. */
+.card-pool-warn {
+  border-color: var(--warn-fg) !important;
+  box-shadow: 0 0 0 1px var(--warn-fg);
+}
+
+.card-pool-alarm {
+  border-color: var(--err-fg) !important;
+  box-shadow: 0 0 0 2px var(--err-fg);
+}
+
 .card-hoch {
   border-left: 3px solid var(--err-fg);
 }

@@ -185,6 +185,7 @@ export function zuAufgabe(row: any): Task {
       .sort((a: any, b: any) => (a.createdAt < b.createdAt ? -1 : 1)),
     poolGrund: row.pool_grund ?? null,
     poolZurueckAm: row.pool_zurueck_am ?? null,
+    poolSeit: row.pool_seit ?? null,
     poolZurueckVon: row.pool_zurueck_von ?? null,
     reminder3dSentAt: row.reminder_3d_sent_at ?? null,
     escalation7dSentAt: row.escalation_7d_sent_at ?? null,
@@ -210,6 +211,8 @@ export function zuEinstellungen(row: any): AppSettings {
     onofficeEmailIdentity: row?.onoffice_email_identity ?? "",
     smtpFrom: row?.smtp_from ?? "",
     doneHideAfterHours: row?.done_hide_after_hours ?? 24,
+    poolWarnMinuten: row?.pool_warn_minuten ?? 120,
+    poolAlarmMinuten: row?.pool_alarm_minuten ?? 480,
     attachmentMaxMb: row?.attachment_max_mb ?? 25,
     attachmentPushOnoffice: row?.attachment_push_onoffice ?? true,
     attachmentDefaultArt: row?.attachment_default_art ?? "Dokument",
@@ -225,6 +228,8 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
   if (patch.onofficeEmailIdentity !== undefined) z.onoffice_email_identity = patch.onofficeEmailIdentity;
   if (patch.smtpFrom !== undefined) z.smtp_from = patch.smtpFrom;
   if (patch.doneHideAfterHours !== undefined) z.done_hide_after_hours = patch.doneHideAfterHours;
+  if (patch.poolWarnMinuten !== undefined) z.pool_warn_minuten = patch.poolWarnMinuten;
+  if (patch.poolAlarmMinuten !== undefined) z.pool_alarm_minuten = patch.poolAlarmMinuten;
   if (patch.attachmentMaxMb !== undefined) z.attachment_max_mb = patch.attachmentMaxMb;
   if (patch.attachmentPushOnoffice !== undefined) z.attachment_push_onoffice = patch.attachmentPushOnoffice;
   if (patch.attachmentDefaultArt !== undefined) z.attachment_default_art = patch.attachmentDefaultArt;

@@ -311,6 +311,14 @@ export interface Task {
    */
   poolGrund?: string | null;
   poolZurueckAm?: string | null;
+  /**
+   * Seit wann die Aufgabe im Pool liegt.
+   *
+   * Gesetzt von der Datenbank, nicht von der Oberflaeche: in den Pool
+   * kommt eine Aufgabe auf vier Wegen, und vier Stellen waeren vier
+   * Chancen, den Zeitpunkt zu vergessen.
+   */
+  poolSeit?: string | null;
   poolZurueckVon?: string | null;
   reminder3dSentAt?: string | null;
   escalation7dSentAt?: string | null;
@@ -348,6 +356,10 @@ export interface AppSettings {
   onofficeEmailIdentity: string;
   smtpFrom: string;
   doneHideAfterHours: number;
+  /** Ab so vielen Minuten im Pool wird die Karte orange umrandet. */
+  poolWarnMinuten: number;
+  /** Ab so vielen Minuten rot. */
+  poolAlarmMinuten: number;
   attachmentMaxMb: number;
   attachmentPushOnoffice: boolean;
   attachmentDefaultArt: string;

@@ -20,7 +20,16 @@ export default function MeinTagPage() {
     visibleTasks.filter((t) => t.assigneeId === me.id),
     filter,
   );
-  const pool = visibleTasks.filter((t) => t.isPool && t.assigneeId === null);
+  // Dieselbe Reihenfolge wie im Aufgabenpool: aelteste links. Zwei
+  // Ansichten desselben Stapels duerfen ihn nicht verschieden
+  // sortieren, sonst sucht man zweimal.
+  const pool = visibleTasks
+    .filter((t) => t.isPool && t.assigneeId === null)
+    .sort((a, b) => {
+      const links = a.poolSeit ? new Date(a.poolSeit).getTime() : Infinity;
+      const rechts = b.poolSeit ? new Date(b.poolSeit).getTime() : Infinity;
+      return links - rechts;
+    });
 
   const onDropTask = (taskId: string, status: TaskStatus) => {
     const task = visibleTasks.find((t) => t.id === taskId);
@@ -51,8 +60,8 @@ export default function MeinTagPage() {
         <header className="mb-2 flex flex-wrap items-center gap-2">
           <h2 className="text-[13px] font-semibold">Aufgabeneingang · Pool</h2>
           <span className="muted text-[11px]">
-            Für alle sichtbar. Übernehmen setzt dich als Bearbeiter – danach verschwindet die Aufgabe
-            hier für die anderen.
+            Für alle sichtbar, die älteste links. Übernehmen setzt dich als Bearbeiter – danach
+            verschwindet die Aufgabe hier für die anderen.
           </span>
         </header>
         {pool.length === 0 ? (

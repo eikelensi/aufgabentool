@@ -25,6 +25,19 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-09-25",
+    titel: "Der Pool wird zur Schlange: älteste links, mit Warnrand",
+    text: "Jede Aufgabe bekommt beim Eintritt in den Pool Datum und Uhrzeit. Die älteste steht links, die jüngste rechts – in „Mein Tag“ wie im Aufgabenpool. Auf der Karte steht, wie lange sie schon liegt; wird es zu lang, bekommt sie erst einen orangen, dann einen roten Rand. Die beiden Zeiten sind unter Einstellungen in Minuten einstellbar, 0 schaltet eine Stufe ab.",
+    bereich: "Aufgabenpool, Mein Tag, Einstellungen",
+  },
+  {
+    datum: "2026-09-25",
+    titel: "Mitarbeiterverwaltung: Speichern läuft jetzt anders",
+    text: "Das Formular sendet sich nicht mehr selbst ab, sondern ruft beim Klick auf „Speichern“ direkt auf – derselbe Weg, den die Einstellungen seit jeher nehmen und der dort nachweislich funktioniert. Die Felder sind gesteuert: was du tippst, steht im Zustand, und genau das wird gespeichert.",
+    bereich: "Verwaltung",
+    behoben: true,
+  },
+  {
+    datum: "2026-09-25",
     titel: "Asana: zwei Bretter, Projekt und eigene Aufgaben",
     text: "Der Asana-Bereich hat jetzt oben einen Umschalter: „Projekt“ spiegelt wie bisher das Asana-Projekt, „Eigene“ die persönlichen Aufgaben aus „Meine Aufgaben“ samt deren Abschnitten. Beide haben einen Pool-Ausgang mit derselben Logik. Eine Aufgabe, die in beidem vorkommt, steht auf beiden Brettern und bleibt dabei eine einzige – abgehakt ist sie auf beiden, abgegeben verlässt sie beide.",
     bereich: "Asana",

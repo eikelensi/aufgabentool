@@ -3,7 +3,16 @@
 import React from "react";
 import { useStore } from "@/lib/store";
 import { istVerteilt, type Task } from "@/lib/types";
-import { Avatar, CategoryChip, PriorityChip, daysSince, formatDate } from "./ui";
+import {
+  Avatar,
+  CategoryChip,
+  PriorityChip,
+  dauer,
+  daysSince,
+  formatDate,
+  formatDateTime,
+  minutenSeit,
+} from "./ui";
 import { addressLink, estateLink, taskLink } from "@/lib/onoffice/links";
 
 /**
@@ -98,6 +107,29 @@ export default function TaskCard({
 
   const fertig = task.status === "erledigt";
 
+  /**
+   * Wie lange die Aufgabe schon im Pool liegt - und ob das auffaellt.
+   *
+   * Hier und nicht in den einzelnen Seiten: eine Poolkarte sieht in
+   * "Mein Tag" genauso aus wie im Pool und im Team-Bereich, und eine
+   * Warnung, die nur an einer Stelle erscheint, ist keine.
+   *
+   * Die Grenzen stehen in der Verwaltung. Null heisst aus.
+   */
+  const poolMinuten =
+    task.isPool && !task.assigneeId && task.status !== "erledigt"
+      ? minutenSeit(task.poolSeit)
+      : null;
+
+  const poolStufe =
+    poolMinuten === null
+      ? null
+      : settings.poolAlarmMinuten > 0 && poolMinuten >= settings.poolAlarmMinuten
+        ? "alarm"
+        : settings.poolWarnMinuten > 0 && poolMinuten >= settings.poolWarnMinuten
+          ? "warn"
+          : null;
+
   const haken = abhaken ? (
     <button
       type="button"
@@ -134,7 +166,7 @@ export default function TaskCard({
         {...ziehen}
         onClick={() => onOpen(task)}
         title={task.title}
-        className={`panel ${task.priority === "hoch" ? "card-hoch" : ""} cursor-pointer px-1.5 py-1 text-left transition hover:border-[color:var(--color-ci-400)]`}
+        className={`panel ${task.priority === "hoch" ? "card-hoch" : ""} ${poolStufe ? `card-pool-${poolStufe}` : ""} cursor-pointer px-1.5 py-1 text-left transition hover:border-[color:var(--color-ci-400)]`}
         style={{ background: "var(--panel)" }}
       >
         <div className="flex items-center gap-1.5">
@@ -202,7 +234,7 @@ export default function TaskCard({
         onDragStart?.(task);
       }}
       onClick={() => onOpen(task)}
-      className={`panel ${task.priority === "hoch" ? "card-hoch" : ""} cursor-pointer p-2.5 text-left transition hover:border-[color:var(--color-ci-400)]`}
+      className={`panel ${task.priority === "hoch" ? "card-hoch" : ""} ${poolStufe ? `card-pool-${poolStufe}` : ""} cursor-pointer p-2.5 text-left transition hover:border-[color:var(--color-ci-400)]`}
       style={{ background: "var(--panel)" }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -310,6 +342,23 @@ export default function TaskCard({
         ) : null}
         {broker ? (
           <span title={`Auftrag von ${broker.displayName}`}>🤝 {broker.displayName}</span>
+        ) : null}
+        {/* Im Pool zaehlt nicht das Alter der Aufgabe, sondern wie
+            lange sie schon herrenlos daliegt. Das eine ist eine
+            Eigenschaft, das andere ein Vorwurf. */}
+        {poolMinuten !== null ? (
+          <span
+            title={`Im Pool seit ${formatDateTime(task.poolSeit ?? null)}`}
+            style={
+              poolStufe === "alarm"
+                ? { color: "var(--err-fg)", fontWeight: 700 }
+                : poolStufe === "warn"
+                  ? { color: "var(--warn-fg)", fontWeight: 600 }
+                  : undefined
+            }
+          >
+            📥 im Pool seit {dauer(poolMinuten)}
+          </span>
         ) : null}
         {task.status === "offen" && !task.isPrivate && age >= settings.escalationDays ? (
           <span style={{ color: "var(--err-fg)", fontWeight: 600 }}>⚠︎ {age} Tage offen</span>

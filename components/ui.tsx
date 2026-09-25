@@ -108,6 +108,36 @@ export function daysSince(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 864e5);
 }
 
+/** Minuten seit einem Zeitpunkt. Null, wenn es keinen gibt. */
+export function minutenSeit(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  return Math.max(0, Math.floor((Date.now() - t) / 60000));
+}
+
+/**
+ * Eine Dauer, wie man sie ausspricht.
+ *
+ * "seit 3 Std. 20 Min." und nicht "seit 200 Minuten": ab einer
+ * gewissen Groesse rechnet niemand mehr im Kopf, und ab einem Tag
+ * interessieren die Minuten nicht mehr.
+ */
+export function dauer(minuten: number): string {
+  if (minuten < 60) return `${minuten} Min.`;
+
+  const stunden = Math.floor(minuten / 60);
+  if (stunden < 24) {
+    const rest = minuten % 60;
+    return rest ? `${stunden} Std. ${rest} Min.` : `${stunden} Std.`;
+  }
+
+  const tage = Math.floor(stunden / 24);
+  const restStunden = stunden % 24;
+  const wort = tage === 1 ? "Tag" : "Tage";
+  return restStunden ? `${tage} ${wort} ${restStunden} Std.` : `${tage} ${wort}`;
+}
+
 export function Modal({
   title,
   children,

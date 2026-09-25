@@ -14,10 +14,24 @@ export default function PoolPage() {
   const [filter, setFilter] = useState<FilterState>(EMPTY_FILTER);
   const [detail, setDetail] = useState<Task | null>(null);
 
+  /**
+   * Aelteste links, juengste rechts.
+   *
+   * Der Pool ist keine Sammlung, sondern eine Schlange. Wer
+   * hineinsieht, soll oben links das finden, was am laengsten wartet -
+   * und nicht das, was zufaellig zuletzt hereinkam.
+   *
+   * Aufgaben ohne Zeitpunkt (aus der Zeit vor dieser Aenderung) ganz
+   * nach hinten: lieber unbekannt als faelschlich alt.
+   */
   const pool = applyFilters(
     visibleTasks.filter((t) => t.isPool && t.assigneeId === null),
     filter,
-  );
+  ).sort((a, b) => {
+    const links = a.poolSeit ? new Date(a.poolSeit).getTime() : Infinity;
+    const rechts = b.poolSeit ? new Date(b.poolSeit).getTime() : Infinity;
+    return links - rechts;
+  });
 
   if (!bereit) return <p className="muted text-sm">Lade den Aufgabenpool…</p>;
 
@@ -27,6 +41,7 @@ export default function PoolPage() {
         <h1 className="text-lg font-semibold">Aufgabenpool</h1>
         <p className="muted text-xs">
           Unbesetzte Aufgaben, die sich jede und jeder nach Kapazität herausziehen kann.
+          Die älteste steht links; je länger eine liegt, desto deutlicher der Rand.
         </p>
       </div>
 

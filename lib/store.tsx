@@ -54,7 +54,7 @@ const AUFGABE_SPALTEN = `
   onoffice_address_no, onoffice_tag, source,
   onoffice_assignee, onoffice_responsible,
   in_progress_note, created_at, completed_at, position, reminder_3d_sent_at,
-  pool_grund, pool_zurueck_am, pool_zurueck_von,
+  pool_grund, pool_zurueck_am, pool_zurueck_von, pool_seit,
   escalation_7d_sent_at,
   task_status_history ( created_at, from_status, to_status, note, changed_by ),
   task_attachments ( id, file_name, mime_type, size_bytes, origin, uploaded_by,

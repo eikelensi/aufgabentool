@@ -248,6 +248,26 @@ export default async function HandbuchSeite() {
           eingetragen, den das Tool kennt, aber kein Bearbeiter, landet sie
           automatisch im Pool.
         </p>
+        <p>
+          <strong>Der Pool ist eine Schlange, keine Sammlung.</strong> Jede
+          Aufgabe bekommt beim Eintritt Datum und Uhrzeit; die älteste steht
+          links, die jüngste rechts – in „Mein Tag“ genauso wie unter
+          Aufgabenpool. Auf der Karte steht, wie lange sie schon liegt.
+        </p>
+        <p>
+          Wird es zu lang, meldet sich die Karte selbst: erst ein{" "}
+          <strong>oranger</strong> Rand, dann ein <strong>roter</strong>. Die
+          beiden Zeiten stehen unter Einstellungen und gelten in Minuten –
+          derzeit {einst.data?.pool_warn_minuten ?? 120} und{" "}
+          {einst.data?.pool_alarm_minuten ?? 480}. Eine 0 schaltet die jeweilige
+          Stufe ab.
+        </p>
+        <p className="muted">
+          Gezählt wird die Zeit im Pool, nicht das Alter der Aufgabe. Das eine
+          ist eine Eigenschaft, das andere ein Vorwurf. Wer eine Aufgabe
+          übernimmt und wieder zurücklegt, setzt die Uhr neu – sie liegt ja auch
+          wirklich wieder frisch da.
+        </p>
       </Abschnitt>
 
       <Abschnitt nummer={5} titel="Startdatum, Fälligkeit, privat">

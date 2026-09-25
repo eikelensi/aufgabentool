@@ -166,6 +166,35 @@ export default function EinstellungenFormular({ anbindung }: { anbindung: Anbind
               onChange={(e) => updateSettings({ doneHideAfterHours: Number(e.target.value) })}
             />
           </Field>
+
+          {/* Wie lange eine Aufgabe im Pool liegen darf, bevor sie
+              auffaellt. In Minuten, damit sich auch "nach 90 Minuten"
+              einstellen laesst - in Stunden gedacht waere die Haelfte
+              der sinnvollen Werte nicht erreichbar. */}
+          <Field
+            label="Pool: orange umranden nach (Minuten)"
+            hint="0 schaltet die Stufe ab."
+          >
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={settings.poolWarnMinuten}
+              onChange={(e) => updateSettings({ poolWarnMinuten: Number(e.target.value) })}
+            />
+          </Field>
+          <Field
+            label="Pool: rot umranden nach (Minuten)"
+            hint="Sollte größer sein als der orange Wert – sonst wird nie orange."
+          >
+            <input
+              type="number"
+              min={0}
+              className="field"
+              value={settings.poolAlarmMinuten}
+              onChange={(e) => updateSettings({ poolAlarmMinuten: Number(e.target.value) })}
+            />
+          </Field>
           <Field label="Versandweg">
             <select
               className="field"
