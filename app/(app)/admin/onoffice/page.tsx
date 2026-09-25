@@ -1,73 +1,88 @@
 /**
- * onOffice-Eingang: die echten Aufgaben aus dem CRM.
+ * Die onOffice-Anbindung an einer Stelle.
  *
- * Absichtlich eine Server-Komponente – sie ruft den Client direkt auf,
- * ohne Umweg über die HTTP-Route. Damit bleiben Token und Secret auf dem
- * Server und es braucht keinen x-api-secret-Header im Browser.
+ * Vorher lag das verstreut: der Schalter fuers Rueckschreiben und der
+ * gemessene Zustand der Schnittstelle unter "Einstellungen", der
+ * Aufgaben-Eingang unter "onOffice", die Tag-Probe irgendwo dazwischen.
+ * Wer wissen wollte, warum etwas nicht ankommt, suchte an drei Orten.
  *
- * Diese Seite liest nur. Geschrieben wird nach onOffice erst, wenn die
- * Statusabbildung für das Schreiben geprüft ist.
+ * Jetzt: hier steht, WAS die Schnittstelle kann und was sie darf. Die
+ * Aufgaben aus dem CRM stehen nebenan unter "Aufgaben-Eingang".
  */
-
+import { serviceRoleVorhanden, supabaseAdmin } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
-import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
-import { tagsProbe, type ProbeErgebnis } from "@/lib/onoffice/tags-probe";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
-import { STATUS_LABEL } from "@/lib/types";
+import { tagsProbe, type ProbeErgebnis } from "@/lib/onoffice/tags-probe";
+import Seitenkopf from "../seitenkopf";
+import { ladeAnbindung } from "./anbindung";
+import Rueckschreiben from "./rueckschreiben";
+import Adressausschluss from "./adressausschluss";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const metadata = { title: "onOffice-Eingang – Aufgabentool" };
+export const maxDuration = 60;
+export const metadata = { title: "onOffice-Anbindung – Aufgabentool" };
 
-const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
-  offen: { bg: "var(--neutral-bg)", fg: "var(--neutral-fg)" },
-  in_bearbeitung: { bg: "var(--warn-bg)", fg: "var(--warn-fg)" },
-  erledigt: { bg: "var(--ok-bg)", fg: "var(--ok-fg)" },
-};
+function StatusRow({
+  label,
+  state,
+  note,
+}: {
+  label: string;
+  state: "bereit" | "offen" | "prüfen" | "nicht möglich";
+  note: string;
+}) {
+  const style =
+    state === "bereit"
+      ? { background: "var(--ok-bg)", color: "var(--ok-fg)" }
+      : state === "prüfen"
+        ? { background: "var(--warn-bg)", color: "var(--warn-fg)" }
+        : state === "nicht möglich"
+          ? // Grau, nicht rot: hier fehlt nichts, was noch kommen könnte.
+            { background: "var(--panel-2)", color: "var(--muted)" }
+          : { background: "var(--err-bg)", color: "var(--err-fg)" };
 
-function Chip({ children, bg, fg }: { children: React.ReactNode; bg: string; fg: string }) {
   return (
-    <span className="chip" style={{ background: bg, color: fg }}>
-      {children}
-    </span>
+    <li className="flex flex-wrap items-center gap-2">
+      <span className="chip" style={style}>
+        {state}
+      </span>
+      <span>{label}</span>
+      <span className="muted text-[11px]">— {note}</span>
+    </li>
   );
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "–";
-  const [y, m, d] = iso.split("-");
-  return `${d}.${m}.${y.slice(2)}`;
-}
-
 /**
- * Die Tag-Probe, direkt auf der Seite.
+ * Die Tag-Probe.
  *
- * Bewusst ein einfaches GET-Formular: kein Skript im Browser, keine
- * Serveraktion, und vor allem kein Umweg ueber /api - dorthin nimmt die
- * Adresszeile keine Sitzung mit, weil die Middleware /api auslaesst.
- * Hier laeuft alles im Server-Rendern dieser Seite, und die ist
- * angemeldet.
+ * Bewusst ein einfaches GET-Formular auf dieser Seite und kein Aufruf
+ * nach /api: dorthin nimmt die Adresszeile keine Sitzung mit, weil die
+ * Middleware /api auslaesst. Hier laeuft alles im Server-Rendern der
+ * Seite, und die ist angemeldet.
  */
 function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | null }) {
   return (
-    <div className="panel mb-4 p-3">
+    <section className="panel p-4">
+      <h3 className="mb-1 text-sm font-semibold">Feld „Tags“ prüfen</h3>
+      <p className="muted mb-3 text-[11px] leading-relaxed">
+        Der Tag an der onOffice-Aufgabe soll „Auftrag von“ füllen. Kommt er nicht an, sagt
+        diese Probe, woran es liegt: sie geht vier Lesewege durch und zeigt außerdem, wie
+        das Feld in eurer Feldkonfiguration wirklich heißt. Sie liest nur.
+      </p>
+
       <form method="get" className="flex flex-wrap items-center gap-2">
-        <label className="text-sm font-medium" htmlFor="tagProbe">
-          Tag-Probe
-        </label>
         <input
-          id="tagProbe"
           name="tagProbe"
           defaultValue={wert}
           placeholder="Aufgabennummer, z. B. 31987"
-          className="line w-56 rounded border px-2 py-1 text-[13px]"
+          className="field"
+          style={{ maxWidth: 240 }}
+          aria-label="Aufgabennummer für die Tag-Probe"
         />
-        <button type="submit" className="btn text-[13px]">
+        <button type="submit" className="btn">
           Prüfen
         </button>
-        <span className="muted text-[11px]">
-          Liest nur – probiert vier Wege, ob onOffice das Feld „tags“ herausgibt.
-        </span>
       </form>
 
       {ergebnis ? (
@@ -102,15 +117,15 @@ function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | 
             ))}
           </ul>
 
-          <p className="mt-3 mb-1 font-medium">
+          <p className="mb-1 mt-3 font-medium">
             Felder in der onOffice-Konfiguration, die nach „Tag“ aussehen:
           </p>
           {ergebnis.feldFehler ? (
             <p className="muted text-[11px]">{ergebnis.feldFehler}</p>
           ) : ergebnis.feldkandidaten.length === 0 ? (
             <p className="muted text-[11px]">
-              Keines. Dann kennt die Schnittstelle das Feld nicht – es muss von onOffice
-              für die API freigeschaltet werden.
+              Keines. Dann kennt die Schnittstelle das Feld nicht – es muss von onOffice für
+              die API freigeschaltet werden.
             </p>
           ) : (
             <ul className="space-y-0.5 text-[11px]">
@@ -129,25 +144,19 @@ function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | 
           )}
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 
-export default async function OnofficePage({
+export default async function OnofficeAnbindung({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  if (!onofficeConfigured()) {
+  if (!serviceRoleVorhanden()) {
     return (
-      <div className="panel p-4" style={{ maxWidth: 620 }}>
-        <h1 className="mb-2 text-lg font-semibold">onOffice-Eingang</h1>
-        <p className="muted text-sm leading-relaxed">
-          Die Zugangsdaten sind in dieser Umgebung nicht gesetzt. Lokal trägst du sie mit{" "}
-          <code>npm run zugangsdaten</code> ein, auf Vercel unter Settings →
-          Environment Variables: <code>ONOFFICE_API_TOKEN</code> und{" "}
-          <code>ONOFFICE_API_SECRET</code>.
-        </p>
+      <div className="panel p-4" style={{ maxWidth: 560 }}>
+        <p className="muted text-xs">Es fehlt der Service-Role-Schlüssel.</p>
       </div>
     );
   }
@@ -157,155 +166,75 @@ export default async function OnofficePage({
   const probeWert = (Array.isArray(roh) ? roh[0] : roh)?.trim() ?? "";
 
   let probe: ProbeErgebnis | null = null;
-  if (probeWert && Number.isFinite(Number(probeWert))) {
-    // Noch einmal nachsehen, wer fragt. Die Probe ruft onOffice auf,
+  if (probeWert && Number.isFinite(Number(probeWert)) && onofficeConfigured()) {
+    // Noch einmal nachsehen, wer fragt: die Probe ruft onOffice auf,
     // das soll nicht an der Vermutung haengen, das Layout habe schon
     // geprueft.
-    if (istAdmin(await aktuellesProfil())) {
-      probe = await tagsProbe(Number(probeWert));
-    }
+    if (istAdmin(await aktuellesProfil())) probe = await tagsProbe(Number(probeWert));
   }
 
-  let tasks: OnofficeTask[] = [];
-  let total: number | undefined;
-  let error: string | null = null;
-  const since = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10);
-
-  try {
-    const res = await readTasks({ modifiedSince: since, listLimit: 100 });
-    tasks = res.tasks;
-    total = res.total;
-  } catch (err) {
-    error = (err as Error).message;
-  }
-
-  const byStatus = {
-    offen: tasks.filter((t) => t.status === "offen").length,
-    in_bearbeitung: tasks.filter((t) => t.status === "in_bearbeitung").length,
-    erledigt: tasks.filter((t) => t.status === "erledigt").length,
-  };
-  const processors = [...new Set(tasks.map((t) => t.processor).filter(Boolean))].sort();
+  const sb = supabaseAdmin();
+  const [anbindung, { data: schalter }] = await Promise.all([
+    ladeAnbindung(),
+    sb
+      .from("app_settings")
+      .select(
+        "sync_read_only, sync_push_assignee, sync_push_status, sync_push_inhalt, sync_push_neu, sync_asana_onoffice",
+      )
+      .maybeSingle(),
+  ]);
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-lg font-semibold">onOffice-Eingang</h1>
-        <p className="muted text-xs">
-          Echte Aufgaben aus dem CRM, geändert seit {formatDate(since)}. Nur lesend.
-        </p>
-      </div>
+    <>
+      <Seitenkopf
+        titel="Anbindung"
+        text="Was die Schnittstelle dieses Mandanten wirklich kann, was das Tool zurückschreiben darf – und die Eigenheiten, die sonst niemand erklärt."
+      />
 
-      <TagProbe wert={probeWert} ergebnis={probe} />
+      {/* Steht ganz oben: es ist die folgenreichste Einstellung des Bereichs. */}
+      <Rueckschreiben
+        stand={{
+          // Im Zweifel gesperrt anzeigen - so wie die Sperre selbst
+          // im Zweifel sperrt.
+          nurLesen: schalter?.sync_read_only !== false,
+          bearbeiter: schalter?.sync_push_assignee === true,
+          status: schalter?.sync_push_status === true,
+          inhalt: schalter?.sync_push_inhalt === true,
+          anlegen: schalter?.sync_push_neu === true,
+          asana: schalter?.sync_asana_onoffice === true,
+        }}
+      />
 
-      {error ? (
-        <div
-          className="panel p-4"
-          style={{ borderLeft: "3px solid var(--err-fg)", maxWidth: 620 }}
-        >
-          <h2 className="mb-1 text-sm font-semibold">Abruf fehlgeschlagen</h2>
-          <p className="muted text-xs leading-relaxed">{error}</p>
-          <p className="muted mt-2 text-xs">
-            Zur Eingrenzung hilft <code>npm run probe</code> – das prüft die Anmeldung
-            Schritt für Schritt.
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <section className="panel p-4">
+          <h3 className="mb-1 text-sm font-semibold">Was die Schnittstelle kann</h3>
+          <p className="muted mb-3 text-[11px] leading-relaxed">
+            Kein Wunschzettel, sondern der gemessene Zustand. Was hier rot steht, hat die
+            Schnittstelle dieses Mandanten tatsächlich abgelehnt.
           </p>
-        </div>
-      ) : (
-        <>
-          <div className="panel mb-4 flex flex-wrap items-center gap-x-6 gap-y-2 p-3 text-xs">
-            <span>
-              <strong className="text-sm">{tasks.length}</strong>
-              <span className="muted"> geladen{total ? ` von ${total}` : ""}</span>
-            </span>
-            {(["offen", "in_bearbeitung", "erledigt"] as const).map((s) => (
-              <span key={s} className="inline-flex items-center gap-1.5">
-                <Chip bg={STATUS_STYLE[s].bg} fg={STATUS_STYLE[s].fg}>
-                  {STATUS_LABEL[s]}
-                </Chip>
-                <strong>{byStatus[s]}</strong>
-              </span>
+          <ul className="space-y-1.5 text-xs">
+            {anbindung.zeilen.map((z) => (
+              <StatusRow key={z.label} label={z.label} state={z.zustand} note={z.hinweis} />
             ))}
-            <span className="muted">
-              {processors.length} Bearbeiter: {processors.slice(0, 6).join(", ")}
-              {processors.length > 6 ? " …" : ""}
-            </span>
+          </ul>
+
+          <div className="line mt-3 border-t pt-3 text-[11px]">
+            <p className="mb-1 font-semibold">Status onOffice ↔ Aufgabentool</p>
+            <p className="muted leading-relaxed">
+              Links der Wert aus onOffice, rechts unserer: „Nicht begonnen“ →{" "}
+              <strong>Offen</strong> · „In Bearbeitung“ → <strong>Rückfragen offen</strong> ·
+              „Erledigt“ → <strong>Erledigt</strong> · „Zurückgestellt“ → <strong>Offen</strong>{" "}
+              (der Begriff entfällt bei uns, die Aufgabe bleibt sichtbar).
+            </p>
           </div>
+        </section>
 
-          {tasks.length === 0 ? (
-            <div className="muted line rounded-lg border border-dashed px-3 py-8 text-center text-xs">
-              Keine Aufgaben im Zeitraum.
-            </div>
-          ) : (
-            <div className="panel scroll-x">
-              <table className="w-full text-left text-[13px]">
-                <thead className="muted text-[11px] uppercase tracking-wide">
-                  <tr className="line border-b">
-                    <th className="px-3 py-2 font-medium">Nr.</th>
-                    <th className="px-3 py-2 font-medium">Betreff</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">Prio</th>
-                    <th className="px-3 py-2 font-medium">Bearbeiter</th>
-                    <th className="px-3 py-2 font-medium">Verantwortung</th>
-                    <th className="px-3 py-2 font-medium">Fällig</th>
-                    <th className="px-3 py-2 font-medium">Dateien</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.map((t) => {
-                    const st = STATUS_STYLE[t.status];
-                    return (
-                      <tr key={t.id} className="line border-b last:border-0">
-                        <td className="muted whitespace-nowrap px-3 py-2 text-[11px]">{t.id}</td>
-                        <td className="px-3 py-2">
-                          {t.subject}
-                          {t.isPrivate ? (
-                            <span className="muted ml-1.5 text-[11px]">(privat)</span>
-                          ) : null}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Chip bg={st.bg} fg={st.fg}>
-                            {STATUS_LABEL[t.status]}
-                          </Chip>
-                          <span className="muted ml-1.5 text-[10px]">{t.rawStatus}</span>
-                        </td>
-                        <td className="px-3 py-2">
-                          {t.priority === "hoch" ? (
-                            <Chip bg="var(--err-bg)" fg="var(--err-fg)">Hoch</Chip>
-                          ) : (
-                            <span className="muted text-[11px]">{t.rawPriority}</span>
-                          )}
-                        </td>
-                        <td className="muted px-3 py-2 text-[12px]">{t.processor || "–"}</td>
-                        <td className="muted px-3 py-2 text-[12px]">{t.responsibility || "–"}</td>
-                        <td className="muted whitespace-nowrap px-3 py-2 text-[12px]">
-                          {formatDate(t.deadline)}
-                        </td>
-                        <td className="px-3 py-2">
-                          <a
-                            className="muted text-[11px] underline"
-                            href={`/api/onoffice/task-files?taskId=${t.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            prüfen
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <Adressausschluss />
 
-          <p className="muted mt-3 max-w-[70ch] text-[11px] leading-relaxed">
-            Die kleine Zahl neben dem Status ist der Rohwert aus onOffice – so lässt sich
-            die Zuordnung im Betrieb gegenprüfen. Der Link in der Spalte „Dateien“ zeigt
-            die Dateien des verknüpften Objekts oder Kunden; er verlangt den Header{" "}
-            <code>x-api-secret</code>, öffnet also nur mit gesetztem Geheimnis. Anhänge
-            der Aufgabe selbst gibt die onOffice-API nicht heraus.
-          </p>
-        </>
-      )}
-    </div>
+        <div className="lg:col-span-2">
+          <TagProbe wert={probeWert} ergebnis={probe} />
+        </div>
+      </div>
+    </>
   );
 }

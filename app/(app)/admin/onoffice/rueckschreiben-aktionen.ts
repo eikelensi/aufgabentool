@@ -82,7 +82,7 @@ export async function schalterSetzen(
     payload: { durch: wer },
   });
 
-  revalidatePath("/admin/einstellungen");
+  revalidatePath("/admin/onoffice");
   revalidatePath("/admin/protokoll");
 
   return {

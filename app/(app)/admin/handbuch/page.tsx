@@ -259,7 +259,8 @@ export default async function HandbuchSeite() {
         <p>
           Wird es zu lang, meldet sich die Karte selbst: erst ein{" "}
           <strong>oranger</strong> Rand, dann ein <strong>roter</strong>. Die
-          beiden Zeiten stehen unter Einstellungen und gelten in Minuten –
+          beiden Zeiten stehen unter Verwaltung → Aufgaben → „Fristen und Pool“
+          und gelten in Minuten –
           derzeit {einst.data?.pool_warn_minuten ?? 120} und{" "}
           {einst.data?.pool_alarm_minuten ?? 480}. Eine 0 schaltet die jeweilige
           Stufe ab.
@@ -327,7 +328,8 @@ export default async function HandbuchSeite() {
           Versandweg: <strong>{weg}</strong>
           {weg === "onoffice" ? " (mit Rückfall auf SMTP, falls onOffice ablehnt)" : ""}.{" "}
           {aktiveVorlagen.length} von {vorlagen.data?.length ?? 0} Vorlagen sind
-          aktiv. Alle Vorlagen lassen sich unter Einstellungen ändern.
+          aktiv. Alle Vorlagen lassen sich unter Verwaltung → Mitteilungen →
+          „Vorlagen“ ändern.
         </p>
       </Abschnitt>
 
@@ -640,7 +642,8 @@ export default async function HandbuchSeite() {
       <Abschnitt nummer={17} titel="Was nach onOffice geschrieben wird">
         <p>
           Der Abgleich läuft alle zwei Minuten in beide Richtungen. Was das Tool
-          drüben verändern darf, steht unter Verwaltung → Einstellungen und ist
+          drüben verändern darf, steht unter Verwaltung → onOffice → „Anbindung“
+          und ist
           einzeln abschaltbar. Der Hauptschalter „nur lesen“ sperrt alles.
         </p>
         <p>
