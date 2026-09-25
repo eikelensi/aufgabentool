@@ -58,29 +58,41 @@ export async function middleware(request: NextRequest) {
   const imRahmen = imFremdenRahmen(request.headers);
 
   /**
-   * Aufraeumen nach einem eigenen Fehler.
+   * Aufraeumen nach einem eigenen Fehler - aber nur da, wo wirklich
+   * etwas aufzuraeumen ist.
    *
    * Eine Zeit lang hat der Server die Sitzungskekse pauschal als
-   * "Partitioned" gesetzt - auch im eigenen Tab. Fuer den Browser ist
-   * das ein ZWEITER Keks neben dem normalen; beide wurden
-   * mitgeschickt, der Server las mal den einen und mal den anderen,
-   * und die Anmeldung fiel reihenweise auseinander.
+   * "Partitioned" gesetzt, auch im eigenen Tab. Fuer den Browser ist
+   * das ein ZWEITER Keks neben dem normalen; beide gingen mit, der
+   * Server las mal den einen und mal den anderen, und die Anmeldung
+   * fiel auseinander.
    *
-   * Der falsche Zwilling verschwindet nicht von selbst: er muss mit
-   * genau denselben Merkmalen geloescht werden, mit denen er gesetzt
-   * wurde. Genau das passiert hier - und nur ausserhalb eines
-   * Rahmens, wo er nichts zu suchen hat.
+   * Der erste Versuch, das zu heilen, war schlimmer als die Krankheit:
+   * er hat den Zwilling bei JEDER Antwort geloescht. Wo es gar keinen
+   * Zwilling gab, traf die Loeschung den einzigen vorhandenen Keks -
+   * und niemand kam mehr hinein.
    *
-   * Angewandt wird es auf JEDE Antwort, die diese Datei verlaesst:
-   * Supabase baut die Antwort zwischendurch neu, und eine
-   * Weiterleitung ist ohnehin eine andere. Wer das vergisst, loescht
-   * genau in den Faellen nicht, in denen es noetig waere.
+   * Deshalb jetzt erst nachsehen. Der Browser schickt einen doppelt
+   * vorhandenen Namen zweimal in derselben Kopfzeile; nur dann gibt
+   * es etwas zu loeschen. Steht der Name nur einmal da, wird nichts
+   * angefasst - im Zweifel lieber ein alter Keks zu viel als eine
+   * Anmeldung zu wenig.
    */
+  const doppelt = new Set<string>();
+  if (!imRahmen && process.env.NODE_ENV === "production") {
+    const roh = request.headers.get("cookie") ?? "";
+    const gezaehlt = new Map<string, number>();
+    for (const teil of roh.split(";")) {
+      const name = teil.split("=")[0]?.trim();
+      if (!name || !istSitzungskeks(name)) continue;
+      gezaehlt.set(name, (gezaehlt.get(name) ?? 0) + 1);
+    }
+    for (const [name, anzahl] of gezaehlt) if (anzahl > 1) doppelt.add(name);
+  }
+
   const raeumeAuf = <T extends NextResponse>(res: T): T => {
-    if (imRahmen || process.env.NODE_ENV !== "production") return res;
-    for (const keks of request.cookies.getAll()) {
-      if (!istSitzungskeks(keks.name)) continue;
-      res.cookies.set(keks.name, "", {
+    for (const name of doppelt) {
+      res.cookies.set(name, "", {
         path: "/",
         maxAge: 0,
         sameSite: "none",
