@@ -24,6 +24,12 @@ export interface Aenderung {
 
 export const AENDERUNGEN: Aenderung[] = [
   {
+    datum: "2026-09-25",
+    titel: "Asana-Aufgaben bringen ihren Auftraggeber in den Pool mit",
+    text: "Wird eine Karte aus dem Asana-Bereich in den Pool gegeben, wird der Zuständige aus Asana als „Auftrag von“ eingetragen – ist niemand zugeteilt, der Ersteller. Wer sich die Aufgabe zieht, weiß damit ohne Nachfragen, für wen er arbeitet, und derselbe Mensch bekommt die Erledigt-Mail. Zugeordnet wird über die Mailadresse; der Name nur, wenn er eindeutig ist.",
+    bereich: "Asana, Aufgabenpool",
+  },
+  {
     datum: "2026-09-24",
     titel: "Objekt-, Kunden- und Aufgabennummer sind anklickbar",
     text: "Auf jeder Karte öffnet ein Klick auf 🏠, 👤 oder #Nummer den Datensatz in onOffice – in einem neuen Tab, die Aufgabe hier bleibt offen. Fehlt die Datensatz-ID, bleibt die Nummer bewusst stumm: ein Link, der auf ein fremdes Objekt führt, wäre schlimmer als keiner.",

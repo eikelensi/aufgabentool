@@ -22,6 +22,7 @@ import { aktuellesProfil, darfAlles } from "@/lib/supabase/profil";
 import { modifyTask } from "@/lib/onoffice/tasks";
 import { toOnofficePriority } from "@/lib/onoffice/mapping";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
+import { tagFuerKollegen } from "@/lib/sync/auftrag";
 import type { TaskPriority } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -97,21 +98,13 @@ export async function POST(request: Request) {
   // laeuft statt ueber eine ID - deshalb hier aus der Verwaltung
   // nachgesehen, statt den Anzeigenamen zu nehmen.
   if (gewuenscht.includes("auftrag")) {
-    let tag = "";
-    if (aufgabe.broker_contact_id) {
-      const { data: kollege } = await sb
-        .from("broker_contacts")
-        .select("onoffice_tag, short_code, display_name")
-        .eq("id", aufgabe.broker_contact_id)
-        .maybeSingle();
-
-      tag =
-        kollege?.onoffice_tag?.trim() ||
-        String(kollege?.display_name ?? "").split(",")[0].trim() ||
-        kollege?.short_code?.trim() ||
-        "";
-
-      if (!tag) {
+    // Die Rangfolge steht in lib/sync/auftrag.ts - an einer Stelle,
+    // weil der Pool-Uebergang aus Asana und das Anlegen neuer
+    // Aufgaben dieselbe brauchen. Zwei Kopien waeren zwei Chancen,
+    // ein Tag zu schreiben, das das Tool selbst nicht wiedererkennt.
+    const tag = await tagFuerKollegen(aufgabe.broker_contact_id);
+    {
+      if (aufgabe.broker_contact_id && !tag) {
         return NextResponse.json({
           uebertragen: false,
           meldung:

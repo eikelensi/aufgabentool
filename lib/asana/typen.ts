@@ -27,6 +27,8 @@ export interface AsanaAufgabe {
   modified_at?: string;
   created_at?: string;
   assignee?: AsanaNutzer | null;
+  /** Wer die Aufgabe in Asana angelegt hat. */
+  created_by?: AsanaNutzer | null;
   memberships?: AsanaMitgliedschaft[];
   permalink_url?: string;
 }
@@ -57,6 +59,9 @@ export const AUFGABEN_FELDER = [
   "assignee.gid",
   "assignee.name",
   "assignee.email",
+  "created_by.gid",
+  "created_by.name",
+  "created_by.email",
   "memberships.project.gid",
   "memberships.section.gid",
   "memberships.section.name",

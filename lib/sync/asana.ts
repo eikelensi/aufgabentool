@@ -25,6 +25,7 @@ import { createTask } from "@/lib/onoffice/tasks";
 import { haeufigsteArt } from "@/lib/sync/onoffice-neu";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { schreibeAuftragNachOnoffice } from "@/lib/sync/auftrag";
 import type { TaskStatus } from "@/lib/types";
 
 /** Wie die Spalte heisst, die eine Aufgabe abgibt. */
@@ -244,6 +245,102 @@ async function holeKommentare(
  * dass sie drueben fehlt, sondern an ihrem Bereich: was einmal im
  * Tool angekommen ist, fasst der Abgleich nicht mehr an.
  */
+/**
+ * Wer hat die Aufgabe in Auftrag gegeben?
+ *
+ * Gefragt wird das genau einmal: beim Uebergang aus dem Bereich der
+ * Geschaeftsfuehrung in den Pool. Wer sich die Aufgabe dort zieht,
+ * soll ohne Nachfragen wissen, fuer wen er das tut - und derselbe
+ * Mensch bekommt die Mail, wenn sie fertig ist.
+ *
+ * Zustaendiger vor Ersteller: wer in Asana zustaendig war, gibt die
+ * Aufgabe ja gerade ab - fuer ihn wird gearbeitet. Ist niemand
+ * zugeteilt, tritt der Ersteller ein; er hat die Aufgabe gewollt.
+ *
+ * Zugeordnet wird ueber die MAILADRESSE, nicht ueber den Namen.
+ * "Eike Lensinger" und "Lensinger, Eike (BaufiLensinger)" sind
+ * derselbe Mensch, aber das zu erraten geht irgendwann schief - und
+ * bei diesem Feld ist ein Fehlgriff eine Mail an den Falschen.
+ * Der Name ist nur der letzte Ausweg, und nur bei Eindeutigkeit.
+ */
+async function findeAuftraggeber(asanaGid: string): Promise<{
+  brokerId: string | null;
+  quelle: string;
+}> {
+  const sb = supabaseAdmin();
+
+  let aufgabe: AsanaAufgabe;
+  try {
+    aufgabe = await ruf<AsanaAufgabe>({
+      pfad: `/tasks/${asanaGid}`,
+      query: {
+        opt_fields:
+          "assignee.gid,assignee.name,assignee.email,created_by.gid,created_by.name,created_by.email",
+      },
+    });
+  } catch {
+    return { brokerId: null, quelle: "" };
+  }
+
+  const wer = aufgabe.assignee ?? aufgabe.created_by ?? null;
+  const quelle = aufgabe.assignee ? "Zuständiger" : "Ersteller";
+  if (!wer) return { brokerId: null, quelle: "" };
+
+  const mail = (wer.email ?? "").trim().toLowerCase();
+  const name = (wer.name ?? "").trim();
+
+  const { data: kollegen } = await sb
+    .from("broker_contacts")
+    .select("id, display_name, email, profile_id")
+    .eq("is_active", true);
+
+  // 1. Die Mailadresse des Kollegen selbst.
+  if (mail) {
+    const treffer = (kollegen ?? []).find(
+      (k) => String(k.email ?? "").trim().toLowerCase() === mail,
+    );
+    if (treffer) return { brokerId: treffer.id, quelle: `${quelle} ${name || mail}` };
+
+    // 2. Ueber das Profil: derselbe Mensch, zwei Tabellen.
+    const { data: profil } = await sb
+      .from("profiles")
+      .select("id")
+      .ilike("email", mail)
+      .maybeSingle();
+
+    if (profil) {
+      const ueberProfil = (kollegen ?? []).find((k) => k.profile_id === profil.id);
+      if (ueberProfil) return { brokerId: ueberProfil.id, quelle: `${quelle} ${name || mail}` };
+    }
+  }
+
+  // 3. Zuletzt der Name - und nur, wenn genau EINER passt.
+  if (name) {
+    const teile = new Set(
+      name
+        .toLowerCase()
+        .split(/[\s,]+/)
+        .filter(Boolean),
+    );
+    const passend = (kollegen ?? []).filter((k) => {
+      const ohneKuerzel = String(k.display_name ?? "").replace(/\(.*?\)/g, "");
+      const seine = new Set(
+        ohneKuerzel
+          .toLowerCase()
+          .split(/[\s,]+/)
+          .filter(Boolean),
+      );
+      // Beide Namensteile muessen vorkommen. Nur der Nachname reicht
+      // nicht - "Peissig" gibt es hier zweimal.
+      return teile.size > 1 && [...teile].every((t) => seine.has(t));
+    });
+
+    if (passend.length === 1) return { brokerId: passend[0].id, quelle: `${quelle} ${name}` };
+  }
+
+  return { brokerId: null, quelle: `${quelle} ${name || mail} (nicht zugeordnet)` };
+}
+
 export async function gibAbAnDenPool(
   taskId: string,
   asanaGid: string,
@@ -252,6 +349,12 @@ export async function gibAbAnDenPool(
 ): Promise<void> {
   const sb = supabaseAdmin();
 
+  // Wer in Asana zustaendig war, ist der, fuer den weiter gearbeitet
+  // wird. Das jetzt festzuhalten ist der einzige Moment, in dem es
+  // noch jemand weiss: gleich ist die Karte aus dem Bereich der
+  // Geschaeftsfuehrung verschwunden.
+  const auftrag = await findeAuftraggeber(asanaGid);
+
   await sb
     .from("tasks")
     .update({
@@ -259,7 +362,10 @@ export async function gibAbAnDenPool(
       is_pool: true,
       assignee_id: null,
       asana_section_gid: null,
-      pool_grund: "Aus der Geschäftsführung in den Pool gegeben (Asana).",
+      ...(auftrag.brokerId ? { broker_contact_id: auftrag.brokerId } : {}),
+      pool_grund: auftrag.quelle
+        ? `Aus der Geschäftsführung in den Pool gegeben (Asana). Auftrag von: ${auftrag.quelle}.`
+        : "Aus der Geschäftsführung in den Pool gegeben (Asana).",
       pool_zurueck_am: new Date().toISOString(),
       pool_zurueck_von: durch ?? null,
       updated_at: new Date().toISOString(),
@@ -283,6 +389,12 @@ export async function gibAbAnDenPool(
   }));
 
   if (zeilen.length) await sb.from("notifications").insert(zeilen);
+
+  // Und das Tag nach onOffice, damit dort dasselbe steht. Scheitert
+  // es, bleibt die Abgabe trotzdem stehen - sie ist das Wichtigere.
+  if (auftrag.brokerId) {
+    await schreibeAuftragNachOnoffice(taskId).catch(() => undefined);
+  }
 }
 
 export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
