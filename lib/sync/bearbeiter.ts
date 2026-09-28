@@ -64,11 +64,33 @@ export async function schreibeBearbeiterNachOnoffice(
   if (aufgabe.assignee_id) {
     const { data: wer } = await sb
       .from("profiles")
-      .select("onoffice_display_name, full_name")
+      .select("onoffice_display_name, full_name, email")
       .eq("id", aufgabe.assignee_id)
       .maybeSingle();
 
     name = wer?.onoffice_display_name?.trim() ?? "";
+
+    /**
+     * Fehlt der Name im Profil, steht er fast immer trotzdem im Haus:
+     * die Mitarbeiterverwaltung fuehrt jeden onOffice-Benutzer mit
+     * Kuerzel und Mailadresse. Also dort nachsehen, statt aufzugeben.
+     *
+     * Das ist kein Schoenheitsfehler gewesen. Bei Lisa Peissig war
+     * das Feld leer; die Uebergabe nach Asana setzte sie hier als
+     * Bearbeiterin, konnte das aber nicht nach onOffice schreiben -
+     * und der naechste Abgleich las von drueben "kein Bearbeiter"
+     * zurueck und warf die Aufgabe in den Pool. Aufgabe 32105 lag
+     * dadurch im Pool, obwohl sie in Asana bei Lisa stand.
+     */
+    if (!name && wer?.email) {
+      const { data: kollege } = await sb
+        .from("broker_contacts")
+        .select("short_code")
+        .ilike("email", wer.email)
+        .maybeSingle();
+      name = kollege?.short_code?.trim() ?? "";
+    }
+
     if (!name) {
       return {
         uebertragen: false,

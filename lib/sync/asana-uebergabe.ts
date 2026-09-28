@@ -199,10 +199,18 @@ export async function gibNachAsana(
      * sondern es jetzt hinschreiben. Misslingt es, bleibt die
      * Uebergabe trotzdem gueltig - der naechste Lauf holt es nach.
      */
+    let bearbeiterMeldung = "";
     try {
-      await schreibeBearbeiterNachOnoffice(taskId, durch);
-    } catch {
-      /* absichtlich leer - siehe oben */
+      const r = await schreibeBearbeiterNachOnoffice(taskId, durch);
+      // Frueher stand hier nur ein leeres catch - und ein "konnte
+      // nicht schreiben" ist kein Wurf, sondern eine Rueckgabe. Die
+      // ging damit lautlos verloren, und die Aufgabe fiel zehn
+      // Minuten spaeter in den Pool, ohne dass irgendwo stand, warum.
+      if (!r.uebertragen && r.meldung && !/steht bereits/i.test(r.meldung)) {
+        bearbeiterMeldung = r.meldung;
+      }
+    } catch (err) {
+      bearbeiterMeldung = (err as Error)?.message ?? "";
     }
 
     // Eine Zeile in der Geschichte der Aufgabe - sonst steht spaeter
@@ -212,13 +220,19 @@ export async function gibNachAsana(
       author_id: durch ?? null,
       body:
         `Nach Asana gegeben: ${beschreibung.label}` +
-        (eingang?.name ? ` – Abschnitt „${eingang.name}“.` : "."),
+        (eingang?.name ? ` – Abschnitt „${eingang.name}“.` : ".") +
+        (bearbeiterMeldung ? ` ACHTUNG: nach onOffice nicht übertragen – ${bearbeiterMeldung}` : ""),
     });
 
     return {
       ok: true,
       asanaTaskGid: neu.gid,
-      meldung: `„${aufgabe.title}“ liegt jetzt bei ${nutzer.name ?? beschreibung.label} in Asana.`,
+      meldung:
+        `„${aufgabe.title}“ liegt jetzt bei ${nutzer.name ?? beschreibung.label} in Asana.` +
+        (bearbeiterMeldung
+          ? ` Achtung: onOffice weiß noch nichts davon – ${bearbeiterMeldung} ` +
+            "Bis dahin holt der nächste Abgleich die Aufgabe in den Pool zurück."
+          : ""),
     };
   } catch (err) {
     return { ok: false, fehler: (err as Error).message };
