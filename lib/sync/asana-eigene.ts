@@ -262,13 +262,29 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
     return ergebnis;
   }
 
-  // Der Zaehler fuer die Reihenfolge. Asana gibt "Meine Aufgaben" in
-  // Brettreihenfolge heraus; Abstand 100, damit beim Verschieben im
-  // Tool immer ein Wert dazwischenpasst.
-  let rang = 0;
+  /**
+   * Die Reihenfolge - und warum sie NICHT mehr aus der Liste kommt.
+   *
+   * Frueher bekam jede Aufgabe bei jedem Lauf ihren Rang aus der
+   * Position in der Asana-Liste. Das hatte zwei Nachteile: eine
+   * einzige neue Aufgabe verschob alle Indizes dahinter und schrieb
+   * das halbe Brett neu, und wer hier eine Karte von Hand
+   * umsortierte, fand sie beim naechsten Abgleich wieder am alten
+   * Platz.
+   *
+   * Jetzt bekommt einen Rang nur, wer noch keinen hat - und zwar aus
+   * dem Anlagedatum, negativ: je neuer, desto kleiner, und klein
+   * heisst oben. Damit steht das Neueste immer ganz oben, alles
+   * schon Einsortierte bleibt, wo es ist, und ein Lauf ohne
+   * Aenderungen schreibt gar nichts.
+   */
+  const rangAus = (aufgabe: AsanaAufgabe): number => {
+    const datum = aufgabe.created_at ? Date.parse(aufgabe.created_at) : NaN;
+    // Ohne Datum hinten anstellen statt raten.
+    return Number.isFinite(datum) ? -Math.round(datum / 1000) : 1_000_000;
+  };
 
   for (const aufgabe of aufgaben) {
-    rang += 100;
     const abschnitt = aufgabe.assignee_section;
     const abschnittGid = abschnitt?.gid ?? null;
     const abschnittName = abschnittGid ? (namen.get(abschnittGid) ?? abschnitt?.name ?? "") : "";
@@ -301,6 +317,9 @@ export async function synchronisiereEigene(): Promise<EigeneErgebnis> {
      * Abschnitt und die Reihenfolge. Ruehrt sich keines davon, ist
      * nichts zu tun.
      */
+    // Ein vorhandener Rang bleibt - auch ein von Hand verschobener.
+    const rang = vorhanden?.asana_eigene_rang ?? rangAus(aufgabe);
+
     if (
       vorhanden &&
       aufgabe.modified_at &&

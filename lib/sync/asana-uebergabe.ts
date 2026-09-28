@@ -23,6 +23,7 @@
  */
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { projektGid, ruf, workspaceGid } from "@/lib/asana/client";
+import { schreibeBearbeiterNachOnoffice } from "./bearbeiter";
 
 export type Uebergabeziel = "projekt" | "eike";
 
@@ -171,6 +172,26 @@ export async function gibNachAsana(
         fehler: `In Asana angelegt, hier aber nicht vermerkt: ${error.message}`,
         asanaTaskGid: neu.gid,
       };
+    }
+
+    /**
+     * Und sofort nach onOffice, wer sie jetzt hat.
+     *
+     * Ohne das ging die Uebergabe wieder verloren, und zwar leise:
+     * die Aufgabe entsteht hier zunaechst ohne Bearbeiter, der
+     * onOffice-Abgleich legt sie drueben ebenso ohne Bearbeiter an,
+     * und beim naechsten Lesen kommt genau dieses Nichts zurueck -
+     * der Bearbeiter wird geleert und die Aufgabe faellt in den Pool.
+     * Zehn Minuten spaeter lag sie im Pool, obwohl sie in Asana stand.
+     *
+     * Also nicht warten, bis der Abgleich es von sich aus tut,
+     * sondern es jetzt hinschreiben. Misslingt es, bleibt die
+     * Uebergabe trotzdem gueltig - der naechste Lauf holt es nach.
+     */
+    try {
+      await schreibeBearbeiterNachOnoffice(taskId, durch);
+    } catch {
+      /* absichtlich leer - siehe oben */
     }
 
     // Eine Zeile in der Geschichte der Aufgabe - sonst steht spaeter

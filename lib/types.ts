@@ -29,7 +29,7 @@ export const PRIO_RANG: Record<TaskPriority, number> = {
  * was er ist: der Schluessel fuer alles, unabhaengig von jeder
  * Einstellung.
  */
-export type AppRole = "superadmin" | "gf" | "qm" | "user";
+export type AppRole = "superadmin" | "gf" | "qm" | "gf_assistenz" | "user";
 
 /** Die Bereiche, deren Sichtbarkeit sich je Rolle steuern laesst. */
 export type Bereich =
@@ -95,6 +95,9 @@ export const ROLLE_LABEL: Record<AppRole, string> = {
   superadmin: "Superadmin",
   gf: "Geschäftsführung",
   qm: "Qualitätsmanagement",
+  // Sieht mehr als ein Mitarbeiter, darf aber dasselbe: die eigenen
+  // Aufgaben. Wer verteilen soll, bekommt Qualitaetsmanagement.
+  gf_assistenz: "GF-Assistenz",
   user: "Mitarbeiter",
 };
 
@@ -458,7 +461,9 @@ export const MENUE_GRUPPE_LABEL: Record<MenueGruppe, string> = {
 
 export function menueGruppeVon(rolle: AppRole): MenueGruppe {
   if (rolle === "qm") return "qm";
-  if (rolle === "user") return "user";
+  // Die GF-Assistenz arbeitet wie ein Mitarbeiter, nur mit mehr
+  // Bereichen - fuer das Aussehen des Menues ist sie dieselbe Gruppe.
+  if (rolle === "user" || rolle === "gf_assistenz") return "user";
   return "admin";
 }
 

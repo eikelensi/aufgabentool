@@ -4,7 +4,7 @@ import React, { useState, useTransition } from "react";
 import { BEREICH_LABEL, ROLLE_LABEL, type AppRole, type Bereich } from "@/lib/types";
 import { bereichSetzen, type Ergebnis } from "./aktionen";
 
-const ROLLEN: AppRole[] = ["gf", "qm", "user"];
+const ROLLEN: AppRole[] = ["gf", "qm", "gf_assistenz", "user"];
 const BEREICHE = Object.keys(BEREICH_LABEL) as Bereich[];
 
 export default function RollenTabelle({

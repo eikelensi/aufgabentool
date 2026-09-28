@@ -95,7 +95,7 @@ export default async function HandbuchSeite() {
   // Wer sieht welchen Bereich - aus der Tabelle, nicht aus dem Text.
   // Damit stimmt dieser Abschnitt auch dann, wenn jemand einen Haken
   // umsetzt.
-  const ROLLEN: AppRole[] = ["gf", "qm", "user"];
+  const ROLLEN: AppRole[] = ["gf", "qm", "gf_assistenz", "user"];
   const rechte: Bereichsrechte = {};
   for (const z of bereiche.data ?? []) (rechte[z.role] ??= {})[z.bereich] = z.sichtbar;
   const alleBereiche = Object.keys(BEREICH_LABEL) as Bereich[];

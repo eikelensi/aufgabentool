@@ -18,9 +18,9 @@ import { AttachmentSection, FileDrop, PendingFiles } from "./Attachments";
  * kann. Bewusst kurz gehalten: der Weg dorthin ist ein Handgriff im
  * Bearbeiter-Feld, kein eigenes Fenster - genau wie der Aufgabenpool.
  */
-const ASANA_ZIELE: { wert: "projekt" | "eike"; label: string }[] = [
-  { wert: "projekt", label: "Buchhaltung und HR – Lisa Peissig" },
-  { wert: "eike", label: "Eike Lensinger – persönlich" },
+const ASANA_ZIELE: { wert: "projekt" | "eike"; label: string; email: string }[] = [
+  { wert: "projekt", label: "Buchhaltung und HR – Lisa Peissig", email: "lisa@4-wk.de" },
+  { wert: "eike", label: "Eike Lensinger – persönlich", email: "lensinger@4-wk.de" },
 ];
 
 export function NoteDialog({
@@ -193,8 +193,17 @@ export interface Prefill {
 }
 
 export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose: () => void }) {
-  const { createTask, addAttachments, categories, profiles, brokers, darfAlles, me, nachAsanaGeben } =
-    useStore();
+  const {
+    createTask,
+    addAttachments,
+    categories,
+    profiles,
+    brokers,
+    darfAlles,
+    me,
+    nachAsanaGeben,
+    asanaNutzer,
+  } = useStore();
   const [title, setTitle] = useState(prefill?.title ?? "");
   const [description, setDescription] = useState(prefill?.description ?? "");
   // Bewusst leer, nicht die erste Kategorie: eine Vorauswahl, die niemand
@@ -211,6 +220,26 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   const [addressId, setAddressId] = useState("");
   const [files, setFiles] = useState<File[]>([]);
 
+  /**
+   * Wer bekommt sie - bei einem Asana-Ziel schon beim Anlegen?
+   *
+   * Das muss hier passieren und nicht erst bei der Uebergabe. Eine
+   * Aufgabe, die ohne Bearbeiter entsteht, wird in onOffice ohne
+   * Bearbeiter angelegt - und der naechste Abgleich liest dieses
+   * Nichts zurueck und wirft sie in den Pool. Genau so ist eine
+   * Aufgabe, die in Asana stand, zehn Minuten spaeter im Pool
+   * gelandet.
+   */
+  const asanaZiel = assignee.startsWith("a:")
+    ? ASANA_ZIELE.find((z) => z.wert === assignee.slice(2))
+    : undefined;
+
+  const asanaProfil = asanaZiel
+    ? (asanaNutzer.find(
+        (n) => (n.email ?? "").toLowerCase() === asanaZiel.email.toLowerCase(),
+      )?.profileId ?? null)
+    : null;
+
   const submit = async () => {
     if (!title.trim()) return;
     const newId = await createTask({
@@ -219,7 +248,9 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
       categoryId: categoryId || null,
       priority,
       isPool: assignee === "__pool",
-      assigneeId: assignee.startsWith("p:") ? assignee.slice(2) : null,
+      assigneeId: assignee.startsWith("p:")
+        ? assignee.slice(2)
+        : asanaProfil,
       onofficeBearbeiterId: assignee.startsWith("k:") ? assignee.slice(2) : null,
       brokerContactId: brokerContactId || null,
       visibleFrom,
