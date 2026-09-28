@@ -121,7 +121,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    await modifyTask(aufgabe.onoffice_task_id, daten);
+    // Ein einziges abgelehntes Feld laesst den GANZEN Aufruf scheitern.
+    // Bei "tags" hiess das: wer den Titel aendert und nebenbei den
+    // Auftraggeber setzt, verlor auch die Titelaenderung - und sah nur
+    // eine Meldung ueber das Tag. Also: scheitert es an tags, noch
+    // einmal ohne. Der Rest muss ankommen.
+    let ohneTag = false;
+    try {
+      await modifyTask(aufgabe.onoffice_task_id, daten);
+    } catch (err) {
+      const m = (err as Error)?.message ?? "";
+      const lagAmTag = "tags" in daten && /tags/i.test(m) && /144/.test(m);
+      if (!lagAmTag || Object.keys(daten).length === 1) throw err;
+      delete daten.tags;
+      await modifyTask(aufgabe.onoffice_task_id, daten);
+      ohneTag = true;
+    }
 
     await sb
       .from("tasks")
@@ -133,13 +148,18 @@ export async function POST(request: Request) {
       resource: "task",
       reference: aufgabe.onoffice_task_id,
       ok: true,
-      message: `Inhalt geändert: ${Object.keys(daten).join(", ")}`,
-      payload: { aufgabe: aufgabe.title, durch: profil.email },
+      message: ohneTag
+        ? `Inhalt geändert: ${Object.keys(daten).join(", ")} – „tags“ wurde abgelehnt (Code 144)`
+        : `Inhalt geändert: ${Object.keys(daten).join(", ")}`,
+      payload: { aufgabe: aufgabe.title, durch: profil.email, tagAbgelehnt: ohneTag },
     });
 
     return NextResponse.json({
       uebertragen: true,
-      meldung: `In onOffice geändert: ${Object.keys(daten).join(", ")}.`,
+      meldung: ohneTag
+        ? `In onOffice geändert: ${Object.keys(daten).join(", ")}. Der Auftraggeber steht nur hier – ` +
+          "onOffice nimmt das Feld „tags“ über die Schnittstelle nicht an."
+        : `In onOffice geändert: ${Object.keys(daten).join(", ")}.`,
     });
   } catch (err) {
     const meldung = (err as Error).message;
