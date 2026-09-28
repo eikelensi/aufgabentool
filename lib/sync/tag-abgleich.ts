@@ -75,23 +75,44 @@ async function aufgabenMitTag(
     const gesehen = new Set<string>();
     let offset = 0;
     let abgelehnt = false;
+    let mehrAlsEineSeite = false;
 
     for (let seite = 0; seite < MAX_SEITEN; seite++) {
-      const res = await tryCall({
-        action: "read",
-        resourceType: "task",
-        parameters: {
-          // KEIN "Nr" im data-Block - das ist ein Filterfeld, und der
-          // Versuch wurde deshalb abgelehnt, ohne dass das etwas ueber
-          // "tags" ausgesagt haette. Die Nummer kommt als Satzkennung.
-          data: ["Betreff"],
-          filter: { [TAGS_FELD]: [{ op: "=", val: wert }] },
-          listlimit: PRO_SEITE,
-          listoffset: offset,
-        },
-      });
+      /**
+       * "listoffset" kennt die task-Ressource NICHT.
+       *
+       * Die Paginierung, die ich vorsorglich eingebaut habe, hat den
+       * Weg zerstoert, den sie absichern sollte: onOffice antwortete
+       * jedem Lauf mit Invalid field in input data: "listoffset"
+       * (Code 144). Die Probe - ohne listoffset - lief zur selben
+       * Zeit sauber durch. Vorsorge, die den Normalfall bricht, ist
+       * keine Vorsorge.
+       *
+       * Also: die erste Seite immer ohne. Nur wenn sie randvoll ist,
+       * ueberhaupt eine zweite versuchen - und wenn onOffice die
+       * ablehnt, hoert es hier auf, mit einem Hinweis statt einem
+       * Fehlschlag.
+       */
+      const parameters: Record<string, unknown> = {
+        // KEIN "Nr" im data-Block - das ist ein Filterfeld, und der
+        // Versuch wurde deshalb abgelehnt, ohne dass das etwas ueber
+        // "tags" ausgesagt haette. Die Nummer kommt als Satzkennung.
+        data: ["Betreff"],
+        filter: { [TAGS_FELD]: [{ op: "=", val: wert }] },
+        listlimit: PRO_SEITE,
+      };
+      if (offset > 0) parameters.listoffset = offset;
+
+      const res = await tryCall({ action: "read", resourceType: "task", parameters });
 
       if (!res.ok) {
+        // Auf der ZWEITEN Seite ist eine Ablehnung kein Grund,
+        // alles zu verwerfen: die erste Seite ist echt. Lieber
+        // unvollstaendig und ehrlich als gar nichts.
+        if (offset > 0) {
+          mehrAlsEineSeite = true;
+          break;
+        }
         letzteMeldung = res.error.message;
         abgelehnt = true;
         break;
@@ -115,7 +136,11 @@ async function aufgabenMitTag(
     }
 
     if (abgelehnt) continue;
-    return { ok: true, nummern, ueber: wie };
+    return {
+      ok: true,
+      nummern,
+      ueber: mehrAlsEineSeite ? `${wie}, nur erste ${PRO_SEITE}` : wie,
+    };
   }
 
   return { ok: false, meldung: letzteMeldung || "Kein Weg hat geantwortet." };
