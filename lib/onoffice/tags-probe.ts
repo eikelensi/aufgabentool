@@ -42,6 +42,14 @@ export interface ProbeErgebnis {
    */
   feldkandidaten: TaskFeld[];
   feldFehler?: string;
+  /**
+   * Der Umweg: laesst sich nach dem Tag FILTERN, auch wenn es sich
+   * nicht lesen laesst? Dann braeuchten wir onOffice nicht abzuwarten -
+   * wir fragen dann je Tag "welche Aufgaben tragen dich?" statt je
+   * Aufgabe "welches Tag traegst du?".
+   */
+  filterwege: Versuch[];
+  filterFazit: string;
 }
 
 export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
@@ -119,6 +127,69 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
     feldFehler = (err as Error).message;
   }
 
+  // Der Umweg, und der eigentliche Grund fuer diese Runde: LESEN ist
+  // abgelehnt (Code 144). Filtern ist ein anderer Weg durch dieselbe
+  // Schnittstelle - manche Felder sind nur fuer das eine freigegeben.
+  // Klappt es, drehen wir die Frage um: nicht "welches Tag hat diese
+  // Aufgabe", sondern "welche Aufgaben tragen dieses Tag". Das Ergebnis
+  // ist dasselbe, und es braucht keine Freischaltung durch onOffice.
+  const filterwege: Versuch[] = [];
+
+  const tagsFeld = feldkandidaten.find((f) => f.name === TAGS_FELD);
+  const schluessel = Object.keys(tagsFeld?.wertLabels ?? {});
+
+  const filterProbe = async (weg: string, parameters: Record<string, unknown>) => {
+    const res = await tryCall({ action: "read", resourceType: "task", parameters });
+    if (!res.ok) {
+      filterwege.push({ weg, geklappt: false, meldung: res.error.message });
+      return;
+    }
+    const saetze = res.result.records as OnOfficeRecord[];
+    filterwege.push({
+      weg,
+      geklappt: true,
+      meldung: `${saetze.length} Aufgabe(n) getroffen`,
+      felder: saetze.slice(0, 5).map((r) => String(elements(r).Nr ?? r.id ?? "?")),
+    });
+  };
+
+  if (schluessel.length) {
+    const ersterSchluessel = schluessel[0];
+    const ersteBeschriftung = tagsFeld?.wertLabels?.[ersterSchluessel] ?? ersterSchluessel;
+
+    // a) Der interne Schluessel - so speichert onOffice Mehrfachauswahlen.
+    await filterProbe(`Filter auf tags = Schlüssel „${ersterSchluessel}“`, {
+      data: ["Nr", "Betreff"],
+      filter: { [TAGS_FELD]: [{ op: "=", val: ersterSchluessel }] },
+      listlimit: 5,
+    });
+
+    // b) Die Beschriftung - falls der Filter uebersetzt.
+    await filterProbe(`Filter auf tags = Beschriftung „${ersteBeschriftung}“`, {
+      data: ["Nr", "Betreff"],
+      filter: { [TAGS_FELD]: [{ op: "=", val: ersteBeschriftung }] },
+      listlimit: 5,
+    });
+
+    // c) Die scharfe Frage: DIESE Aufgabe UND dieses Tag. Kommt sie
+    //    zurueck, traegt sie das Tag - ohne dass wir es je gelesen haetten.
+    await filterProbe(`Diese Aufgabe UND tags = „${ersteBeschriftung}“`, {
+      data: ["Nr", "Betreff"],
+      filter: {
+        Nr: [{ op: "=", val: String(nummer) }],
+        [TAGS_FELD]: [{ op: "=", val: ersterSchluessel }],
+      },
+      listlimit: 5,
+    });
+  }
+
+  const filterGeht = filterwege.some((v) => v.geklappt);
+  const filterFazit = !schluessel.length
+    ? "Kein Tag-Feld mit erlaubten Werten gefunden – ohne die Schlüssel lässt sich nicht filtern."
+    : filterGeht
+      ? "Filtern nach dem Tag wird angenommen. Damit kommen wir ohne Freischaltung des Lesefelds aus."
+      : "Auch der Filter auf „tags“ wird abgelehnt – das Feld ist für die Schnittstelle vollständig gesperrt.";
+
   const geklappt = versuche.filter((v) => v.geklappt && v.tags);
   const fazit = geklappt.length
     ? `Das Feld "tags" ist lesbar über: ${geklappt.map((v) => v.weg).join(", ")}.`
@@ -136,11 +207,11 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
       reference: String(nummer),
       ok: geklappt.length > 0,
       message: `Tag-Probe an Aufgabe ${nummer}: ${fazit}`,
-      payload: { versuche },
+      payload: { versuche, filterwege, filterFazit },
     });
   } catch {
     /* Das Protokoll ist Beiwerk - die Antwort zaehlt. */
   }
 
-  return { taskId: nummer, fazit, versuche, feldkandidaten, feldFehler };
+  return { taskId: nummer, fazit, versuche, feldkandidaten, feldFehler, filterwege, filterFazit };
 }

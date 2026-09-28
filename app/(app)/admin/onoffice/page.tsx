@@ -118,6 +118,32 @@ function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | 
             ))}
           </ul>
 
+          <p className="mb-1 mt-3 font-medium">Umweg: lässt sich nach dem Tag filtern?</p>
+          <p className="muted mb-1 text-[11px] leading-relaxed">{ergebnis.filterFazit}</p>
+          {ergebnis.filterwege.length ? (
+            <ul className="space-y-1">
+              {ergebnis.filterwege.map((v) => (
+                <li key={v.weg} className="line border-l-2 pl-2">
+                  <code className="text-[11px]">{v.weg}</code>{" "}
+                  {v.geklappt ? (
+                    <>
+                      <span style={{ color: "var(--ok-fg)" }}>angenommen</span>
+                      <span className="muted block text-[10px]">
+                        {v.meldung}
+                        {v.felder?.length ? ` · Nummern: ${v.felder.join(", ")}` : ""}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "var(--err-fg)" }}>abgelehnt</span>
+                      <span className="muted block text-[10px]">{v.meldung}</span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
           <p className="mb-1 mt-3 font-medium">
             Felder in der onOffice-Konfiguration, die nach „Tag“ aussehen:
           </p>

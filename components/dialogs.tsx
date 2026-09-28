@@ -1018,8 +1018,25 @@ export function TaskDetailDialog({
             <span className="muted">nur hier angelegt</span>
           )}
         </Row>
+        {/* Leer heisst hier fast immer dasselbe: onOffice gibt das Feld
+            "tags" nicht heraus (abgelehnt mit Code 144), also kann der
+            Abgleich nichts eintragen. Frueher stand hier nur "niemand
+            hinterlegt" - das las sich wie ein Fehler des Tools und
+            verschwieg, dass die Auswahl weiter unten in DIESEM Fenster
+            steht. Beides jetzt gesagt. */}
         <Row label="Auftrag von">
-          {broker ? `${broker.displayName} · ${broker.email}` : "– niemand hinterlegt –"}
+          {broker ? (
+            `${broker.displayName} · ${broker.email}`
+          ) : (
+            <span className="muted">
+              – niemand hinterlegt –
+              <span className="block text-[10px] leading-relaxed">
+                {task.onofficeTaskId
+                  ? "onOffice gibt das Tag nicht über die Schnittstelle heraus. Unten in diesem Fenster von Hand setzbar."
+                  : "Unten in diesem Fenster setzbar."}
+              </span>
+            </span>
+          )}
         </Row>
         {/* Objekt UND Kunde, nicht entweder oder - eine Aufgabe kann
             an beidem haengen, und vorher verdeckte das Objekt den
