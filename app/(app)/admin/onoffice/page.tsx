@@ -197,6 +197,18 @@ function DateiProbe({ wert, ergebnis }: { wert: string; ergebnis: DateiProbeErge
           <p className="mb-2">
             <strong>Aufgabe {ergebnis.aufgabe}:</strong> {ergebnis.fazit}
           </p>
+          {ergebnis.vergleich ? (
+            <p
+              className="mb-2 rounded px-2 py-1.5 text-[11px] leading-relaxed"
+              style={{ background: "var(--info-bg)", color: "var(--info-fg)" }}
+            >
+              Gegenprobe: an Aufgabe <strong>{ergebnis.vergleich.aufgabe}</strong> („
+              {ergebnis.vergleich.titel}“) wurden {ergebnis.vergleich.dateien} Datei(en)
+              gefunden. Prüf diese Nummer einmal – kommt dort etwas, liegt es nicht an der
+              Schnittstelle, sondern daran, dass an {ergebnis.aufgabe} nichts hängt.
+            </p>
+          ) : null}
+
           <p className="mb-1 font-medium">Verknüpfungsarten:</p>
           <ul className="mb-2 space-y-0.5 text-[11px]">
             {ergebnis.verknuepfungen.map((v) => (
@@ -283,6 +295,7 @@ export default async function OnofficeAnbindung({
   if (dateiWert && Number.isFinite(Number(dateiWert)) && onofficeConfigured()) {
     if (istAdmin(await aktuellesProfil())) dateien = await dateiProbe(dateiWert);
   }
+
 
   const sb = supabaseAdmin();
   const [anbindung, { data: schalter }] = await Promise.all([

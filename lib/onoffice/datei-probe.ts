@@ -42,6 +42,13 @@ export interface Verknuepfungsversuch {
 
 export interface DateiProbeErgebnis {
   aufgabe: string;
+  /**
+   * Eine Aufgabe, an der nachweislich Dateien haengen - zum
+   * Gegenpruefen. Ohne die sagt ein leeres Ergebnis nichts: es kann
+   * heissen "hier haengt nichts" oder "die Schnittstelle gibt nichts
+   * heraus", und das ist ein Unterschied.
+   */
+  vergleich?: { aufgabe: string; titel: string; dateien: number } | null;
   /** Welche Verknuepfungsart wie viele Dateien kennt. */
   verknuepfungen: Verknuepfungsversuch[];
   /** Die Anhaenge laut Relation. */
@@ -54,7 +61,18 @@ export interface DateiProbeErgebnis {
   versuche: DateiVersuch[];
 }
 
-export async function dateiProbe(onofficeTaskId: string): Promise<DateiProbeErgebnis> {
+export async function dateiProbe(eingabe: string): Promise<DateiProbeErgebnis> {
+  /**
+   * Fuehrende Nullen weg.
+   *
+   * In der onOffice-Oberflaeche steht die Nummer als "032071"; wer
+   * sie von dort abschreibt, gibt sie auch so ein. onOffice selbst
+   * kennt aber nur "32071" - und antwortet auf "032071" mit einer
+   * leeren Liste statt mit einem Fehler. Das sah dann aus, als haenge
+   * an der Aufgabe keine Datei, obwohl eine dranhing.
+   */
+  const onofficeTaskId = String(Number(String(eingabe).replace(/\D/g, "")));
+
   const versuche: DateiVersuch[] = [];
   const sb = supabaseAdmin();
 
@@ -96,16 +114,53 @@ export async function dateiProbe(onofficeTaskId: string): Promise<DateiProbeErge
   const kundeId = aufgabe?.onoffice_address_id ?? null;
 
   if (!dateiIds.length) {
+    /**
+     * Ein leeres Ergebnis allein sagt nichts.
+     *
+     * Es kann heissen "an dieser Aufgabe haengt nichts" oder "die
+     * Schnittstelle gibt nichts heraus". Den Unterschied macht eine
+     * zweite Aufgabe, von der wir WISSEN, dass dort Dateien gefunden
+     * wurden. Kommt die auch leer zurueck, liegt es an der
+     * Schnittstelle; kommt sie voll zurueck, haengt an dieser hier
+     * wirklich nichts.
+     */
+    const { data: andere } = await sb
+      .from("task_attachments")
+      .select("task_id, tasks!inner ( onoffice_task_id, title )")
+      .eq("origin", "onoffice")
+      .not("tasks.onoffice_task_id", "is", null)
+      .neq("tasks.onoffice_task_id", onofficeTaskId)
+      .limit(50);
+
+    const gezaehlt = new Map<string, { titel: string; anzahl: number }>();
+    for (const a of andere ?? []) {
+      const t = a.tasks as unknown as { onoffice_task_id: string; title: string } | null;
+      if (!t?.onoffice_task_id) continue;
+      const bisher = gezaehlt.get(t.onoffice_task_id);
+      gezaehlt.set(t.onoffice_task_id, {
+        titel: t.title,
+        anzahl: (bisher?.anzahl ?? 0) + 1,
+      });
+    }
+
+    const [besteNummer, bestes] = [...gezaehlt.entries()].sort(
+      (a, b) => b[1].anzahl - a[1].anzahl,
+    )[0] ?? [null, null];
+
     return {
       aufgabe: onofficeTaskId,
+      vergleich: besteNummer
+        ? { aufgabe: besteNummer, titel: bestes!.titel, dateien: bestes!.anzahl }
+        : null,
       verknuepfungen,
       dateiIds,
       objektId,
       kundeId,
       fazit:
         "Keine der vier Verknüpfungsarten kennt zu dieser Aufgabe eine Datei. " +
-        "Entweder hängt dort wirklich nichts, oder onOffice legt den Anhang " +
-        "an einer Stelle ab, die die Schnittstelle nicht herausgibt.",
+        "Alle vier haben geantwortet – abgelehnt hat keine. Ob das heißt " +
+        "„hier hängt nichts“ oder „die Schnittstelle gibt nichts heraus“, " +
+        "zeigt die Gegenprobe unten.",
       versuche,
     };
   }

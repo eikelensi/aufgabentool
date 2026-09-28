@@ -44,7 +44,11 @@ export interface ProbeErgebnis {
   feldFehler?: string;
 }
 
-export async function tagsProbe(nummer: number): Promise<ProbeErgebnis> {
+export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
+  // Fuehrende Nullen weg - siehe datei-probe.ts. onOffice kennt
+  // "32071", nicht "032071".
+  const nummer = Number(eingegeben);
+
   const versuche: Versuch[] = [];
 
   const probiere = async (weg: string, parameters: Record<string, unknown>) => {
