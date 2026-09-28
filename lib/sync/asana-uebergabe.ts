@@ -172,6 +172,15 @@ export async function gibNachAsana(
         is_pool: false,
         asana_task_gid: neu.gid,
         asana_assignee_gid: nutzer.gid,
+        // Den Abschnitt mitschreiben, sonst taucht die Karte im
+        // Asana-Brett des Tools in KEINER Spalte auf - dort wird nach
+        // genau diesem Feld gruppiert. Die Aufgabe stand dann in
+        // Asana und war hier trotzdem nicht zu sehen.
+        ...(eingang?.gid
+          ? beschreibung.bereich === "eigene"
+            ? { asana_eigene_section_gid: eingang.gid }
+            : { asana_section_gid: eingang.gid }
+          : {}),
         updated_at: new Date().toISOString(),
         ...(durch ? { updated_by: durch } : {}),
       })

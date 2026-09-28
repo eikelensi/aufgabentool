@@ -1693,7 +1693,18 @@ export function StoreProvider({
       // Ansicht: eine Aufgabe der Geschaeftsfuehrung hat in "Mein Tag"
       // nichts verloren, solange sie nicht abgegeben wurde.
       asanaSpalten,
-      asanaTasks: tasks.filter((t) => t.bereich === "asana"),
+      /**
+       * Doppelte Buchfuehrung, und zwar absichtlich.
+       *
+       * Auf dem Brett stehen zwei Sorten Karten: die Aufgaben der
+       * Geschaeftsfuehrung (bereich "asana") und die Aufgaben des
+       * Hauses, die nach Asana uebergeben wurden. Letztere bleiben
+       * Aufgaben des Tools - sie haben hier einen Bearbeiter, laufen
+       * nach onOffice und stehen unter "Verteilt". Trotzdem gehoeren
+       * sie hierher: wer nach Asana uebergibt, will sie auch in Asana
+       * SEHEN. Vorher lagen sie drueben und waren hier unsichtbar.
+       */
+      asanaTasks: tasks.filter((t) => t.bereich === "asana" || !!t.asanaTaskGid),
       asanaNutzer,
       asanaAnlegen,
       asanaVerschieben,

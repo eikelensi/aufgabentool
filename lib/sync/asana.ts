@@ -537,12 +537,13 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
       status: string;
       is_pool: boolean;
       asana_rang: number | null;
+      asana_section_gid: string | null;
     }
   >();
   if (gids.length) {
     const { data } = await sb
       .from("tasks")
-      .select("id, asana_task_gid, asana_modified_at, bereich, status, is_pool, asana_rang")
+      .select("id, asana_task_gid, asana_modified_at, bereich, status, is_pool, asana_rang, asana_section_gid")
       .in("asana_task_gid", gids);
     for (const t of data ?? []) {
       if (t.asana_task_gid) {
@@ -553,6 +554,7 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
           status: t.status,
           is_pool: Boolean(t.is_pool),
           asana_rang: t.asana_rang ?? null,
+          asana_section_gid: t.asana_section_gid ?? null,
         });
       }
     }
@@ -611,7 +613,25 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
         }
       }
 
-      // Die zweite: die Kommentare holen wir weiter. Wer in Asana
+      // Die zweite: in welcher Spalte die Karte drueben steht.
+      //
+      // Uebergebene Aufgaben stehen jetzt auch im Asana-Brett des
+      // Tools - gruppiert nach genau diesem Feld. Ohne es lag die
+      // Karte in keiner Spalte und war hier unsichtbar, obwohl sie in
+      // Asana im Eingang stand. Nur der Abschnitt wird uebernommen;
+      // Titel, Bearbeiter und Frist fuehrt weiterhin das Tool.
+      if (spalte?.gid && spalte.gid !== vorhanden.asana_section_gid) {
+        try {
+          await sb
+            .from("tasks")
+            .update({ asana_section_gid: spalte.gid, updated_at: new Date().toISOString() })
+            .eq("id", vorhanden.id);
+        } catch {
+          /* Die Spalte ist Anzeige - daran soll kein Lauf scheitern. */
+        }
+      }
+
+      // Die dritte: die Kommentare holen wir weiter. Wer in Asana
       // etwas zu einer abgegebenen Aufgabe schreibt, schreibt es dem
       // Kollegen, der sie jetzt hat - das darf nicht im Board der
       // Geschaeftsfuehrung haengenbleiben.
