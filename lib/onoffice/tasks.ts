@@ -4,6 +4,7 @@
 
 import { call, elements, type OnOfficeRecord } from "./client";
 import {
+  TAGS_FELD,
   TASK_FIELDS,
   taskFelder,
   toIsoDate,
@@ -99,6 +100,36 @@ function zuTags(wert: unknown): string[] {
     .map((t) => String(t).trim())
     .filter(Boolean);
 }
+
+/**
+ * Was in "tags" steht, ist nicht der Name.
+ *
+ * Gemessen am 28.09.2026: die erlaubten Werte des Feldes heissen
+ * intern "indMulti3818Select6324" und aehnlich; erst die
+ * Feldkonfiguration sagt, dass das "Lensinger" ist. Ein gelesener Tag
+ * waere ohne diese Uebersetzung eine Zeichenkette ohne Bedeutung -
+ * und der Abgleich wuerde ihn keinem Kollegen zuordnen koennen.
+ *
+ * Einmal je Lauf geholt, nicht je Aufgabe: die Feldkonfiguration
+ * aendert sich nicht im Minutentakt, ein zusaetzlicher Aufruf je
+ * Aufgabe waere reine Verschwendung.
+ */
+let tagBeschriftungen: Record<string, string> | null = null;
+
+export async function ladeTagBeschriftungen(): Promise<Record<string, string>> {
+  if (tagBeschriftungen) return tagBeschriftungen;
+  try {
+    const felder = await readTaskFields();
+    tagBeschriftungen = felder.find((f) => f.name === TAGS_FELD)?.wertLabels ?? {};
+  } catch {
+    // Ohne Zuordnung lieber die Rohwerte als gar nichts - der
+    // Abgleich sagt dann "unbekanntes Tag" statt still zu scheitern.
+    tagBeschriftungen = {};
+  }
+  return tagBeschriftungen;
+}
+
+
 
 export interface ReadTasksOptions {
   /** Nur Aufgaben eines Bearbeiters (onOffice-Benutzername). */

@@ -17,7 +17,11 @@
  * Anhaenge - werden nie ueberschrieben.
  */
 
-import { readTasks, type OnofficeTask } from "@/lib/onoffice/tasks";
+import {
+  ladeTagBeschriftungen,
+  readTasks,
+  type OnofficeTask,
+} from "@/lib/onoffice/tasks";
 import { istAbgeschlossen } from "@/lib/onoffice/mapping";
 import { ohneNotizen } from "@/lib/onoffice/notizen";
 import { erfasseAnhangIds } from "@/lib/sync/anhaenge";
@@ -259,6 +263,14 @@ export async function synchronisiereAufgaben(
     .maybeSingle();
   const tagsLesen = tagEinst?.onoffice_tags_lesen === true;
 
+  /**
+   * Was in "tags" steht, ist nicht der Name, sondern ein Schluessel
+   * ("indMulti3818Select6324" = "Lensinger"). Ohne diese Zuordnung
+   * koennte der Abgleich einen gelesenen Tag keinem Kollegen
+   * zuordnen. Einmal je Lauf geholt.
+   */
+  const tagBeschriftung = tagsLesen ? await ladeTagBeschriftungen() : {};
+
   const ergebnis: SyncErgebnis = {
     gelesen: 0,
     uebernommen: 0,
@@ -453,7 +465,7 @@ export async function synchronisiereAufgaben(
     // Vorsicht, sondern weil sonst ein im Tool gesetzter Auftraggeber
     // beim naechsten Lauf verschwaende - der Weg nach drueben liegt
     // dann ja womoeglich noch vor uns.
-    const tag = aufgabe.tags[0];
+    const tag = tagBeschriftung[aufgabe.tags[0] ?? ""] ?? aufgabe.tags[0];
     if (tag) {
       zeile.onoffice_tag = tag;
       const treffer = tags.nachTag.get(normalisiere(tag));

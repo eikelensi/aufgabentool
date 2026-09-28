@@ -17,8 +17,15 @@ Abgefragt mit `get` / `fields`, `parameters: { labels: true, language: "DEU", mo
 
 ```
 tags — Beschriftung "Tags" — Typ: multiselect
-Erlaubte Werte: indMulti3818Select6324, indMulti3818Select6326, indMulti3818Select6328
+Erlaubte Werte:
+  indMulti3818Select6324 = "Lensinger"
+  indMulti3818Select6326 = "Spiolek"
+  indMulti3818Select6328 = "Marker"
 ```
+
+Die Zuordnung der internen Schlüssel zu den Beschriftungen bekommen
+wir also über `get` / `fields` problemlos. Es fehlt ausschließlich der
+an der einzelnen Aufgabe gesetzte Wert.
 
 ## Was der Lesecall antwortet
 
@@ -47,10 +54,9 @@ anderen Felder erfolgreich liest.
 2. Falls es über `get` / `task` grundsätzlich nicht ausgelesen werden
    kann — gibt es einen anderen dokumentierten Weg, den an einer
    Aufgabe gesetzten Tag zu ermitteln?
-3. Die erlaubten Werte heißen intern `indMulti3818Select6324` und
-   ähnlich. Ist die Zuordnung dieser Schlüssel zu ihren
-   Beschriftungen über `get` / `fields` (`labels: true`) der
-   vorgesehene Weg, oder gibt es dafür einen eigenen Aufruf?
+3. Lässt sich das Feld über `modify` / `task` **schreiben**, auch wenn
+   es nicht gelesen werden kann? Wir setzen den Tag bislang nur beim
+   Anlegen mit.
 
 ## Was wir währenddessen tun
 
