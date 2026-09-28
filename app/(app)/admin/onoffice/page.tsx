@@ -137,7 +137,14 @@ function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | 
                     {" – "}
                     {f.label ?? "ohne Beschriftung"}
                     {f.typ ? ` (${f.typ})` : ""}
-                    {f.werte?.length ? ` · Werte: ${f.werte.slice(0, 12).join(", ")}` : ""}
+                    {f.wertLabels
+                      ? ` · Werte: ${Object.entries(f.wertLabels)
+                          .slice(0, 12)
+                          .map(([k, v]) => `${v} (${k})`)
+                          .join(", ")}`
+                      : f.werte?.length
+                        ? ` · Werte: ${f.werte.slice(0, 12).join(", ")}`
+                        : ""}
                   </span>
                 </li>
               ))}
@@ -190,6 +197,22 @@ function DateiProbe({ wert, ergebnis }: { wert: string; ergebnis: DateiProbeErge
           <p className="mb-2">
             <strong>Aufgabe {ergebnis.aufgabe}:</strong> {ergebnis.fazit}
           </p>
+          <p className="mb-1 font-medium">Verknüpfungsarten:</p>
+          <ul className="mb-2 space-y-0.5 text-[11px]">
+            {ergebnis.verknuepfungen.map((v) => (
+              <li key={v.art}>
+                <code>{v.art}</code>{" "}
+                {v.fehler ? (
+                  <span style={{ color: "var(--err-fg)" }}>{v.fehler}</span>
+                ) : (
+                  <span style={{ color: v.anzahl > 0 ? "var(--ok-fg)" : undefined }}>
+                    {v.anzahl} Datei(en)
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+
           <p className="muted mb-2 text-[11px]">
             {ergebnis.dateiIds.length} Anhang/Anhänge laut onOffice
             {ergebnis.geprueft ? ` · geprüft wurde Datei ${ergebnis.geprueft}` : ""} · Objekt:{" "}

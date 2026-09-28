@@ -22,6 +22,43 @@ const REL = {
 } as const;
 
 /** Relationen, die von einer Datei zu ihrem Datensatz zurueckfuehren. */
+/**
+ * Woran eine Datei sonst noch haengen kann.
+ *
+ * Eine Aufgabe in onOffice ist im Kern ein Kalendereintrag. Wer im
+ * CRM eine Datei an eine Aufgabe haengt, legt sie damit nicht
+ * zwangslaeufig unter task:file:attachment ab - es gibt daneben
+ * calendar, agentsLog und project, alle mit demselben Muster. Welche
+ * dieser Tueren bei diesem Mandanten offensteht, sagt die
+ * Datei-Probe.
+ */
+export const DATEI_VERKNUEPFUNGEN: Record<string, string> = {
+  "task:file:attachment": "urn:onoffice-de-ns:smart:2.5:relationTypes:task:file:attachment",
+  "calendar:file:attachment":
+    "urn:onoffice-de-ns:smart:2.5:relationTypes:calendar:file:attachment",
+  "agentsLog:file:attachment":
+    "urn:onoffice-de-ns:smart:2.5:relationTypes:agentsLog:file:attachment",
+  "project:file:attachment":
+    "urn:onoffice-de-ns:smart:2.5:relationTypes:project:file:attachment",
+};
+
+/** Dieselbe Frage, aber je Verknuepfungsart einzeln - fuer die Probe. */
+export async function dateiIdsUeber(
+  urn: string,
+  parentId: string | number,
+): Promise<{ ids: string[]; fehler?: string }> {
+  try {
+    const res = await call({
+      action: "get",
+      resourceType: "idsfromrelation",
+      parameters: { relationtype: urn, parentids: [String(parentId)] },
+    });
+    return { ids: extractIds(res.records as OnOfficeRecord[], String(parentId)) };
+  } catch (err) {
+    return { ids: [], fehler: (err as Error).message };
+  }
+}
+
 const DATEI_ELTERN = {
   estate: "urn:onoffice-de-ns:smart:2.5:relationTypes:estate:allFiles",
   address: "urn:onoffice-de-ns:smart:2.5:relationTypes:address:file:attachment",

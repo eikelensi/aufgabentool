@@ -65,25 +65,38 @@ export async function tagsProbe(nummer: number): Promise<ProbeErgebnis> {
     });
   };
 
-  // 1. Einzelabruf, nur das eine Feld. Der schmalste Weg - wenn
-  //    irgendetwas geht, dann das.
-  await probiere("recordids + data:[tags]", { recordids: [nummer], data: ["tags"] });
+  /**
+   * Der Lesecall fuer Aufgaben kennt kein "recordids".
+   *
+   * Das war mein Fehler, und er hat drei der vier Wege wertlos
+   * gemacht: onOffice antwortet mit "Invalid field in input data:
+   * recordids" (Code 144). Eine einzelne Aufgabe holt man ueber den
+   * FILTER auf ihre Nummer - so macht es der Abgleich auch.
+   */
+  const filter = { Nr: [{ op: "=", val: String(nummer) }] };
 
-  // 2. Einzelabruf mit allen Feldern. Die Doku zeigt bei
-  //    relatedEstateId, dass ein Einzelabruf mehr herausgibt als eine
-  //    gefilterte Liste - vielleicht gilt das hier auch.
-  await probiere("recordids + alle Felder", { recordids: [nummer], data: [...TASK_FIELDS] });
+  // 1. Nur das eine Feld. Der schmalste Weg - wenn irgendetwas geht,
+  //    dann das.
+  await probiere("Filter auf Nr, nur tags", { data: ["tags"], filter, listlimit: 1 });
 
-  // 3. Einzelabruf OHNE data. Manche Ressourcen liefern dann alles,
-  //    was sie haben.
-  await probiere("recordids ohne data", { recordids: [nummer] });
-
-  // 4. Der Weg, den der Abgleich geht: Filter statt recordids.
-  await probiere("filter auf Nr + alle Felder", {
-    data: [...TASK_FIELDS],
-    filter: { Nr: [{ op: "=", val: String(nummer) }] },
+  // 2. Alle Felder ausser tags - der Gegenbeweis. Klappt das, liegt
+  //    es wirklich an diesem einen Feld und nicht am Aufruf.
+  await probiere("Filter auf Nr, alle Felder OHNE tags", {
+    data: TASK_FIELDS.filter((f) => f !== "tags"),
+    filter,
     listlimit: 1,
   });
+
+  // 3. Alle Felder samt tags - so fragt der Abgleich.
+  await probiere("Filter auf Nr, alle Felder MIT tags", {
+    data: [...TASK_FIELDS],
+    filter,
+    listlimit: 1,
+  });
+
+  // 4. Ohne data. Manche Ressourcen geben dann alles heraus, was sie
+  //    haben - und vielleicht faellt tags dabei mit ab.
+  await probiere("Filter auf Nr, ohne data", { filter, listlimit: 1 });
 
   // Und zum Schluss: wie heisst das Feld ueberhaupt? Ein Name, der in
   // der Oberflaeche "Tags" heisst, kann in der Schnittstelle anders

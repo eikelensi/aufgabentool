@@ -164,6 +164,41 @@ async function ladeTagVerzeichnis(): Promise<TagVerzeichnis> {
 }
 
 /**
+ * "Auftrag von" aus dem Betreff lesen - der Notnagel, solange
+ * onOffice das Feld "tags" nicht herausgibt.
+ *
+ * Gesucht wird nur, was nach dem Wort "von" steht, und auch dort nur
+ * ein Name, den das Verzeichnis eindeutig kennt. Anreden werden
+ * uebersprungen, Satzzeichen ebenso. Ein mehrdeutiger Name (im
+ * Verzeichnis als null hinterlegt) zaehlt NICHT als Treffer - dann
+ * bleibt das Feld leer und ein Mensch sieht es sich an.
+ */
+function auftragAusBetreff(
+  betreff: string,
+  nachTag: Map<string, string | null>,
+): string | null {
+  const ANREDEN = new Set(["frau", "herr", "herrn", "fr", "hr"]);
+
+  const woerter = betreff
+    .split(/[\s,;:()\[\]/–—-]+/)
+    .map((w) => w.trim())
+    .filter(Boolean);
+
+  const vonIndex = woerter.findIndex((w) => w.toLowerCase() === "von");
+  if (vonIndex < 0) return null;
+
+  // Hoechstens drei Woerter hinter "von" ansehen - danach ist es
+  // kein Name mehr, sondern ein Satz.
+  for (const wort of woerter.slice(vonIndex + 1, vonIndex + 4)) {
+    if (ANREDEN.has(wort.toLowerCase())) continue;
+    const treffer = nachTag.get(normalisiere(wort));
+    if (treffer) return treffer;
+  }
+
+  return null;
+}
+
+/**
  * Seit wann holen? Der Merker in onoffice_sync_cursor, minus einer
  * Ueberlappung, damit nichts durchfaellt, das waehrend des letzten Laufs
  * geaendert wurde.
@@ -410,6 +445,28 @@ export async function synchronisiereAufgaben(
         // null heisst mehrdeutig, undefined heisst unbekannt - beides
         // ist ein Fall fuer einen Menschen, nicht fuer eine Vermutung.
         tagsOhneZuordnung.add(tag);
+      }
+    } else if (!vorhandene?.broker_contact_id) {
+      /**
+       * Kein Tag - dann der Betreff.
+       *
+       * Das Feld "tags" gibt onOffice nicht heraus: es steht in der
+       * Feldkonfiguration, aber der Lesecall lehnt es ab ("Invalid
+       * field in input data", Code 144). Das muss onOffice
+       * freischalten, und solange es das nicht tut, bliebe "Auftrag
+       * von" leer.
+       *
+       * Dabei steht der Name in diesem Haus fast immer im Betreff:
+       * "Intern - Objektanlageauftrag von Frau Spiolek". Also lesen
+       * wir ihn dort - aber NUR als Notnagel: nur wenn kein Tag kam
+       * und hier noch niemand eingetragen ist, nur bei einem
+       * eindeutigen Treffer, und nur nach dem Wort "von". Raten waere
+       * schlimmer als eine leere Zeile.
+       */
+      const ausBetreff = auftragAusBetreff(aufgabe.subject ?? "", tags.nachTag);
+      if (ausBetreff) {
+        zeile.broker_contact_id = ausBetreff;
+        ergebnis.tagsZugeordnet++;
       }
     }
 

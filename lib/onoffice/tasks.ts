@@ -335,6 +335,15 @@ export interface TaskFeld {
   label?: string;
   typ?: string;
   werte?: string[];
+  /**
+   * Schluessel und Beschriftung der erlaubten Werte.
+   *
+   * Wichtig bei Mehrfachauswahlen: onOffice speichert dort nicht
+   * "Lensinger", sondern einen internen Schluessel wie
+   * "indMulti3818Select6324". Ohne diese Zuordnung waere ein
+   * gelesener Wert nur eine Zeichenkette ohne Bedeutung.
+   */
+  wertLabels?: Record<string, string>;
 }
 
 /** Wie readTaskFieldNames, aber mit Label, Typ und erlaubten Werten. */
@@ -367,6 +376,13 @@ export async function readTaskFields(): Promise<TaskFeld[]> {
             werte: b.permittedvalues
               ? Object.keys(b.permittedvalues as Record<string, unknown>)
               : undefined,
+            wertLabels: b.permittedvalues
+              ? Object.fromEntries(
+                  Object.entries(b.permittedvalues as Record<string, unknown>).map(
+                    ([k, v]) => [k, String(v)],
+                  ),
+                )
+              : undefined,
           });
         }
       } else {
@@ -376,6 +392,13 @@ export async function readTaskFields(): Promise<TaskFeld[]> {
           typ: innen.type ? String(innen.type) : undefined,
           werte: innen.permittedvalues
             ? Object.keys(innen.permittedvalues as Record<string, unknown>)
+            : undefined,
+          wertLabels: innen.permittedvalues
+            ? Object.fromEntries(
+                Object.entries(innen.permittedvalues as Record<string, unknown>).map(
+                  ([k, v]) => [k, String(v)],
+                ),
+              )
             : undefined,
         });
       }

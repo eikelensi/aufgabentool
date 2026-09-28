@@ -21,7 +21,7 @@
  */
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { tryCall, elements, type OnOfficeRecord } from "./client";
-import { taskFileIds } from "./relations";
+import { DATEI_VERKNUEPFUNGEN, dateiIdsUeber, taskFileIds } from "./relations";
 
 export interface DateiVersuch {
   weg: string;
@@ -33,8 +33,17 @@ export interface DateiVersuch {
   felder?: string[];
 }
 
+export interface Verknuepfungsversuch {
+  art: string;
+  anzahl: number;
+  ids: string[];
+  fehler?: string;
+}
+
 export interface DateiProbeErgebnis {
   aufgabe: string;
+  /** Welche Verknuepfungsart wie viele Dateien kennt. */
+  verknuepfungen: Verknuepfungsversuch[];
   /** Die Anhaenge laut Relation. */
   dateiIds: string[];
   /** Die Datei, mit der geprueft wurde. */
@@ -49,18 +58,31 @@ export async function dateiProbe(onofficeTaskId: string): Promise<DateiProbeErge
   const versuche: DateiVersuch[] = [];
   const sb = supabaseAdmin();
 
-  // Was haengt laut onOffice an dieser Aufgabe?
-  let dateiIds: string[] = [];
-  try {
-    const map = await taskFileIds([onofficeTaskId]);
-    dateiIds = map.get(String(onofficeTaskId)) ?? [];
-  } catch (err) {
-    return {
-      aufgabe: onofficeTaskId,
-      dateiIds: [],
-      fazit: `Die Anhangsliste war nicht lesbar: ${(err as Error).message}`,
-      versuche,
-    };
+  /**
+   * Erst einmal: HAENGT ueberhaupt etwas dran, und woran?
+   *
+   * Eine Aufgabe in onOffice ist im Kern ein Kalendereintrag. Wer im
+   * CRM eine Datei an eine Aufgabe haengt, legt sie damit nicht
+   * zwangslaeufig unter task:file:attachment ab. Also alle vier
+   * Tueren anklopfen und aufschreiben, welche aufgeht - das ist
+   * billiger als die Annahme, es gaebe nur eine.
+   */
+  const verknuepfungen: Verknuepfungsversuch[] = [];
+  for (const [art, urn] of Object.entries(DATEI_VERKNUEPFUNGEN)) {
+    const res = await dateiIdsUeber(urn, onofficeTaskId);
+    verknuepfungen.push({ art, anzahl: res.ids.length, ids: res.ids.slice(0, 10), fehler: res.fehler });
+  }
+
+  // Die erste Verknuepfungsart, die etwas kennt.
+  let dateiIds: string[] = verknuepfungen.find((v) => v.anzahl > 0)?.ids ?? [];
+
+  if (!dateiIds.length) {
+    try {
+      const map = await taskFileIds([onofficeTaskId]);
+      dateiIds = map.get(String(onofficeTaskId)) ?? [];
+    } catch {
+      /* die Einzelabfragen oben haben es schon versucht */
+    }
   }
 
   // Objekt und Kunde der Aufgabe - aus unserer eigenen Datenbank.
@@ -76,10 +98,14 @@ export async function dateiProbe(onofficeTaskId: string): Promise<DateiProbeErge
   if (!dateiIds.length) {
     return {
       aufgabe: onofficeTaskId,
+      verknuepfungen,
       dateiIds,
       objektId,
       kundeId,
-      fazit: "An dieser Aufgabe hängt in onOffice keine Datei.",
+      fazit:
+        "Keine der vier Verknüpfungsarten kennt zu dieser Aufgabe eine Datei. " +
+        "Entweder hängt dort wirklich nichts, oder onOffice legt den Anhang " +
+        "an einer Stelle ab, die die Schnittstelle nicht herausgibt.",
       versuche,
     };
   }
@@ -152,7 +178,7 @@ export async function dateiProbe(onofficeTaskId: string): Promise<DateiProbeErge
       reference: String(onofficeTaskId),
       ok: mitInhalt.length > 0,
       message: `Datei-Probe an Aufgabe ${onofficeTaskId}: ${fazit}`,
-      payload: { dateiIds, objektId, kundeId, versuche },
+      payload: { verknuepfungen, dateiIds, objektId, kundeId, versuche },
     });
   } catch {
     /* Das Protokoll ist Beiwerk - die Antwort zaehlt. */
@@ -160,6 +186,7 @@ export async function dateiProbe(onofficeTaskId: string): Promise<DateiProbeErge
 
   return {
     aufgabe: onofficeTaskId,
+    verknuepfungen,
     dateiIds,
     geprueft: String(fileid),
     objektId,
