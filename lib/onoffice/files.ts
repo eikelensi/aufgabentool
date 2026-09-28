@@ -281,17 +281,44 @@ function bitte(weg: Weg, fileId: string, k: Kontext) {
 
 export async function ladeDatei(
   fileId: string | number,
-  taskId?: string | number,
+  kontextOderTask?: Kontext | string | number,
 ): Promise<DateiMitInhalt | null> {
   const nummer = String(fileId);
-  const kontext: Kontext = { taskId };
+  const kontext: Kontext =
+    typeof kontextOderTask === "object" && kontextOderTask !== null
+      ? { ...kontextOderTask }
+      : { taskId: kontextOderTask };
   const fehler: string[] = [];
 
-  const reihenfolge = gemerkterWeg
-    ? [gemerkterWeg, ...ALLE_WEGE.filter((w) => w !== gemerkterWeg)]
+  /**
+   * Was wir schon wissen, zuerst.
+   *
+   * Der Lesecall "file" gibt eine Datei nur ueber den Datensatz heraus,
+   * an dem sie haengt - und er kennt dafuer nur estate und address.
+   * "task" ist kein gueltiger resourceId; onOffice antwortet mit
+   * "missing configuration for resourceId" (Code 24). Der Rueckweg von
+   * der Datei zu ihrem Datensatz ist in diesem Mandanten ebenfalls zu:
+   * die Relation rueckwaerts sagt "Not implemented" (Code 199).
+   *
+   * Es gibt aber einen dritten Weg, und den haben wir lange uebersehen:
+   * wir kennen das Objekt und den Kunden der AUFGABE ohnehin - sie
+   * stehen in unserer eigenen Datenbank. Haengt die Datei an einem von
+   * beiden, koennen wir sie genau so holen, ohne irgendetwas
+   * rueckwaerts zu lesen. Deshalb stehen diese Wege jetzt vorne, wenn
+   * die Nummern mitkommen.
+   */
+  const bekannteEltern = Boolean(kontext.estateId || kontext.addressId);
+  const grundreihenfolge: Weg[] = bekannteEltern
+    ? ["estate", "address", "task", "ohne", "selbst"]
     : [...ALLE_WEGE];
 
-  let elternGeholt = false;
+  const reihenfolge = gemerkterWeg
+    ? [gemerkterWeg, ...grundreihenfolge.filter((w) => w !== gemerkterWeg)]
+    : grundreihenfolge;
+
+  // Der Rueckwaertsweg wird nur noch gebraucht, wenn wir die
+  // Datensaetze NICHT schon kennen.
+  let elternGeholt = bekannteEltern;
 
   for (const weg of reihenfolge) {
     // Objekt und Adresse brauchen erst den Datensatz, an dem die Datei

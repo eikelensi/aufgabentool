@@ -218,7 +218,9 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
   const [{ data: offen, error }, { data: einst }] = await Promise.all([
     sb
       .from("task_attachments")
-      .select("id, task_id, onoffice_file_id, tasks ( onoffice_task_id )")
+      .select(
+        "id, task_id, onoffice_file_id, tasks ( onoffice_task_id, onoffice_estate_id, onoffice_address_id )",
+      )
       .eq("sync_state", "nur_onoffice")
       .is("storage_path", null)
       .not("onoffice_file_id", "is", null)
@@ -235,11 +237,22 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
   const maxBytes = Math.max(1, einst?.attachment_max_mb ?? 25) * 1024 * 1024;
 
   for (const a of offen ?? []) {
-    const onofficeTaskId = (a.tasks as unknown as { onoffice_task_id: string | null } | null)
-      ?.onoffice_task_id;
+    const gehoert = a.tasks as unknown as {
+      onoffice_task_id: string | null;
+      onoffice_estate_id: string | null;
+      onoffice_address_id: string | null;
+    } | null;
 
     try {
-      const geholt = await ladeDatei(a.onoffice_file_id as string, onofficeTaskId ?? undefined);
+      // Objekt und Kunde der Aufgabe kennen wir aus unserer eigenen
+      // Datenbank - damit laesst sich die Datei ueber den Datensatz
+      // holen, an dem sie haengt. Der Umweg ueber die Relation
+      // rueckwaerts ist in diesem Mandanten versperrt.
+      const geholt = await ladeDatei(a.onoffice_file_id as string, {
+        taskId: gehoert?.onoffice_task_id ?? undefined,
+        estateId: gehoert?.onoffice_estate_id ?? undefined,
+        addressId: gehoert?.onoffice_address_id ?? undefined,
+      });
       if (!geholt) throw new Error("onOffice liefert diese Datei nicht.");
 
       if (geholt.inhalt.byteLength > maxBytes) {

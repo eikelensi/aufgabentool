@@ -13,6 +13,7 @@ import { serviceRoleVorhanden, supabaseAdmin } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 import { tagsProbe, type ProbeErgebnis } from "@/lib/onoffice/tags-probe";
+import { dateiProbe, type DateiProbeErgebnis } from "@/lib/onoffice/datei-probe";
 import Seitenkopf from "../seitenkopf";
 import { ladeAnbindung } from "./anbindung";
 import Rueckschreiben from "./rueckschreiben";
@@ -148,6 +149,85 @@ function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | 
   );
 }
 
+/**
+ * Die Datei-Probe.
+ *
+ * Die LISTE der Anhaenge bekommen wir - der INHALT nicht. Der
+ * Lesecall "file" gibt eine Datei nur ueber den Datensatz heraus, an
+ * dem sie haengt, und kennt dafuer laut Doku nur estate und address.
+ * Offen ist genau eine Frage: laesst sich eine Datei, die an einer
+ * Aufgabe haengt, ueber das Objekt oder den Kunden DIESER Aufgabe
+ * holen? Diese Probe fragt sie.
+ */
+function DateiProbe({ wert, ergebnis }: { wert: string; ergebnis: DateiProbeErgebnis | null }) {
+  return (
+    <section className="panel p-4">
+      <h3 className="mb-1 text-sm font-semibold">Anhänge einer Aufgabe prüfen</h3>
+      <p className="muted mb-3 text-[11px] leading-relaxed">
+        Welche Dateien an einer onOffice-Aufgabe hängen, wissen wir – die Liste kommt über
+        die Verknüpfung. Am Inhalt hakt es: onOffice gibt eine Datei nur über das Objekt
+        oder den Kunden heraus, an dem sie hängt, nicht über die Aufgabe. Diese Probe
+        versucht alle Wege und sagt, welcher trägt. Sie liest nur.
+      </p>
+
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        {/* Die Tag-Probe soll beim Dateiprüfen nicht mitlaufen. */}
+        <input
+          name="dateiProbe"
+          defaultValue={wert}
+          placeholder="Aufgabennummer, z. B. 31987"
+          className="field"
+          style={{ maxWidth: 240 }}
+          aria-label="Aufgabennummer für die Datei-Probe"
+        />
+        <button type="submit" className="btn">
+          Prüfen
+        </button>
+      </form>
+
+      {ergebnis ? (
+        <div className="mt-3 text-[12px]">
+          <p className="mb-2">
+            <strong>Aufgabe {ergebnis.aufgabe}:</strong> {ergebnis.fazit}
+          </p>
+          <p className="muted mb-2 text-[11px]">
+            {ergebnis.dateiIds.length} Anhang/Anhänge laut onOffice
+            {ergebnis.geprueft ? ` · geprüft wurde Datei ${ergebnis.geprueft}` : ""} · Objekt:{" "}
+            {ergebnis.objektId ?? "keines"} · Kunde: {ergebnis.kundeId ?? "keiner"}
+          </p>
+
+          <ul className="space-y-1">
+            {ergebnis.versuche.map((v) => (
+              <li key={v.weg} className="line border-l-2 pl-2">
+                <code className="text-[11px]">{v.weg}</code>{" "}
+                {v.geklappt ? (
+                  <>
+                    <span style={{ color: (v.inhaltBytes ?? 0) > 0 ? "var(--ok-fg)" : "var(--warn-fg)" }}>
+                      {(v.inhaltBytes ?? 0) > 0 ? "Inhalt da" : "gelesen, aber ohne Inhalt"}
+                    </span>
+                    {v.dateiname ? <span className="muted"> – {v.dateiname}</span> : null}
+                    {(v.inhaltBytes ?? 0) > 0 ? (
+                      <span className="muted"> – {Math.round((v.inhaltBytes ?? 0) / 1024)} KB</span>
+                    ) : null}
+                    <span className="muted block text-[10px]">
+                      Felder: {(v.felder ?? []).join(", ") || "–"}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ color: "var(--err-fg)" }}>abgelehnt</span>
+                    <span className="muted block text-[10px]">{v.meldung}</span>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default async function OnofficeAnbindung({
   searchParams,
 }: {
@@ -165,12 +245,20 @@ export default async function OnofficeAnbindung({
   const roh = sp.tagProbe;
   const probeWert = (Array.isArray(roh) ? roh[0] : roh)?.trim() ?? "";
 
+  const rohDatei = sp.dateiProbe;
+  const dateiWert = (Array.isArray(rohDatei) ? rohDatei[0] : rohDatei)?.trim() ?? "";
+
   let probe: ProbeErgebnis | null = null;
+  let dateien: DateiProbeErgebnis | null = null;
   if (probeWert && Number.isFinite(Number(probeWert)) && onofficeConfigured()) {
     // Noch einmal nachsehen, wer fragt: die Probe ruft onOffice auf,
     // das soll nicht an der Vermutung haengen, das Layout habe schon
     // geprueft.
     if (istAdmin(await aktuellesProfil())) probe = await tagsProbe(Number(probeWert));
+  }
+
+  if (dateiWert && Number.isFinite(Number(dateiWert)) && onofficeConfigured()) {
+    if (istAdmin(await aktuellesProfil())) dateien = await dateiProbe(dateiWert);
   }
 
   const sb = supabaseAdmin();
@@ -233,6 +321,10 @@ export default async function OnofficeAnbindung({
 
         <div className="lg:col-span-2">
           <TagProbe wert={probeWert} ergebnis={probe} />
+        </div>
+
+        <div className="lg:col-span-2">
+          <DateiProbe wert={dateiWert} ergebnis={dateien} />
         </div>
       </div>
     </>
