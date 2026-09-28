@@ -245,5 +245,32 @@ export async function ordneAuftragUeberTagFilter(): Promise<TagAbgleichErgebnis>
     ergebnis.hinweise.push("onOffice nimmt den Filter auf das Tag nicht an.");
   }
 
+  /**
+   * Ins Protokoll, und zwar bei JEDEM Lauf.
+   *
+   * Sonst muss jemand einen Knopf in der Verwaltung druecken, um zu
+   * erfahren, ob der Weg traegt - und bis dahin sieht man nur, dass
+   * "Auftrag von" leer bleibt, ohne zu wissen, woran es liegt. Genau
+   * diese Blindheit hat heute Stunden gekostet.
+   */
+  try {
+    await sb.from("onoffice_sync_log").insert({
+      direction: "pull",
+      resource: "task",
+      reference: "tag-filter",
+      ok: ergebnis.moeglich,
+      message: ergebnis.moeglich
+        ? `Tag-Filter angenommen · ${ergebnis.zugeordnet}× „Auftrag von“ gesetzt · ` +
+          (Object.entries(ergebnis.jeTag)
+            .map(([t, n]) => `${t}: ${n}`)
+            .join(", ") || "keine Treffer") +
+          ` · ${ergebnis.ohneTagInOnoffice.length} Kollegen ohne Tag in onOffice`
+        : `Tag-Filter abgelehnt · ${ergebnis.hinweise.join(" | ").slice(0, 400)}`,
+      payload: ergebnis,
+    });
+  } catch {
+    /* Das Protokoll ist Beiwerk - der Lauf zaehlt. */
+  }
+
   return ergebnis;
 }
