@@ -28,6 +28,13 @@ export interface Versuch {
   felder?: string[];
   /** Der Wert von tags, wenn einer kam. */
   tags?: unknown;
+  /**
+   * Was in den uebrigen Feldern steht, die nach einem Auftraggeber
+   * aussehen koennten - allen voran "von". Das Feld kommt bei jedem
+   * Lesen mit und wurde bisher weggeworfen, ohne dass je jemand
+   * hineingesehen haette.
+   */
+  weitere?: Record<string, unknown>;
 }
 
 export interface ProbeErgebnis {
@@ -77,11 +84,21 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
 
     const satz = (res.result.records as OnOfficeRecord[])[0];
     const e = elements(satz ?? {});
+
+    // "von", "Verantwortung" und "Bearbeiter" nebeneinander gezeigt.
+    // Die Frage, wer den Auftrag gegeben hat, koennte in einem Feld
+    // stehen, das laengst mitkommt - danach zu sehen kostet nichts.
+    const weitere: Record<string, unknown> = {};
+    for (const schluessel of ["von", "Verantwortung", "Bearbeiter", "Art"]) {
+      if (schluessel in e) weitere[schluessel] = e[schluessel];
+    }
+
     versuche.push({
       weg,
       geklappt: true,
       felder: Object.keys(e),
       tags: e.tags ?? e.Tags ?? null,
+      weitere: Object.keys(weitere).length ? weitere : undefined,
     });
   };
 
@@ -155,6 +172,11 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
       return;
     }
     const saetze = res.result.records as OnOfficeRecord[];
+    // Die Nummer steht in der Satzkennung, NICHT im data-Block:
+    // "Nr" ist ein Filterfeld. Genau das stand in mapping.ts, und
+    // genau das habe ich hier zweimal missachtet - die drei
+    // Filterversuche vom 28.09. sind daran gescheitert, nicht an
+    // "tags". Die Ablehnung nannte "(0, Nr)".
     filterwege.push({
       weg,
       geklappt: true,
@@ -169,14 +191,14 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
 
     // a) Der interne Schluessel - so speichert onOffice Mehrfachauswahlen.
     await filterProbe(`Filter auf tags = Schlüssel „${ersterSchluessel}“`, {
-      data: ["Nr", "Betreff"],
+      data: ["Betreff"],
       filter: { [TAGS_FELD]: [{ op: "=", val: ersterSchluessel }] },
       listlimit: 5,
     });
 
     // b) Die Beschriftung - falls der Filter uebersetzt.
     await filterProbe(`Filter auf tags = Beschriftung „${ersteBeschriftung}“`, {
-      data: ["Nr", "Betreff"],
+      data: ["Betreff"],
       filter: { [TAGS_FELD]: [{ op: "=", val: ersteBeschriftung }] },
       listlimit: 5,
     });
@@ -184,7 +206,7 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
     // c) Die scharfe Frage: DIESE Aufgabe UND dieses Tag. Kommt sie
     //    zurueck, traegt sie das Tag - ohne dass wir es je gelesen haetten.
     await filterProbe(`Diese Aufgabe UND tags = „${ersteBeschriftung}“`, {
-      data: ["Nr", "Betreff"],
+      data: ["Betreff"],
       filter: {
         Nr: [{ op: "=", val: String(nummer) }],
         [TAGS_FELD]: [{ op: "=", val: ersterSchluessel }],
@@ -213,7 +235,7 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
     const res = await tryCall({
       action: "read",
       resourceType: "task",
-      parameters: { data: ["Nr", feld.name], filter, listlimit: 1 },
+      parameters: { data: [feld.name], filter, listlimit: 1 },
     });
     if (!res.ok) {
       auswahlfelder.push({

@@ -81,7 +81,10 @@ async function aufgabenMitTag(
         action: "read",
         resourceType: "task",
         parameters: {
-          data: ["Nr"],
+          // KEIN "Nr" im data-Block - das ist ein Filterfeld, und der
+          // Versuch wurde deshalb abgelehnt, ohne dass das etwas ueber
+          // "tags" ausgesagt haette. Die Nummer kommt als Satzkennung.
+          data: ["Betreff"],
           filter: { [TAGS_FELD]: [{ op: "=", val: wert }] },
           listlimit: PRO_SEITE,
           listoffset: offset,

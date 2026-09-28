@@ -108,6 +108,15 @@ function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | 
                         ? "kam nicht mit"
                         : JSON.stringify(v.tags)}
                     </strong>
+                    {v.weitere ? (
+                      <span className="block text-[10px]">
+                        {Object.entries(v.weitere).map(([k, w]) => (
+                          <span key={k} className="mr-3">
+                            <code>{k}</code>: <strong>{JSON.stringify(w)}</strong>
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
                     <span className="muted block text-[10px]">
                       Felder: {(v.felder ?? []).join(", ") || "–"}
                     </span>
