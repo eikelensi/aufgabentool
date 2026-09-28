@@ -50,30 +50,58 @@ async function aufgabenMitTag(
   beschriftung: string,
 ): Promise<{ ok: true; nummern: string[]; ueber: string } | { ok: false; meldung: string }> {
   let letzteMeldung = "";
+  const PRO_SEITE = 500;
+  // Reissleine: lieber eine Seite zu wenig als eine Endlosschleife,
+  // wenn onOffice den Offset ignoriert und immer dasselbe liefert.
+  const MAX_SEITEN = 20;
 
   for (const [wert, wie] of [
     [schluessel, "Schlüssel"],
     [beschriftung, "Beschriftung"],
   ]) {
     if (!wert) continue;
-    const res = await tryCall({
-      action: "read",
-      resourceType: "task",
-      parameters: {
-        data: ["Nr"],
-        filter: { [TAGS_FELD]: [{ op: "=", val: wert }] },
-        listlimit: 500,
-      },
-    });
 
-    if (!res.ok) {
-      letzteMeldung = res.error.message;
-      continue;
+    const nummern: string[] = [];
+    const gesehen = new Set<string>();
+    let offset = 0;
+    let abgelehnt = false;
+
+    for (let seite = 0; seite < MAX_SEITEN; seite++) {
+      const res = await tryCall({
+        action: "read",
+        resourceType: "task",
+        parameters: {
+          data: ["Nr"],
+          filter: { [TAGS_FELD]: [{ op: "=", val: wert }] },
+          listlimit: PRO_SEITE,
+          listoffset: offset,
+        },
+      });
+
+      if (!res.ok) {
+        letzteMeldung = res.error.message;
+        abgelehnt = true;
+        break;
+      }
+
+      const saetze = res.result.records as OnOfficeRecord[];
+      let neueDabei = false;
+      for (const r of saetze) {
+        const nr = String(elements(r).Nr ?? r.id ?? "");
+        if (!nr || gesehen.has(nr)) continue;
+        gesehen.add(nr);
+        nummern.push(nr);
+        neueDabei = true;
+      }
+
+      // Weniger als eine volle Seite heisst: das war die letzte.
+      // Nichts Neues heisst: der Offset wird ignoriert - dann hoert
+      // man besser auf, statt dieselbe Seite zwanzigmal zu holen.
+      if (saetze.length < PRO_SEITE || !neueDabei) break;
+      offset += PRO_SEITE;
     }
 
-    const nummern = (res.result.records as OnOfficeRecord[])
-      .map((r) => String(elements(r).Nr ?? r.id ?? ""))
-      .filter(Boolean);
+    if (abgelehnt) continue;
     return { ok: true, nummern, ueber: wie };
   }
 
