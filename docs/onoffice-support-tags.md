@@ -54,9 +54,35 @@ anderen Felder erfolgreich liest.
 2. Falls es über `get` / `task` grundsätzlich nicht ausgelesen werden
    kann — gibt es einen anderen dokumentierten Weg, den an einer
    Aufgabe gesetzten Tag zu ermitteln?
-3. Lässt sich das Feld über `modify` / `task` **schreiben**, auch wenn
-   es nicht gelesen werden kann? Wir setzen den Tag bislang nur beim
-   Anlegen mit.
+3. Das Feld lässt sich auch **nicht schreiben** (siehe unten). Ist das
+   dieselbe Ursache, und hebt eine Freischaltung beides auf?
+
+## Nachtrag 28.09.2026: auch das Schreiben wird abgelehnt
+
+Wir hatten angenommen, das Feld sei nur für das Lesen gesperrt, weil
+wir den Tag beim Anlegen einer Aufgabe stets mitgeschickt haben. Das
+war ein Irrtum: die Neuanlagen sind daran **vollständig gescheitert**,
+nicht nur der Tag.
+
+```
+create / task, data: { Betreff, Aufgabe, Status, Prio, Art, tags: "Lensinger" }
+→ Invalid field in input data: "(tags, Lensinger)" (Code 144)
+```
+
+Dieselbe Meldung mit „Grötsch", „Rödel", „Bartsch" — also unabhängig
+vom Wert, und alle drei Werte stehen so in der Feldkonfiguration.
+
+Damit ist das Feld `tags` an der Ressource `task` für unseren
+API-Zugang in **beide** Richtungen gesperrt, obwohl es in der
+Feldkonfiguration samt erlaubter Werte ausgeliefert wird:
+
+```
+get / fields, modules: ["task"], labels: true
+→ tags · Typ multiselect · permittedvalues:
+  indMulti3818Select6324 = Lensinger
+  indMulti3818Select6326 = Spiolek
+  indMulti3818Select6328 = Marker
+```
 
 ## Was wir währenddessen tun
 
@@ -65,3 +91,8 @@ Feld wurde abgelehnt und musste ohne es wiederholt werden, also jede
 Aufgabe doppelt geholt. Ersatzweise lesen wir den Namen aus dem
 Betreff („… Auftrag von Frau Spiolek"). Das ist ein Notbehelf und
 trifft nur, wo der Name dort auch steht.
+
+Beim Anlegen schicken wir den Tag weiterhin mit und wiederholen den
+Aufruf ohne ihn, wenn er daran scheitert — damit wenigstens die
+Aufgabe entsteht. Sobald Sie das Feld freischalten, geht der Tag ohne
+Änderung auf unserer Seite wieder mit.

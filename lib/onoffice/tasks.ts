@@ -311,7 +311,25 @@ export async function createTask(input: CreateTaskInput): Promise<string> {
   if (input.relatedEstateId) parameters.relatedEstateId = Number(input.relatedEstateId);
   if (input.relatedAddressId) parameters.relatedAddressId = Number(input.relatedAddressId);
 
-  const res = await call({ action: "create", resourceType: "task", parameters });
+  // "tags" laesst der Mandant NICHT durch - nicht beim Lesen und, wie
+  // sich am 28.09. im Protokoll zeigte, auch nicht beim Schreiben:
+  // "Invalid field in input data: (tags, Lensinger)" (Code 144). Das
+  // hat jede Neuanlage scheitern lassen, nicht nur den Auftraggeber -
+  // die Aufgabe entstand in onOffice dann gar nicht.
+  //
+  // Also: mit Tag versuchen, und wenn genau daran es scheitert, ohne.
+  // Andersherum waere es falsch: sobald onOffice das Feld freischaltet,
+  // soll das Tag ohne Codeaenderung wieder mitgehen.
+  let res;
+  try {
+    res = await call({ action: "create", resourceType: "task", parameters });
+  } catch (err) {
+    const meldung = (err as Error)?.message ?? "";
+    const lagAmTag = data.tags !== undefined && /tags/i.test(meldung) && /144/.test(meldung);
+    if (!lagAmTag) throw err;
+    delete data.tags;
+    res = await call({ action: "create", resourceType: "task", parameters });
+  }
   const record = (res.records as OnOfficeRecord[])[0];
   const id = String(record?.id ?? elements(record ?? {}).Nr ?? "");
   if (!id) throw new Error("onOffice hat keine Aufgaben-ID zurückgegeben.");
