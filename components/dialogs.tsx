@@ -1219,12 +1219,31 @@ export function TaskDetailDialog({
           Eine Zuteilung, die nur im Tool stuende, waere beim naechsten
           Abgleich wieder weg: in diesem Bereich fuehrt Asana. Deshalb
           schreiben diese drei Felder direkt hinueber. */}
-      {task.bereich === "asana" ? (
+      {/* Auch fuer UEBERGEBENE Aufgaben, nicht nur fuer die der
+          Geschaeftsfuehrung.
+          
+          Wer eine Aufgabe nach Asana gibt, sieht sie danach hier als
+          ganz normale Aufgabe - ohne ein einziges Zeichen davon, dass
+          sie drueben liegt. Aufgabe 32111 lag in Asana bei Lisa im
+          Eingang, und im Fenster stand nichts davon. Wer das prueft,
+          muss Asana aufmachen und suchen.
+          
+          Der Unterschied bleibt: bei bereich "asana" fuehrt Asana,
+          bei uebergebenen fuehrt das Tool und Asana ist die Kopie.
+          Deshalb steht es auch verschieden da. */}
+      {task.bereich === "asana" || task.asanaTaskGid ? (
         <div
           className="line mb-4 rounded-lg border p-3"
           style={{ background: "var(--panel-2)" }}
         >
-          <h3 className="mb-2 text-xs font-semibold">In Asana</h3>
+          <h3 className="mb-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
+            In Asana
+            {task.bereich !== "asana" ? (
+              <span className="chip" style={{ background: "var(--info-bg)", color: "var(--info-fg)" }}>
+                übergeben – geführt wird hier
+              </span>
+            ) : null}
+          </h3>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Spalte" hint="Verschiebt die Karte auch drüben.">
               <select

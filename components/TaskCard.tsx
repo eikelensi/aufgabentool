@@ -346,6 +346,13 @@ export default function TaskCard({
         {broker ? (
           <span title={`Auftrag von ${broker.displayName}`}>🤝 {broker.displayName}</span>
         ) : null}
+        {/* Uebergeben heisst: liegt hier UND drueben. Ohne dieses
+            Zeichen sah eine uebergebene Aufgabe aus wie jede andere,
+            und wer wissen wollte, ob sie in Asana angekommen ist,
+            musste Asana aufmachen. */}
+        {task.asanaTaskGid && task.bereich !== "asana" ? (
+          <span title="Diese Aufgabe liegt zusätzlich in Asana">↗ in Asana</span>
+        ) : null}
         {/* Im Pool zaehlt nicht das Alter der Aufgabe, sondern wie
             lange sie schon herrenlos daliegt. Das eine ist eine
             Eigenschaft, das andere ein Vorwurf. */}
