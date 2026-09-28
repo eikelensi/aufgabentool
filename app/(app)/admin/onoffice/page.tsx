@@ -14,6 +14,10 @@ import { onofficeConfigured } from "@/lib/onoffice/client";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 import { tagsProbe, type ProbeErgebnis } from "@/lib/onoffice/tags-probe";
 import { dateiProbe, type DateiProbeErgebnis } from "@/lib/onoffice/datei-probe";
+import {
+  ordneAuftragUeberTagFilter,
+  type TagAbgleichErgebnis,
+} from "@/lib/sync/tag-abgleich";
 import Seitenkopf from "../seitenkopf";
 import { ladeAnbindung } from "./anbindung";
 import Rueckschreiben from "./rueckschreiben";
@@ -319,6 +323,69 @@ function DateiProbe({ wert, ergebnis }: { wert: string; ergebnis: DateiProbeErge
   );
 }
 
+/**
+ * Der Umweg, jetzt zum Anfassen.
+ *
+ * Gelesen wird das Tag nicht - aber gefiltert vielleicht schon. Also
+ * fragen wir je Tag "welche Aufgaben tragen dich?" und tragen das
+ * Ergebnis als "Auftrag von" ein. Derselbe Lauf haengt am Abgleich;
+ * hier ist er von Hand ausloesbar, damit man das Ergebnis sofort sieht.
+ */
+function TagZuordnung({ ergebnis }: { ergebnis: TagAbgleichErgebnis | null }) {
+  return (
+    <section className="panel p-4">
+      <h3 className="mb-1 text-sm font-semibold">„Auftrag von“ über den Tag-Filter setzen</h3>
+      <p className="muted mb-3 text-[11px] leading-relaxed">
+        Lesen lässt sich das Feld „tags“ nicht. Filtern ist ein anderer Weg durch dieselbe
+        Schnittstelle: einmal je Tag gefragt, welche Aufgaben es tragen – drei Aufrufe für
+        den ganzen Bestand. Zugeordnet wird über den onOffice-Tag beim Kollegen (Verwaltung
+        → Kollegen). Ein Tag, das auf zwei Kollegen passt, wird nicht gesetzt.
+      </p>
+
+      <form method="get">
+        <input type="hidden" name="tagLauf" value="1" />
+        <button type="submit" className="btn">
+          Jetzt zuordnen
+        </button>
+      </form>
+
+      {ergebnis ? (
+        <div className="mt-3 text-[12px]">
+          <p className="mb-2">
+            {ergebnis.moeglich ? (
+              <>
+                <strong style={{ color: "var(--ok-fg)" }}>Der Filter wird angenommen.</strong>{" "}
+                {ergebnis.zugeordnet}× „Auftrag von“ gesetzt.
+              </>
+            ) : (
+              <strong style={{ color: "var(--err-fg)" }}>
+                onOffice nimmt den Filter auf das Tag nicht an.
+              </strong>
+            )}
+          </p>
+          {Object.keys(ergebnis.jeTag).length ? (
+            <ul className="mb-2 space-y-0.5 text-[11px]">
+              {Object.entries(ergebnis.jeTag).map(([tag, anzahl]) => (
+                <li key={tag}>
+                  <code>{tag}</code>
+                  <span className="muted"> – {anzahl} Aufgabe(n) in onOffice</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {ergebnis.hinweise.length ? (
+            <ul className="muted space-y-0.5 text-[11px]">
+              {ergebnis.hinweise.map((h, i) => (
+                <li key={i}>{h}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export default async function OnofficeAnbindung({
   searchParams,
 }: {
@@ -339,6 +406,9 @@ export default async function OnofficeAnbindung({
   const rohDatei = sp.dateiProbe;
   const dateiWert = (Array.isArray(rohDatei) ? rohDatei[0] : rohDatei)?.trim() ?? "";
 
+  const tagLaufGewuenscht = (Array.isArray(sp.tagLauf) ? sp.tagLauf[0] : sp.tagLauf) === "1";
+  let tagLauf: TagAbgleichErgebnis | null = null;
+
   let probe: ProbeErgebnis | null = null;
   let dateien: DateiProbeErgebnis | null = null;
   if (probeWert && Number.isFinite(Number(probeWert)) && onofficeConfigured()) {
@@ -350,6 +420,11 @@ export default async function OnofficeAnbindung({
 
   if (dateiWert && Number.isFinite(Number(dateiWert)) && onofficeConfigured()) {
     if (istAdmin(await aktuellesProfil())) dateien = await dateiProbe(dateiWert);
+  }
+
+  // Dieser Lauf SCHREIBT - also noch einmal nachsehen, wer fragt.
+  if (tagLaufGewuenscht && onofficeConfigured()) {
+    if (istAdmin(await aktuellesProfil())) tagLauf = await ordneAuftragUeberTagFilter();
   }
 
 

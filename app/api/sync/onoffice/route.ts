@@ -7,6 +7,7 @@
  */
 import { NextResponse } from "next/server";
 import { synchronisiereAufgaben } from "@/lib/sync/onoffice-aufgaben";
+import { ordneAuftragUeberTagFilter } from "@/lib/sync/tag-abgleich";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 
 export const runtime = "nodejs";
@@ -35,6 +36,21 @@ export async function GET(request: Request) {
 
   try {
     const ergebnis = await synchronisiereAufgaben({ seit });
+
+    // "Auftrag von" ueber den Tag-Filter nachziehen. Drei Aufrufe fuer
+    // den ganzen Bestand - unabhaengig davon, wie viele Aufgaben der
+    // Lauf angefasst hat. Scheitert es, steht das im Hinweis und der
+    // Abgleich selbst bleibt davon unberuehrt.
+    try {
+      const tagLauf = await ordneAuftragUeberTagFilter();
+      if (tagLauf.zugeordnet) {
+        ergebnis.hinweise.push(`${tagLauf.zugeordnet}× „Auftrag von“ über den Tag-Filter gesetzt.`);
+      }
+      for (const h of tagLauf.hinweise) ergebnis.hinweise.push(h);
+    } catch (err) {
+      ergebnis.hinweise.push(`Tag-Filter: ${(err as Error).message}`);
+    }
+
     return NextResponse.json(ergebnis, { status: ergebnis.fehler.length ? 207 : 200 });
   } catch (err) {
     return NextResponse.json({ fehler: (err as Error).message }, { status: 500 });
