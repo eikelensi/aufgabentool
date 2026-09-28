@@ -77,7 +77,7 @@ export async function legeInOnofficeAn(
     .from("tasks")
     .select(
       `id, title, description, status, priority, due_date, visible_from, is_private,
-       assignee_id, creator_id, onoffice_task_id, onoffice_bearbeiter_id,
+       assignee_id, creator_id, onoffice_task_id, onoffice_bearbeiter_id, onoffice_stumm,
        onoffice_estate_id, onoffice_address_id, onoffice_estate_no, onoffice_address_no,
        broker_contact_id`,
     )
@@ -92,6 +92,15 @@ export async function legeInOnofficeAn(
       onofficeTaskId: aufgabe.onoffice_task_id,
       meldung: `Diese Aufgabe gibt es in onOffice bereits (${aufgabe.onoffice_task_id}).`,
     };
+  }
+
+  // Ausdruecklich stumm gestellt beim Anlegen. Nicht jeder Vorgang
+  // gehoert ins CRM - eine interne Nacharbeit soll dort keine Karte
+  // erzeugen, die niemand pflegt. Das gilt auch fuer den
+  // Nachzuegler-Lauf, sonst traegt der eine Minute spaeter nach, was
+  // gerade abgewaehlt wurde.
+  if (aufgabe.onoffice_stumm) {
+    return { angelegt: false, meldung: "Diese Aufgabe bleibt bewusst außerhalb von onOffice." };
   }
 
   // Private Aufgaben gehen nie hinueber: im Tool sieht sie nur ihr
@@ -458,6 +467,7 @@ export async function legeFehlendeAn(grenze = 10): Promise<{
     .is("onoffice_task_id", null)
     .eq("bereich", "task")
     .eq("is_private", false)
+    .eq("onoffice_stumm", false)
     .neq("status", "erledigt")
     .order("created_at", { ascending: true })
     .limit(grenze);
@@ -466,7 +476,8 @@ export async function legeFehlendeAn(grenze = 10): Promise<{
   for (const a of offen ?? []) {
     const res = await legeInOnofficeAn(a.id, "Nachzuegler");
     if (res.angelegt) angelegt++;
-    else if (!res.meldung.startsWith("Private")) fehler.push(`${a.title}: ${res.meldung}`);
+    else if (!res.meldung.startsWith("Private") && !res.meldung.startsWith("Diese Aufgabe bleibt"))
+      fehler.push(`${a.title}: ${res.meldung}`);
   }
 
   return { angelegt, fehler };

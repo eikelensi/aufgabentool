@@ -150,6 +150,7 @@ export function zuAufgabe(row: any): Task {
     onofficeBearbeiterId: row.onoffice_bearbeiter_id ?? null,
     isPool: Boolean(row.is_pool),
     isPrivate: Boolean(row.is_private),
+    onofficeStumm: Boolean(row.onoffice_stumm),
     visibleFrom: row.visible_from,
     dueDate: row.due_date ?? null,
     onofficeTaskId: row.onoffice_task_id ?? null,
@@ -270,6 +271,7 @@ export function aufgabeZurZeile(patch: Partial<Task>): Record<string, unknown> {
   }
   if (patch.isPool !== undefined) z.is_pool = patch.isPool;
   if (patch.isPrivate !== undefined) z.is_private = patch.isPrivate;
+  if (patch.onofficeStumm !== undefined) z.onoffice_stumm = patch.onofficeStumm;
   if (patch.visibleFrom !== undefined) z.visible_from = patch.visibleFrom;
   if (patch.dueDate !== undefined) z.due_date = patch.dueDate;
   if (patch.onofficeEstateNo !== undefined) z.onoffice_estate_no = patch.onofficeEstateNo || null;

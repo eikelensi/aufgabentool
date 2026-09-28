@@ -284,6 +284,16 @@ export interface Task {
   onofficeBearbeiterId: string | null;
   isPool: boolean;
   isPrivate: boolean;
+  /**
+   * Wahr: diese Aufgabe geht NIE nach onOffice.
+   *
+   * Nicht jeder Vorgang gehoert ins CRM. Eine Absprache mit der
+   * Buchhaltung, eine interne Nacharbeit - die soll im Tool und in
+   * Asana stehen und drueben keine Aufgabenkarte erzeugen, die
+   * niemand pflegt. Gewaehlt wird das beim Anlegen, und nur dann:
+   * einmal drueben angelegt, laesst es sich nicht zurueckdrehen.
+   */
+  onofficeStumm?: boolean;
   visibleFrom: string; // ISO-Datum
   dueDate: string | null;
   /** Die Aufgabennummer aus onOffice, z.B. 21921. */

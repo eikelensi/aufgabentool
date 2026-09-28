@@ -248,6 +248,15 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   const [estateNo, setEstateNo] = useState(prefill?.onofficeEstateNo ?? "");
   const [addressId, setAddressId] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  /**
+   * Geht die Aufgabe auch nach onOffice - oder bleibt sie hier?
+   *
+   * Nur bei einem Asana-Ziel gefragt, und dort mit Vorgabe "ja":
+   * so war es bisher, und eine Voreinstellung, die still etwas
+   * weglaesst, faellt erst auf, wenn jemand die Aufgabe drueben
+   * sucht. Wer sie stumm stellen will, sagt es ausdruecklich.
+   */
+  const [nachOnoffice, setNachOnoffice] = useState(true);
 
   /**
    * Wer bekommt sie - bei einem Asana-Ziel schon beim Anlegen?
@@ -286,6 +295,11 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
       visibleFrom,
       dueDate: dueDate || null,
       isPrivate,
+      // Stumm nur, wenn wirklich nach Asana gegeben wird. Sonst
+      // koennte ein einmal umgestellter Schalter eine ganz normale
+      // Hausaufgabe aus onOffice heraushalten, ohne dass es jemand
+      // beabsichtigt hat.
+      onofficeStumm: asanaZiel ? !nachOnoffice : false,
       onofficeEstateNo: estateNo || undefined,
       // Die Eingabe ist eine Kundennummer, keine ID - die loest der
       // Server auf. Beides zusammen ist erlaubt: eine Aufgabe kann an
@@ -408,6 +422,26 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
             </optgroup>
           </select>
         </Field>
+
+        {/* Nur bei einem Asana-Ziel. Bei allen anderen Bearbeitern
+            waere die Frage sinnlos: eine Aufgabe des Hauses gehoert
+            ins CRM, daran gibt es nichts zu waehlen. */}
+        {asanaZiel ? (
+          <Field
+            label="In onOffice anlegen?"
+            hint="Nicht jeder Vorgang gehört ins CRM. Später nicht mehr umstellbar – was einmal drüben steht, bleibt dort."
+          >
+            <select
+              className="field"
+              value={nachOnoffice ? "ja" : "nein"}
+              onChange={(e) => setNachOnoffice(e.target.value === "ja")}
+              disabled={isPrivate}
+            >
+              <option value="ja">Ja – auch als Aufgabe in onOffice</option>
+              <option value="nein">Nein – nur hier und in Asana</option>
+            </select>
+          </Field>
+        ) : null}
 
         <Field label="Auftrag von (Makler)" hint="Welcher Maklerkollege die Aufgabe in Auftrag gegeben hat. Er bekommt bei Erledigung eine E-Mail. Hat mit onOffice nichts zu tun.">
           <select
@@ -1013,6 +1047,16 @@ export function TaskDetailDialog({
                Adressen und Aktivitaeten aus - fuer Aufgaben nicht. */
             <span title="onOffice stellt für Aufgaben keinen Direktlink aus">
               #{task.onofficeTaskId}
+            </span>
+          ) : task.onofficeStumm ? (
+            /* Nicht dasselbe wie "noch nicht angelegt": hier wurde
+               beim Anlegen ausdruecklich entschieden. Stuende da nur
+               "nur hier angelegt", suchte jemand den Fehler. */
+            <span className="muted">
+              bewusst nicht in onOffice
+              <span className="block text-[10px] leading-relaxed">
+                Beim Anlegen so gewählt – die Aufgabe lebt hier und in Asana.
+              </span>
             </span>
           ) : (
             <span className="muted">nur hier angelegt</span>
