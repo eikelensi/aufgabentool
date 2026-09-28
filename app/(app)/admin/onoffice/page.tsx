@@ -118,6 +118,36 @@ function TagProbe({ wert, ergebnis }: { wert: string; ergebnis: ProbeErgebnis | 
             ))}
           </ul>
 
+          <p className="mb-1 mt-3 font-medium">
+            Gegenprobe: kommen andere Auswahllisten beim Datensatz mit?
+          </p>
+          <p className="muted mb-1 text-[11px] leading-relaxed">{ergebnis.auswahlFazit}</p>
+          {ergebnis.auswahlfelder.length ? (
+            <ul className="space-y-0.5 text-[11px]">
+              {ergebnis.auswahlfelder.map((v) => (
+                <li key={v.weg}>
+                  <code>{v.weg}</code>{" "}
+                  {v.geklappt ? (
+                    <>
+                      <span style={{ color: "var(--ok-fg)" }}>gelesen</span>
+                      {" – Wert: "}
+                      <strong>
+                        {v.tags === null || v.tags === undefined
+                          ? "kam nicht mit"
+                          : JSON.stringify(v.tags)}
+                      </strong>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "var(--err-fg)" }}>abgelehnt</span>
+                      <span className="muted"> – {v.meldung}</span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
           <p className="mb-1 mt-3 font-medium">Umweg: lässt sich nach dem Tag filtern?</p>
           <p className="muted mb-1 text-[11px] leading-relaxed">{ergebnis.filterFazit}</p>
           {ergebnis.filterwege.length ? (

@@ -50,6 +50,14 @@ export interface ProbeErgebnis {
    */
   filterwege: Versuch[];
   filterFazit: string;
+  /**
+   * Die Gegenfrage, die lange offen war: kommen ANDERE Mehrfachauswahlen
+   * beim Datensatz mit? Kommen sie, liegt es an "tags" allein. Kommt
+   * keine einzige, ist es eine Eigenart der Schnittstelle bei diesem
+   * Feldtyp - und dann ist der Support-Antrag ein anderer.
+   */
+  auswahlfelder: Versuch[];
+  auswahlFazit: string;
 }
 
 export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
@@ -114,9 +122,11 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
   // der Oberflaeche "Tags" heisst, kann in der Schnittstelle anders
   // heissen - danach zu suchen ist billiger als zu raten.
   let feldkandidaten: TaskFeld[] = [];
+  let feldkandidatenAlle: TaskFeld[] = [];
   let feldFehler: string | undefined;
   try {
     const alle = await readTaskFields();
+    feldkandidatenAlle = alle;
     feldkandidaten = alle.filter(
       (f) =>
         /tag/i.test(f.name) ||
@@ -190,6 +200,52 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
       ? "Filtern nach dem Tag wird angenommen. Damit kommen wir ohne Freischaltung des Lesefelds aus."
       : "Auch der Filter auf „tags“ wird abgelehnt – das Feld ist für die Schnittstelle vollständig gesperrt.";
 
+  // Mehrfachauswahlen einzeln durchgehen. Die Feldkonfiguration lesen
+  // wir ja nachweislich - die erlaubten Werte kommen an. Ob der
+  // DATENSATZ seine Auswahl herausgibt, ist eine andere Frage, und sie
+  // war offen. Also je Feld ein schmaler Lesecall.
+  const auswahlfelder: Versuch[] = [];
+  const mitWerten = feldkandidatenAlle
+    .filter((f) => f.wertLabels && Object.keys(f.wertLabels).length > 0)
+    .slice(0, 14);
+
+  for (const feld of mitWerten) {
+    const res = await tryCall({
+      action: "read",
+      resourceType: "task",
+      parameters: { data: ["Nr", feld.name], filter, listlimit: 1 },
+    });
+    if (!res.ok) {
+      auswahlfelder.push({
+        weg: `${feld.name} (${feld.typ ?? "?"})`,
+        geklappt: false,
+        meldung: res.error.message,
+      });
+      continue;
+    }
+    const e = elements((res.result.records as OnOfficeRecord[])[0] ?? {});
+    const wert = e[feld.name];
+    auswahlfelder.push({
+      weg: `${feld.name} (${feld.typ ?? "?"})`,
+      geklappt: true,
+      meldung: feld.label ?? "",
+      felder: Object.keys(e),
+      tags: wert === undefined || wert === "" ? null : wert,
+    });
+  }
+
+  const auswahlAngenommen = auswahlfelder.filter((v) => v.geklappt);
+  const auswahlMitWert = auswahlAngenommen.filter((v) => v.tags !== null);
+  const tagsAngenommen = auswahlfelder.find((v) => v.weg.startsWith(`${TAGS_FELD} (`))?.geklappt;
+
+  const auswahlFazit = !mitWerten.length
+    ? "Keine Felder mit erlaubten Werten gefunden."
+    : auswahlAngenommen.length === 0
+      ? "KEINE einzige Auswahlliste wird beim Lesen angenommen – dann ist es kein Problem von „tags“, sondern der Feldtyp kommt über die Schnittstelle grundsätzlich nicht mit."
+      : tagsAngenommen
+        ? `„${TAGS_FELD}“ wird angenommen – siehe oben, ob ein Wert kam.`
+        : `${auswahlAngenommen.length} von ${mitWerten.length} Auswahllisten werden gelesen (${auswahlMitWert.length} davon mit Wert), „${TAGS_FELD}“ nicht. Dann hängt es an genau diesem Feld und onOffice muss es freischalten.`;
+
   const geklappt = versuche.filter((v) => v.geklappt && v.tags);
   const fazit = geklappt.length
     ? `Das Feld "tags" ist lesbar über: ${geklappt.map((v) => v.weg).join(", ")}.`
@@ -207,11 +263,21 @@ export async function tagsProbe(eingegeben: number): Promise<ProbeErgebnis> {
       reference: String(nummer),
       ok: geklappt.length > 0,
       message: `Tag-Probe an Aufgabe ${nummer}: ${fazit}`,
-      payload: { versuche, filterwege, filterFazit },
+      payload: { versuche, filterwege, filterFazit, auswahlfelder, auswahlFazit },
     });
   } catch {
     /* Das Protokoll ist Beiwerk - die Antwort zaehlt. */
   }
 
-  return { taskId: nummer, fazit, versuche, feldkandidaten, feldFehler, filterwege, filterFazit };
+  return {
+    taskId: nummer,
+    fazit,
+    versuche,
+    feldkandidaten,
+    feldFehler,
+    filterwege,
+    filterFazit,
+    auswahlfelder,
+    auswahlFazit,
+  };
 }
