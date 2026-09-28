@@ -117,7 +117,12 @@ interface StoreValue {
    * Sie bleibt eine Aufgabe des Tools, bekommt hier einen Bearbeiter
    * und drueben eine Kopie.
    */
-  nachAsanaGeben: (taskId: string, ziel: "projekt" | "eike") => Promise<Ergebnis>;
+  nachAsanaGeben: (
+    taskId: string,
+    ziel: "projekt" | "eike",
+    /** Wer drueben zustaendig sein soll - ohne Angabe der Vorgabemensch des Ziels. */
+    asanaGid?: string | null,
+  ) => Promise<Ergebnis>;
   asanaVerschieben: (
     taskId: string,
     sectionGid: string,
@@ -1231,12 +1236,13 @@ export function StoreProvider({
     async function nachAsanaGeben(
       taskId: string,
       ziel: "projekt" | "eike",
+      asanaGid?: string | null,
     ): Promise<Ergebnis> {
       try {
         const res = await fetch("/api/asana/uebergeben", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskId, ziel }),
+          body: JSON.stringify({ taskId, ziel, asanaGid: asanaGid ?? undefined }),
         });
         const json = await res.json().catch(() => ({}));
         await neuLaden();

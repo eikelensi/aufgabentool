@@ -30,9 +30,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const { taskId, ziel } = (await request.json().catch(() => ({}))) as {
+  const { taskId, ziel, asanaGid } = (await request.json().catch(() => ({}))) as {
     taskId?: string;
     ziel?: Uebergabeziel;
+    /** Wer drueben zustaendig sein soll - im Projekt arbeiten mehrere. */
+    asanaGid?: string;
   };
 
   if (!taskId || !ziel || !(ziel in ZIELE)) {
@@ -42,6 +44,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const res = await gibNachAsana(taskId, ziel, profil.id);
+  const res = await gibNachAsana(taskId, ziel, profil.id, asanaGid);
   return NextResponse.json(res, { status: res.ok ? 200 : 400 });
 }

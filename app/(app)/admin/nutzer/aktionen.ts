@@ -244,6 +244,34 @@ export async function onofficeNameSetzen(id: string, name: string): Promise<Erge
   };
 }
 
+/**
+ * Wessen Aufgaben immer auch in Asana stehen sollen.
+ *
+ * Wer in Asana arbeitet und nicht hier, sieht eine Aufgabe im Tool
+ * nie - egal, auf welchem Weg sie ihm zugeteilt wurde. Mit diesem
+ * Haken bekommt er jede davon zusaetzlich drueben, im Projekt
+ * "Buchhaltung und HR" im Eingang, und dort sich selbst zugeteilt.
+ */
+export async function asanaSpiegelnSetzen(id: string, an: boolean): Promise<Ergebnis> {
+  try {
+    await verlangeAdmin();
+  } catch (err) {
+    return { ok: false, meldung: (err as Error).message };
+  }
+
+  const sb = supabaseAdmin();
+  const { error } = await sb.from("profiles").update({ asana_spiegeln: an }).eq("id", id);
+  if (error) return { ok: false, meldung: error.message };
+
+  revalidatePath("/admin/nutzer");
+  return {
+    ok: true,
+    meldung: an
+      ? "Aufgaben dieser Person gehen ab jetzt zusätzlich nach Asana."
+      : "Aufgaben dieser Person bleiben im Tool.",
+  };
+}
+
 export interface SyncMeldung extends Ergebnis {
   gelesen?: number;
   uebernommen?: number;

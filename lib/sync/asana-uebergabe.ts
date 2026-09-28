@@ -60,6 +60,15 @@ export async function gibNachAsana(
   taskId: string,
   ziel: Uebergabeziel,
   durch?: string,
+  /**
+   * Wer drueben zustaendig sein soll.
+   *
+   * Ohne Angabe gilt der Vorgabemensch des Ziels (bei "projekt"
+   * Lisa). Mit Angabe gewinnt sie - im Projekt arbeiten mehrere, und
+   * wer eine Aufgabe dorthin gibt, weiss in der Regel besser als
+   * eine Voreinstellung, wer sie bekommen soll.
+   */
+  asanaGid?: string | null,
 ): Promise<UebergabeErgebnis> {
   const beschreibung = ZIELE[ziel];
   if (!beschreibung) return { ok: false, fehler: "Dieses Ziel gibt es nicht." };
@@ -84,11 +93,13 @@ export async function gibNachAsana(
   // asana_users; fehlt der Eintrag, ist der Abgleich noch nicht
   // gelaufen - dann sagen wir das, statt eine Aufgabe ohne
   // Zustaendigen abzuschicken.
-  const { data: nutzer } = await sb
-    .from("asana_users")
-    .select("gid, name, profile_id")
-    .ilike("email", beschreibung.email)
-    .maybeSingle();
+  const { data: nutzer } = asanaGid
+    ? await sb.from("asana_users").select("gid, name, profile_id").eq("gid", asanaGid).maybeSingle()
+    : await sb
+        .from("asana_users")
+        .select("gid, name, profile_id")
+        .ilike("email", beschreibung.email)
+        .maybeSingle();
 
   if (!nutzer?.gid) {
     return {
@@ -212,4 +223,83 @@ export async function gibNachAsana(
   } catch (err) {
     return { ok: false, fehler: (err as Error).message };
   }
+}
+
+
+/**
+ * Wessen Aufgaben immer auch in Asana stehen sollen.
+ *
+ * Lisa arbeitet in Asana, nicht hier. Eine Aufgabe, die ihr im Tool
+ * zugeteilt wird, saehe sie dort nie - egal auf welchem Weg die
+ * Zuteilung kam: beim Anlegen vergeben, aus dem Pool gezogen, vom
+ * onOffice-Abgleich mitgebracht oder von Hand umgehaengt. Der eine
+ * Knopf "Nach Asana geben" deckt nur einen dieser Wege ab.
+ *
+ * Deshalb haengt die Regel an der PERSON: wer in der
+ * Nutzerverwaltung den Haken "Aufgaben zusaetzlich nach Asana" hat,
+ * bekommt jede Aufgabe auch drueben - im Projekt "Buchhaltung und
+ * HR", im Eingang, und dort ihm selbst zugeteilt.
+ *
+ * Laeuft nach jedem Asana-Abgleich. Was schon eine Kennung hat, wird
+ * uebergangen; erledigte Aufgaben ebenso - eine fertige Aufgabe
+ * drueben neu anzulegen waere das Gegenteil von hilfreich.
+ */
+export async function spiegleZugeteilte(): Promise<{
+  gespiegelt: number;
+  fehler: string[];
+}> {
+  const sb = supabaseAdmin();
+  const fehler: string[] = [];
+
+  const { data: leute } = await sb
+    .from("profiles")
+    .select("id, full_name")
+    .eq("asana_spiegeln", true)
+    .eq("is_active", true);
+
+  if (!leute?.length) return { gespiegelt: 0, fehler };
+
+  // Wer drueben wer ist - ohne diese Zuordnung waere die Aufgabe in
+  // Asana ohne Zustaendigen, und das ist keine Hilfe.
+  const { data: asanaLeute } = await sb
+    .from("asana_users")
+    .select("gid, profile_id")
+    .in(
+      "profile_id",
+      leute.map((l) => l.id),
+    );
+
+  const gidVon = new Map((asanaLeute ?? []).map((a) => [a.profile_id, a.gid]));
+
+  // Bewusst wenige je Lauf: der Abgleich laeuft oft, und eine
+  // Nachzuegler-Aufgabe darf warten. Ein Lauf, der an einer Stelle
+  // haengenbleibt, waere schlimmer als ein langsamer.
+  const { data: offen } = await sb
+    .from("tasks")
+    .select("id, title, assignee_id")
+    .in(
+      "assignee_id",
+      leute.map((l) => l.id),
+    )
+    .is("asana_task_gid", null)
+    .eq("bereich", "task")
+    .neq("status", "erledigt")
+    .order("created_at", { ascending: true })
+    .limit(10);
+
+  let gespiegelt = 0;
+
+  for (const aufgabe of offen ?? []) {
+    const gid = gidVon.get(aufgabe.assignee_id);
+    if (!gid) {
+      fehler.push(`${aufgabe.title}: in Asana ist diese Person nicht bekannt.`);
+      continue;
+    }
+
+    const res = await gibNachAsana(aufgabe.id, "projekt", undefined, gid);
+    if (res.ok) gespiegelt++;
+    else fehler.push(`${aufgabe.title}: ${res.fehler}`);
+  }
+
+  return { gespiegelt, fehler };
 }

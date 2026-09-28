@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { synchronisiereAsana } from "@/lib/sync/asana";
 import { synchronisiereEigene } from "@/lib/sync/asana-eigene";
+import { spiegleZugeteilte } from "@/lib/sync/asana-uebergabe";
 import { aktuellesProfil, istAdmin } from "@/lib/supabase/profil";
 
 export const runtime = "nodejs";
@@ -79,12 +80,25 @@ export async function GET(request: Request) {
       ergebnis.fehler.push(`Eigene Aufgaben: ${(err as Error).message}`);
     }
 
+    // Wessen Aufgaben immer auch drueben stehen sollen - die Regel je
+    // Person. Sie haengt an der Zuteilung und nicht an dem einen
+    // Knopf, mit dem man von Hand nach Asana gibt.
+    let gespiegelt = 0;
+    try {
+      const res = await spiegleZugeteilte();
+      gespiegelt = res.gespiegelt;
+      ergebnis.fehler.push(...res.fehler);
+    } catch (err) {
+      ergebnis.fehler.push(`Spiegeln: ${(err as Error).message}`);
+    }
+
     const zusammen = {
       ...ergebnis,
+      gespiegelt,
       eigene,
-      meldung: eigene
-        ? `${ergebnis.meldung} · Eigene: ${eigene.meldung}`
-        : ergebnis.meldung,
+      meldung:
+        (eigene ? `${ergebnis.meldung} · Eigene: ${eigene.meldung}` : ergebnis.meldung) +
+        (gespiegelt ? ` · ${gespiegelt} nach Asana gespiegelt` : ""),
       fehler: [...ergebnis.fehler, ...(eigene?.fehler ?? [])],
     };
 

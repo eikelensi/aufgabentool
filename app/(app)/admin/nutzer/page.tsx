@@ -47,7 +47,7 @@ export default async function NutzerSeite() {
 
   const { data: profile, error } = await sb
     .from("profiles")
-    .select("id, email, full_name, role, is_active, onoffice_username, onoffice_display_name, phone, invited_at")
+    .select("id, email, full_name, role, is_active, onoffice_username, onoffice_display_name, phone, invited_at, asana_spiegeln")
     .order("full_name");
 
   if (error) {
@@ -80,6 +80,7 @@ export default async function NutzerSeite() {
     onofficeDisplayName: p.onoffice_display_name,
     phone: p.phone,
     invitedAt: p.invited_at,
+    asanaSpiegeln: Boolean(p.asana_spiegeln),
     hatSichAngemeldet: angemeldet.has(p.id),
   }));
 

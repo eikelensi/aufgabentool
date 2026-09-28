@@ -5,6 +5,7 @@
 import { useState, useTransition } from "react";
 import {
   aktivSetzen,
+  asanaSpiegelnSetzen,
   aufgabenSynchronisieren,
   einladungErneutSenden,
   nutzerEinladen,
@@ -26,6 +27,8 @@ export interface NutzerZeile {
   onofficeDisplayName: string | null;
   phone: string | null;
   invitedAt: string | null;
+  /** Aufgaben dieser Person zusaetzlich in Asana anlegen. */
+  asanaSpiegeln: boolean;
   hatSichAngemeldet: boolean;
 }
 
@@ -186,6 +189,9 @@ export function NutzerTabelle({
                   entscheidet, welche Aufgaben kommen
                 </span>
               </th>
+              <th className="px-3 py-2 font-medium" title="Aufgaben dieser Person zusätzlich in Asana anlegen">
+                Asana
+              </th>
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 font-medium">Aktionen</th>
             </tr>
@@ -231,6 +237,24 @@ export function NutzerTabelle({
                       gesperrt={laeuft}
                       onFertig={setErgebnis}
                     />
+                  </td>
+                  {/* Wer in Asana arbeitet und nicht hier, saehe eine
+                      zugeteilte Aufgabe sonst nie. */}
+                  <td className="px-3 py-2">
+                    <label
+                      className="muted flex items-center gap-1.5 text-[11px]"
+                      title="Jede Aufgabe dieser Person zusätzlich in Asana anlegen – Projekt „Buchhaltung und HR“, Abschnitt Eingang, dort ihr selbst zugeteilt."
+                    >
+                      <input
+                        type="checkbox"
+                        checked={n.asanaSpiegeln}
+                        disabled={laeuft}
+                        onChange={(e) =>
+                          fuehreAus(() => asanaSpiegelnSetzen(n.id, e.target.checked))
+                        }
+                      />
+                      Asana
+                    </label>
                   </td>
                   <td className="px-3 py-2">
                     {!n.isActive ? (

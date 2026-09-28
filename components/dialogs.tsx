@@ -18,10 +18,39 @@ import { AttachmentSection, FileDrop, PendingFiles } from "./Attachments";
  * kann. Bewusst kurz gehalten: der Weg dorthin ist ein Handgriff im
  * Bearbeiter-Feld, kein eigenes Fenster - genau wie der Aufgabenpool.
  */
-const ASANA_ZIELE: { wert: "projekt" | "eike"; label: string; email: string }[] = [
-  { wert: "projekt", label: "Buchhaltung und HR – Lisa Peissig", email: "lisa@4-wk.de" },
-  { wert: "eike", label: "Eike Lensinger – persönlich", email: "lensinger@4-wk.de" },
-];
+/**
+ * Wohin eine Aufgabe nach Asana gehen kann.
+ *
+ * Zwei Bretter: das Projekt "Buchhaltung und HR" (dort landet sie im
+ * Eingang) und die persoenliche Liste von Eike. Im Projekt arbeitet
+ * mehr als ein Mensch, deshalb wird der Zustaendige dort AUSGEWAEHLT
+ * und nicht vorgegeben - die Liste dafuer kommt aus Asana selbst,
+ * damit niemand hier Namen pflegen muss.
+ *
+ * Der Wert im Auswahlfeld: "a:projekt:<gid>" oder "a:eike".
+ */
+const EIGENE_MAIL = "lensinger@4-wk.de";
+
+function asanaZiele(
+  nutzer: { gid: string; name: string; email?: string }[],
+): { wert: string; label: string; email?: string }[] {
+  const projekt = nutzer.map((n) => ({
+    wert: `a:projekt:${n.gid}`,
+    label: `Buchhaltung und HR – ${n.name}`,
+  }));
+  return [...projekt, { wert: "a:eike", label: "Eike Lensinger – persönlich", email: EIGENE_MAIL }];
+}
+
+/** Aus dem Auswahlwert wieder Brett und Mensch machen. */
+function zielAus(wert: string): { ziel: "projekt" | "eike"; gid?: string } | null {
+  if (!wert.startsWith("a:")) return null;
+  const rest = wert.slice(2);
+  if (rest === "eike") return { ziel: "eike" };
+  if (rest.startsWith("projekt:")) return { ziel: "projekt", gid: rest.slice("projekt:".length) };
+  // Alte Werte ohne Mensch - dann gilt der Vorgabemensch.
+  if (rest === "projekt") return { ziel: "projekt" };
+  return null;
+}
 
 export function NoteDialog({
   task,
@@ -230,14 +259,15 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
    * Aufgabe, die in Asana stand, zehn Minuten spaeter im Pool
    * gelandet.
    */
-  const asanaZiel = assignee.startsWith("a:")
-    ? ASANA_ZIELE.find((z) => z.wert === assignee.slice(2))
-    : undefined;
+  const asanaZiel = zielAus(assignee);
 
+  // Wer drueben zustaendig wird, ist auch hier der Bearbeiter.
   const asanaProfil = asanaZiel
-    ? (asanaNutzer.find(
-        (n) => (n.email ?? "").toLowerCase() === asanaZiel.email.toLowerCase(),
-      )?.profileId ?? null)
+    ? (asanaZiel.gid
+        ? (asanaNutzer.find((n) => n.gid === asanaZiel.gid)?.profileId ?? null)
+        : (asanaNutzer.find(
+            (n) => (n.email ?? "").toLowerCase() === EIGENE_MAIL,
+          )?.profileId ?? null))
     : null;
 
   const submit = async () => {
@@ -268,8 +298,8 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
     // Nach Asana geben ist zwei Schritte: erst entsteht die Aufgabe
     // hier, dann geht eine Kopie hinueber und der Bearbeiter wird
     // gesetzt. Nicht abwarten - die Aufgabe steht, der Rest folgt.
-    if (assignee.startsWith("a:")) {
-      void nachAsanaGeben(newId, assignee.slice(2) as "projekt" | "eike");
+    if (asanaZiel) {
+      void nachAsanaGeben(newId, asanaZiel.ziel, asanaZiel.gid);
     }
 
     // Das Fenster geht zu, sobald die Aufgabe steht. Dateien laufen
@@ -370,8 +400,8 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
             </optgroup>
             {/* Der Gegenweg zum Pool: raus aus dem Haus, nach Asana. */}
             <optgroup label="Nach Asana geben">
-              {ASANA_ZIELE.map((z) => (
-                <option key={z.wert} value={`a:${z.wert}`}>
+              {asanaZiele(asanaNutzer).map((z) => (
+                <option key={z.wert} value={z.wert}>
                   {z.label}
                 </option>
               ))}
@@ -1071,13 +1101,14 @@ export function TaskDetailDialog({
                     onofficeBearbeiterId: null,
                     isPool: true,
                   });
-                } else if (wert.startsWith("a:")) {
+                } else if (zielAus(wert)) {
                   // Der Gegenweg zum Pool: die Aufgabe geht nach Asana.
                   // Sie bleibt eine Aufgabe des Hauses - drueben
                   // entsteht eine Kopie, und der Bearbeiter wird
                   // gesetzt. Wird sie in Asana abgehakt, ist sie hier
                   // und in onOffice erledigt.
-                  void nachAsanaGeben(task.id, wert.slice(2) as "projekt" | "eike");
+                  const z = zielAus(wert)!;
+                  void nachAsanaGeben(task.id, z.ziel, z.gid);
                 } else if (wert.startsWith("p:")) {
                   // Ein Nutzer des Tools: er arbeitet hier, die Aufgabe
                   // erscheint bei ihm in "Mein Tag".
@@ -1119,8 +1150,8 @@ export function TaskDetailDialog({
                   hinueberzugeben legt zwei Karten an. */}
               {!task.asanaTaskGid ? (
                 <optgroup label="Nach Asana geben">
-                  {ASANA_ZIELE.map((z) => (
-                    <option key={z.wert} value={`a:${z.wert}`}>
+                  {asanaZiele(asanaNutzer).map((z) => (
+                    <option key={z.wert} value={z.wert}>
                       {z.label}
                     </option>
                   ))}
