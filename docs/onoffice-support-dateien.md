@@ -74,3 +74,34 @@ ausdrücklich `module: "task"` erlaubt und das Löschen über
 - API-Token: (beim Absenden eintragen — NICHT das Secret)
 - Beispielaufgabe mit Anhang: (Aufgabennummer eintragen)
 - Beispiel-Datei-ID: 190639
+
+
+## Nachtrag 28.09.2026 — noch einmal sauber gemessen
+
+Aufgabe 32081, ein einzelner Anhang. Die Verknüpfung liefert ihn
+zuverlässig:
+
+| Verknüpfungstyp | Ergebnis |
+| --- | --- |
+| `task:file:attachment` | **1 Datei** (191575) |
+| `calendar:file:attachment` | 0 |
+| `agentsLog:file:attachment` | 0 |
+| `project:file:attachment` | 0 |
+
+Die Datei-Nummer haben wir also. Der Inhalt bleibt verschlossen —
+dieselben drei Antworten wie im September:
+
+| Versuch | Antwort |
+| --- | --- |
+| `get` / `file` / `resourceid: "task"` mit `{ fileid, taskid }` | Code 24 — `missing configuration for resourceId "task"` |
+| `get` / `file` ohne `resourceid`, nur `{ fileid }` | Code 24 — `missing configuration for resourceId ""` |
+| `get` / `file` / `resourceid: "191575"` | Code 24 |
+
+Die Aufgabe hängt an keinem Objekt und an keinem Kunden, deshalb
+konnten die beiden dokumentierten Wege (`resourceid: "estate"` bzw.
+`"address"`) hier gar nicht greifen.
+
+**Die eigentliche Frage in einem Satz:** Es gibt einen Relationstyp
+`task:file:attachment`, über den onOffice uns die Datei-IDs der
+Anhänge einer Aufgabe nennt — aber keinen Weg, zu einer so
+gefundenen ID den Inhalt zu bekommen. Wie ist das vorgesehen?

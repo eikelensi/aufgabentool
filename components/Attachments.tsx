@@ -159,14 +159,22 @@ function Row({ task, attachment }: { task: Task; attachment: Attachment }) {
           title={
             attachment.syncError ??
             (attachment.syncState === "nur_onoffice"
-              ? "Die Datei hängt in onOffice an der Aufgabe. Der Inhalt wird beim nächsten Abgleich geholt – das dauert höchstens ein paar Minuten."
+              ? // Ehrlich statt hoffnungsvoll. Frueher stand hier "wird
+                // geholt..." - ein Versprechen, das die Schnittstelle in
+                // vielen Faellen nicht halten kann: onOffice gibt den
+                // Inhalt einer Datei nur ueber das Objekt oder den
+                // Kunden heraus, an dem sie haengt. Haengt die Aufgabe
+                // an keinem von beiden, kommt er nie.
+                "Die Datei hängt in onOffice an dieser Aufgabe. Ob der Inhalt hierher kommt, " +
+                "hängt daran, ob die Aufgabe auch an einem Objekt oder Kunden hängt – " +
+                "onOffice gibt Dateien nur über diese heraus, nicht über die Aufgabe."
               : "Zu diesem Eintrag liegt keine Datei im Speicher.")
           }
         >
           {attachment.syncError
-            ? "⚠︎ nicht geholt"
+            ? "⚠︎ nur in onOffice"
             : attachment.syncState === "nur_onoffice"
-              ? "wird geholt…"
+              ? "liegt in onOffice"
               : "kein Inhalt"}
         </span>
       )}

@@ -28,6 +28,20 @@ import { readTaskFields } from "@/lib/onoffice/tasks";
 const PRO_LAUF_HIN = 10;
 const PRO_LAUF_ZURUECK = 8;
 
+/**
+ * Wie oft wir den Inhalt einer Datei hoechstens vergeblich anfragen.
+ *
+ * Gemessen am 28.09.2026: der Lesecall "file" kennt estate und
+ * address, aber nicht task (Code 24). Haengt die Aufgabe an keinem
+ * Objekt und keinem Kunden, kommt der Inhalt nie - und ohne Grenze
+ * probierte der Abgleich es alle paar Minuten wieder.
+ *
+ * Wird der Weg spaeter freigeschaltet, setzt ein
+ *   update task_attachments set holversuche = 0 where storage_path is null
+ * alles wieder in Gang.
+ */
+const MAX_HOLVERSUCHE = 3;
+
 export interface AnhangErgebnis {
   hochgeladen: number;
   heruntergeladen: number;
@@ -219,11 +233,17 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
     sb
       .from("task_attachments")
       .select(
-        "id, task_id, onoffice_file_id, tasks ( onoffice_task_id, onoffice_estate_id, onoffice_address_id )",
+        "id, task_id, onoffice_file_id, holversuche, tasks ( onoffice_task_id, onoffice_estate_id, onoffice_address_id )",
       )
       .eq("sync_state", "nur_onoffice")
       .is("storage_path", null)
       .not("onoffice_file_id", "is", null)
+      // Nach drei vergeblichen Versuchen nicht weiter. onOffice gibt
+      // den Inhalt nur ueber das Objekt oder den Kunden heraus, an
+      // dem die Datei haengt - haengt die Aufgabe an keinem von
+      // beiden, gibt es keinen Weg, und jeder weitere Lauf kostet
+      // drei Aufrufe fuer nichts.
+      .lt("holversuche", MAX_HOLVERSUCHE)
       .order("created_at", { ascending: true })
       .limit(PRO_LAUF_ZURUECK),
     sb.from("app_settings").select("attachment_max_mb").maybeSingle(),
@@ -302,7 +322,20 @@ async function holeZurueck(ergebnis: AnhangErgebnis): Promise<void> {
     } catch (err) {
       const meldung = (err as Error).message;
       ergebnis.fehler.push(`Datei ${a.onoffice_file_id}: ${meldung}`);
-      await sb.from("task_attachments").update({ sync_error: meldung }).eq("id", a.id);
+      // Mitzaehlen: nach drei vergeblichen Anlaeufen wird diese Datei
+      // nicht mehr angefasst. Ohne den Zaehler kostet eine Datei, die
+      // nie kommt, bei jedem Lauf wieder drei Aufrufe.
+      const versuche = ((a as { holversuche?: number }).holversuche ?? 0) + 1;
+      await sb
+        .from("task_attachments")
+        .update({
+          sync_error:
+            versuche >= MAX_HOLVERSUCHE
+              ? `${meldung} — nach ${versuche} Versuchen aufgegeben. Die Datei bleibt in onOffice.`
+              : meldung,
+          holversuche: versuche,
+        })
+        .eq("id", a.id);
 
       // Solange der Weg zur Datei nicht gefunden ist, probiert ein Lauf
       // ihn an genau einer Datei durch. Acht Dateien mal fuenf Varianten
