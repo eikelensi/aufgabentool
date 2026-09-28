@@ -373,6 +373,25 @@ function TagZuordnung({ ergebnis }: { ergebnis: TagAbgleichErgebnis | null }) {
               ))}
             </ul>
           ) : null}
+          {ergebnis.ohneTagInOnoffice.length ? (
+            <details className="line mb-2 rounded-md border p-2">
+              <summary className="cursor-pointer text-[11px] font-medium">
+                {ergebnis.ohneTagInOnoffice.length} Kollegen haben in onOffice kein Tag
+              </summary>
+              <p className="muted mt-1 mb-1 text-[11px] leading-relaxed">
+                Für diese kann „Auftrag von“ nie ankommen – nicht weil hier etwas fehlt,
+                sondern weil es den Wert in onOffice nicht gibt. onOffice führt bisher nur:{" "}
+                <strong>{ergebnis.tagsInOnoffice.join(", ") || "–"}</strong>. Anzulegen in
+                onOffice unter Feldkonfiguration → Aufgaben → Tags, und zwar genau so
+                geschrieben wie hier in Klammern.
+              </p>
+              <ul className="muted space-y-0.5 text-[11px]">
+                {ergebnis.ohneTagInOnoffice.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           {ergebnis.hinweise.length ? (
             <ul className="muted space-y-0.5 text-[11px]">
               {ergebnis.hinweise.map((h, i) => (

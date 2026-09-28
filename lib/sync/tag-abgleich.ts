@@ -28,6 +28,16 @@ export interface TagAbgleichErgebnis {
   zugeordnet: number;
   /** Je Tag: wie viele Aufgaben onOffice dazu genannt hat. */
   jeTag: Record<string, number>;
+  /**
+   * Kollegen, fuer die es in onOffice GAR KEIN Tag gibt.
+   *
+   * Der Abgleich kann fuer sie nichts finden - nicht weil etwas kaputt
+   * waere, sondern weil es den Wert drueben nicht gibt. Ohne diese
+   * Liste sieht das aus wie ein Fehler des Tools.
+   */
+  ohneTagInOnoffice: string[];
+  /** Was onOffice als erlaubte Werte fuehrt. */
+  tagsInOnoffice: string[];
   hinweise: string[];
 }
 
@@ -113,6 +123,8 @@ export async function ordneAuftragUeberTagFilter(): Promise<TagAbgleichErgebnis>
     moeglich: false,
     zugeordnet: 0,
     jeTag: {},
+    ohneTagInOnoffice: [],
+    tagsInOnoffice: [],
     hinweise: [],
   };
 
@@ -152,6 +164,24 @@ export async function ordneAuftragUeberTagFilter(): Promise<TagAbgleichErgebnis>
   for (const k of kollegen ?? []) eintragen(k.onoffice_tag, k.id, true);
   for (const k of kollegen ?? []) eintragen(k.short_code, k.id, false);
   for (const k of kollegen ?? []) eintragen(String(k.display_name ?? "").split(",")[0], k.id, false);
+
+  ergebnis.tagsInOnoffice = Object.values(werte);
+
+  // Die Gegenrichtung, und der haeufigere Fall: ein Kollege, den
+  // onOffice als Tag gar nicht kennt. Fuer ihn kann hier nie etwas
+  // ankommen - das ist kein Fehler, sondern eine Luecke in onOffice,
+  // und sie gehoert sichtbar gemacht statt stillschweigend ertragen.
+  const bekannt = new Set(Object.values(werte).map((v) => normalisiere(v)));
+  for (const k of kollegen ?? []) {
+    const tag =
+      k.onoffice_tag?.trim() ||
+      String(k.display_name ?? "").split(",")[0].trim() ||
+      k.short_code?.trim() ||
+      "";
+    if (!tag || bekannt.has(normalisiere(tag))) continue;
+    ergebnis.ohneTagInOnoffice.push(`${k.display_name ?? tag} (Tag „${tag}“)`);
+  }
+  ergebnis.ohneTagInOnoffice.sort();
 
   for (const [schluessel, beschriftung] of Object.entries(werte)) {
     const brokerId = nachTag.get(normalisiere(beschriftung));
