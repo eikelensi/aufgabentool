@@ -224,6 +224,7 @@ export function zuEinstellungen(row: any): AppSettings {
     attachmentPushOnoffice: row?.attachment_push_onoffice ?? true,
     attachmentDefaultArt: row?.attachment_default_art ?? "Dokument",
     onofficeAdressAusschluss: row?.onoffice_adress_ausschluss ?? "",
+    onofficeTagsLesen: row?.onoffice_tags_lesen === true,
     // Fehlt oder ist unvollstaendig, gilt die Vorgabe - ein Menue,
     // das wegen einer halben Zeile in der Datenbank verschwindet,
     // waere der schlechteste denkbare Fehler.
@@ -250,6 +251,7 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
   if (patch.attachmentDefaultArt !== undefined) z.attachment_default_art = patch.attachmentDefaultArt;
   if (patch.onofficeAdressAusschluss !== undefined)
     z.onoffice_adress_ausschluss = patch.onofficeAdressAusschluss;
+  if (patch.onofficeTagsLesen !== undefined) z.onoffice_tags_lesen = patch.onofficeTagsLesen;
   if (patch.menueStilJeGruppe !== undefined) z.menue_stil_je_gruppe = patch.menueStilJeGruppe;
   return z;
 }

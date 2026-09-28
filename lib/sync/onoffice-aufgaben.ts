@@ -244,6 +244,21 @@ export async function synchronisiereAufgaben(
   const verzeichnis = await ladeVerzeichnis();
   const tags = await ladeTagVerzeichnis();
 
+  /**
+   * Fragen wir "tags" ueberhaupt mit?
+   *
+   * Aus, solange onOffice das Feld ablehnt - jede Anfrage mit dem
+   * Feld wird zurueckgewiesen und muss ohne wiederholt werden, also
+   * jede Aufgabe doppelt geholt. Der Schalter steht in der
+   * Verwaltung unter onOffice; dort legt man ihn um, wenn der
+   * Support das Feld freigeschaltet hat.
+   */
+  const { data: tagEinst } = await supabaseAdmin()
+    .from("app_settings")
+    .select("onoffice_tags_lesen")
+    .maybeSingle();
+  const tagsLesen = tagEinst?.onoffice_tags_lesen === true;
+
   const ergebnis: SyncErgebnis = {
     gelesen: 0,
     uebernommen: 0,
@@ -279,7 +294,11 @@ export async function synchronisiereAufgaben(
 
   let crmAufgaben: OnofficeTask[] = [];
   try {
-    const res = await readTasks({ modifiedSince: seit, listLimit: GRENZE });
+    const res = await readTasks({
+      modifiedSince: seit,
+      listLimit: GRENZE,
+      mitTags: tagsLesen,
+    });
     crmAufgaben = res.tasks;
 
     // Ein Feld, das der Mandant ablehnt, sah bisher aus wie ein Feld,

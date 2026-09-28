@@ -5,6 +5,7 @@
 import { call, elements, type OnOfficeRecord } from "./client";
 import {
   TASK_FIELDS,
+  taskFelder,
   toIsoDate,
   toOnofficePriority,
   toOnofficeStatus,
@@ -109,6 +110,14 @@ export interface ReadTasksOptions {
   modifiedSince?: string;
   listLimit?: number;
   listOffset?: number;
+  /**
+   * Das Feld "tags" mitfragen.
+   *
+   * Aus, solange onOffice es ablehnt - sonst wird jede Anfrage
+   * zurueckgewiesen und muss ohne das Feld wiederholt werden. Siehe
+   * TAGS_FELD in mapping.ts.
+   */
+  mitTags?: boolean;
 }
 
 export async function readTasks(options: ReadTasksOptions = {}): Promise<{
@@ -122,7 +131,7 @@ export async function readTasks(options: ReadTasksOptions = {}): Promise<{
   if (options.modifiedSince) filter.modified = [{ op: ">=", val: options.modifiedSince }];
 
   const parameters: Record<string, unknown> = {
-    data: [...TASK_FIELDS],
+    data: taskFelder(options.mitTags === true),
     listlimit: options.listLimit ?? 100,
   };
   // listoffset lehnt die task-Ressource in diesem Mandanten ab (Code 144),

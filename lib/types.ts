@@ -428,6 +428,14 @@ export interface AppSettings {
    */
   onofficeAdressAusschluss: string;
   /**
+   * Das Feld "tags" beim Lesen von Aufgaben mitfragen.
+   *
+   * Aus, solange onOffice es ablehnt: sonst wird jede Leseanfrage
+   * zurueckgewiesen und muss ohne das Feld wiederholt werden - jede
+   * Aufgabe also doppelt geholt.
+   */
+  onofficeTagsLesen: boolean;
+  /**
    * Wie das Hauptmenue aussieht - je Gruppe, nicht fuer alle gleich.
    *
    * Wer den ganzen Tag im Tool arbeitet, kennt die Symbole nach zwei

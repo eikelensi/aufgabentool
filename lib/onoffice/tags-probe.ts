@@ -17,7 +17,7 @@
  */
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { tryCall, elements, type OnOfficeRecord } from "@/lib/onoffice/client";
-import { TASK_FIELDS } from "@/lib/onoffice/mapping";
+import { TAGS_FELD, TASK_FIELDS, taskFelder } from "@/lib/onoffice/mapping";
 import { readTaskFields, type TaskFeld } from "@/lib/onoffice/tasks";
 
 export interface Versuch {
@@ -77,19 +77,19 @@ export async function tagsProbe(nummer: number): Promise<ProbeErgebnis> {
 
   // 1. Nur das eine Feld. Der schmalste Weg - wenn irgendetwas geht,
   //    dann das.
-  await probiere("Filter auf Nr, nur tags", { data: ["tags"], filter, listlimit: 1 });
+  await probiere("Filter auf Nr, nur tags", { data: [TAGS_FELD], filter, listlimit: 1 });
 
   // 2. Alle Felder ausser tags - der Gegenbeweis. Klappt das, liegt
   //    es wirklich an diesem einen Feld und nicht am Aufruf.
   await probiere("Filter auf Nr, alle Felder OHNE tags", {
-    data: TASK_FIELDS.filter((f) => f !== "tags"),
+    data: [...TASK_FIELDS],
     filter,
     listlimit: 1,
   });
 
   // 3. Alle Felder samt tags - so fragt der Abgleich.
   await probiere("Filter auf Nr, alle Felder MIT tags", {
-    data: [...TASK_FIELDS],
+    data: taskFelder(true),
     filter,
     listlimit: 1,
   });

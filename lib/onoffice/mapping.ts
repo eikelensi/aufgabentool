@@ -193,13 +193,33 @@ export const TASK_FIELDS = [
   "Erinnerungsdatum",
   "Eintragsdatum",
   "modified",
-  // Das Feld, in dem steht, FUER WEN gearbeitet wird. Der Lesecall hat
-  // es in diesem Mandanten frueher abgelehnt; passiert das wieder,
-  // laesst readWithoutRejectedFields es weg und der Abgleich sagt es
-  // im Protokoll. Deshalb steht es zuletzt: faellt es weg, bleibt der
-  // Rest unberuehrt.
-  "tags",
 ] as const;
+
+/**
+ * Das Feld, in dem steht, FUER WEN gearbeitet wird - "Auftrag von".
+ *
+ * Es steht NICHT in TASK_FIELDS, und das ist gemessen und nicht
+ * geraten. Am 28.09.2026 mit einer einzelnen Aufgabe geprueft:
+ *
+ *   data: ["tags"]                 -> Code 144, "Invalid field ... (0, tags)"
+ *   data: [alle Felder ohne tags]  -> geht, 18 Felder kommen zurueck
+ *   data: [alle Felder mit tags]   -> Code 144, "(18, tags)"
+ *
+ * Das Feld existiert in der Feldkonfiguration des Mandanten
+ * (multiselect), der Lesecall gibt es aber nicht heraus. Solange wir
+ * es trotzdem mitgefragt haben, wurde JEDE Leseanfrage abgelehnt und
+ * musste ohne das Feld wiederholt werden - der doppelte Aufruf, den
+ * ganzen Tag, fuer nichts.
+ *
+ * Es wird nur mitgefragt, wenn die Verwaltung es ausdruecklich
+ * einschaltet. Das ist der Schalter, den man nach einer
+ * Freischaltung durch onOffice umlegt.
+ */
+export const TAGS_FELD = "tags";
+
+export function taskFelder(mitTags: boolean): string[] {
+  return mitTags ? [...TASK_FIELDS, TAGS_FELD] : [...TASK_FIELDS];
+}
 
 /** Ein Datum wie "2019-10-08 00:00:00" oder "" normalisieren. */
 export function toIsoDate(value: unknown): string | null {
