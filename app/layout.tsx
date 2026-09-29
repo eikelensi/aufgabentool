@@ -5,6 +5,16 @@ export const metadata: Metadata = {
   title: "Aufgabentool – 4wändekanzlei",
   description:
     "Internes Aufgabenmanagement: Board mit Drag-and-drop, Aufgabenpool, Pflichtnotiz, Kategorien, Eskalation und onOffice-Bezug.",
+  /**
+   * Was unter dem Symbol steht, wenn die Seite auf dem Home-Bildschirm
+   * liegt. Ohne das nimmt iOS den Seitentitel - und "Aufgabentool –
+   * 4wändekanzlei" wird dort auf ein paar Zeichen zusammengestrichen.
+   */
+  appleWebApp: {
+    title: "Task",
+    capable: true,
+    statusBarStyle: "default",
+  },
 };
 
 /**
