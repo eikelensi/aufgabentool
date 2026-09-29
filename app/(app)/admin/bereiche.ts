@@ -69,6 +69,11 @@ export const GRUPPEN: Gruppe[] = [
         label: "Pinnwand",
         zweck: "Die Themen der Pinnwand und ihre Farben.",
       },
+      {
+        href: "/admin/links",
+        label: "Verlinkungen",
+        zweck: "Die übrigen Anwendungen des Hauses – Lager, Akademie, Formulare. Anlegen, ändern, abschalten.",
+      },
     ],
   },
   {

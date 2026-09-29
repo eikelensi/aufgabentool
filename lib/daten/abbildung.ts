@@ -17,6 +17,7 @@ import type {
   NotifyKind,
   Pin,
   PinKategorie,
+  Verlinkung,
   Profile,
   Task,
   TaskNote,
@@ -324,6 +325,18 @@ export function pinZurZeile(patch: Partial<Pin>): Record<string, unknown> {
   if (patch.angeheftet !== undefined) z.angeheftet = patch.angeheftet;
   if (patch.sortOrder !== undefined) z.sort_order = patch.sortOrder;
   return z;
+}
+
+export function zuVerlinkung(row: any): Verlinkung {
+  return {
+    id: row.id,
+    name: row.name,
+    url: row.url,
+    beschreibung: row.beschreibung ?? null,
+    icon: row.icon ?? null,
+    sortOrder: row.sort_order ?? 0,
+    isActive: row.is_active ?? true,
+  };
 }
 
 export function zuPinKategorie(row: any): PinKategorie {

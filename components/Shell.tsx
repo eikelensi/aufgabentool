@@ -60,6 +60,10 @@ const WEITERE: Menuepunkt[] = [
   { href: "/verteilt", label: "Verteilt", icon: "↗️", bereich: "verteilt" },
   { href: "/pinnwand", label: "Pinnwand", icon: "📌", bereich: "pinnwand" },
   { href: "/archiv", label: "Archiv", icon: "📦", bereich: "archiv" },
+  // Optional: leer angelegt taucht der Bereich zwar im Menue auf, die
+  // Seite sagt dann aber selbst, dass nichts hinterlegt ist. Wer ihn
+  // gar nicht will, nimmt ihn den Rollen unter "Rollen und Rechte".
+  { href: "/links", label: "Verlinkungen", icon: "🔗", bereich: "links" },
 ];
 
 const VERWALTUNG: Menuepunkt = {

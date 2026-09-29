@@ -30,6 +30,7 @@ import {
   zuVorlage,
   zuPin,
   zuPinKategorie,
+  zuVerlinkung,
   pinZurZeile,
 } from "@/lib/daten/abbildung";
 import { ALLOWED_EXTENSIONS } from "./data";
@@ -46,6 +47,7 @@ import type {
   NotifyKind,
   Pin,
   PinKategorie,
+  Verlinkung,
   Profile,
   Task,
   TaskStatus,
@@ -198,6 +200,11 @@ interface StoreValue {
   pinKategorieSpeichern: (k: Partial<PinKategorie> & { id?: string }) => Promise<Ergebnis>;
   pinKategorieLoeschen: (id: string) => Promise<Ergebnis>;
 
+  /** Der optionale Bereich "Verlinkungen" - Adressen anderer Haus-Anwendungen. */
+  verlinkungen: Verlinkung[];
+  verlinkungSpeichern: (v: Partial<Verlinkung> & { id?: string }) => Promise<Ergebnis>;
+  verlinkungLoeschen: (id: string) => Promise<Ergebnis>;
+
   profileById: (id: string | null) => Profile | undefined;
   categoryById: (id: string | null) => Category | undefined;
   brokerById: (id: string | null) => BrokerContact | undefined;
@@ -243,12 +250,13 @@ export function StoreProvider({
   const [asanaNutzer, setAsanaNutzer] = useState<AsanaNutzer[]>([]);
   const [pins, setPins] = useState<Pin[]>([]);
   const [pinKategorien, setPinKategorien] = useState<PinKategorie[]>([]);
+  const [verlinkungen, setVerlinkungen] = useState<Verlinkung[]>([]);
 
   const neuLaden = useCallback(async () => {
     const sb = supabaseBrowser();
     setFehler(null);
 
-    const [a, p, k, ka, v, e, n, m, as, an, pn, pk] = await Promise.all([
+    const [a, p, k, ka, v, e, n, m, as, an, pn, pk, vl] = await Promise.all([
       sb
         .from("tasks")
         .select(AUFGABE_SPALTEN)
@@ -285,6 +293,10 @@ export function StoreProvider({
         .from("pin_kategorien")
         .select("id, name, farbe, sort_order, is_active")
         .order("sort_order"),
+      sb
+        .from("verlinkungen")
+        .select("id, name, url, beschreibung, icon, sort_order, is_active")
+        .order("sort_order"),
     ]);
 
     const ersterFehler = [a.error, p.error, k.error, ka.error, v.error, e.error].find(Boolean);
@@ -304,6 +316,7 @@ export function StoreProvider({
     if (an.data) setAsanaNutzer(an.data.map(zuAsanaNutzer));
     if (pn.data) setPins(pn.data.map(zuPin));
     if (pk.data) setPinKategorien(pk.data.map(zuPinKategorie));
+    if (vl.data) setVerlinkungen(vl.data.map(zuVerlinkung));
 
     setBereit(true);
   }, []);
@@ -1629,6 +1642,53 @@ export function StoreProvider({
       return error ? { ok: false, error: error.message } : { ok: true };
     }
 
+    /**
+     * Eine Verlinkung anlegen oder aendern.
+     *
+     * Dasselbe Muster wie die Pinnwand-Themen. Nur die Adresse wird
+     * angefasst: fehlt das Schema, setzen wir https davor - sonst
+     * haengt der Browser die Adresse an die eigene an und landet auf
+     * einer Unterseite des Tools, die es nicht gibt.
+     */
+    async function verlinkungSpeichern(
+      v: Partial<Verlinkung> & { id?: string },
+    ): Promise<Ergebnis> {
+      const zeile: Record<string, unknown> = {};
+      if (v.name !== undefined) zeile.name = v.name;
+      if (v.url !== undefined) {
+        const roh = String(v.url).trim();
+        zeile.url = roh && !/^https?:\/\//i.test(roh) ? `https://${roh}` : roh;
+      }
+      if (v.beschreibung !== undefined) zeile.beschreibung = v.beschreibung || null;
+      if (v.icon !== undefined) zeile.icon = v.icon || null;
+      if (v.sortOrder !== undefined) zeile.sort_order = v.sortOrder;
+      if (v.isActive !== undefined) zeile.is_active = v.isActive;
+      if (!Object.keys(zeile).length) return { ok: true };
+      zeile.updated_at = new Date().toISOString();
+
+      if (v.id) {
+        setVerlinkungen((alt) =>
+          alt.map((x) => (x.id === v.id ? ({ ...x, ...v } as Verlinkung) : x)),
+        );
+        const { error } = await sb.from("verlinkungen").update(zeile).eq("id", v.id);
+        if (error) {
+          await neuLaden();
+          return { ok: false, error: error.message };
+        }
+        return { ok: true };
+      }
+
+      const { error } = await sb.from("verlinkungen").insert(zeile);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
+    async function verlinkungLoeschen(id: string): Promise<Ergebnis> {
+      const { error } = await sb.from("verlinkungen").delete().eq("id", id);
+      await neuLaden();
+      return error ? { ok: false, error: error.message } : { ok: true };
+    }
+
     // Was aus dem Tagesgeschaeft gefallen ist, weil es lange genug
     // erledigt ist. Dieselbe Grenze, nur andersherum gelesen.
     const archivTasks = tasks
@@ -1693,6 +1753,9 @@ export function StoreProvider({
       pinLoeschen,
       pinKategorieSpeichern,
       pinKategorieLoeschen,
+      verlinkungen,
+      verlinkungSpeichern,
+      verlinkungLoeschen,
       // Die beiden Bereiche teilen sich eine Tabelle, aber keine
       // Ansicht: eine Aufgabe der Geschaeftsfuehrung hat in "Mein Tag"
       // nichts verloren, solange sie nicht abgegeben wurde.

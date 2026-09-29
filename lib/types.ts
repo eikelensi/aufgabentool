@@ -41,7 +41,8 @@ export type Bereich =
   | "verwaltung"
   | "archiv"
   | "asana"
-  | "pinnwand";
+  | "pinnwand"
+  | "links";
 
 export const BEREICH_LABEL: Record<Bereich, string> = {
   dashboard: "Dashboard",
@@ -55,6 +56,7 @@ export const BEREICH_LABEL: Record<Bereich, string> = {
   archiv: "Archiv",
   asana: "Asana (Geschäftsführung)",
   pinnwand: "Pinnwand",
+  links: "Verlinkungen",
 };
 
 /**
@@ -81,6 +83,29 @@ export interface Pin {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Ein Eintrag im Bereich "Verlinkungen".
+ *
+ * Die anderen Anwendungen des Hauses - Lager, Akademie, Formulare -
+ * liegen auf eigenen Adressen. Wer sie sucht, hatte bisher ein
+ * Lesezeichen oder fragte. Hier stehen sie an einer Stelle.
+ *
+ * Bewusst NUR eine Adresse: das Tool ruft diese Seiten nie selbst auf,
+ * es zeigt sie an. Alles andere waere eine Anbindung, und die will
+ * gepflegt werden.
+ */
+export interface Verlinkung {
+  id: string;
+  name: string;
+  url: string;
+  /** Ein Satz, wozu das gut ist - steht unter dem Namen. */
+  beschreibung?: string | null;
+  /** Ein Zeichen als Erkennungsmarke, z. B. ein Emoji. */
+  icon?: string | null;
+  sortOrder: number;
+  isActive: boolean;
 }
 
 export interface PinKategorie {
