@@ -72,6 +72,124 @@ function Entwurfsfeld({
   );
 }
 
+/**
+ * Die Zeichen zur Auswahl.
+ *
+ * Bewusst eine kurze, sortierte Liste und keine vollstaendige
+ * Emoji-Tafel: die Frage ist nicht "welches der 3000 Zeichen", sondern
+ * "was passt zu Lager, Akademie, Formularen". Wer etwas anderes will,
+ * tippt oder fuegt es weiter ins Feld ein - das bleibt moeglich.
+ */
+const ZEICHEN = [
+  "🔗", "📦", "🎓", "📄", "📋", "🗂️", "🧰", "🔧",
+  "📊", "📈", "💼", "🏠", "🔑", "🚗", "📸", "🖨️",
+  "💶", "🧾", "📚", "🗓️", "✉️", "☎️", "🌐", "⭐",
+];
+
+/**
+ * Zeichenfeld mit Auswahl.
+ *
+ * Vorher stand hier nur ein 52 Pixel breites Feld mit einem blassen
+ * Emoji als Platzhalter. Dass man dort ein Zeichen EINFUEGEN kann,
+ * stand nirgends - gefragt wurde prompt, wie man ein Icon hinzufuegt.
+ * Ein Feld, das man erklaeren muss, ist ein Feld, das fehlt.
+ */
+function Zeichenwahl({
+  wert,
+  speichern,
+}: {
+  wert: string;
+  speichern: (neu: string) => Promise<unknown> | void;
+}) {
+  const [offen, setOffen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className="field"
+        style={{ width: 52, textAlign: "center", cursor: "pointer" }}
+        onClick={() => setOffen((o) => !o)}
+        title="Zeichen wählen"
+        aria-haspopup="true"
+        aria-expanded={offen}
+      >
+        {wert || <span className="muted">＋</span>}
+      </button>
+
+      {offen ? (
+        <>
+          {/* Ein Klick daneben schliesst - sonst bleibt die Tafel
+              stehen, bis jemand genau den Knopf wieder trifft. */}
+          <button
+            type="button"
+            aria-label="Auswahl schließen"
+            className="fixed inset-0 z-40"
+            style={{ background: "transparent", border: "none", cursor: "default" }}
+            onClick={() => setOffen(false)}
+          />
+          <div
+            className="panel line absolute z-50 mt-1 rounded-lg border p-2 shadow-lg"
+            style={{ width: 232 }}
+          >
+            <div className="grid grid-cols-8 gap-0.5">
+              {ZEICHEN.map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ padding: 2, fontSize: 16, lineHeight: 1.4 }}
+                  onClick={() => {
+                    void speichern(z);
+                    setOffen(false);
+                  }}
+                >
+                  {z}
+                </button>
+              ))}
+            </div>
+            <div className="line mt-1.5 flex items-center gap-2 border-t pt-1.5">
+              <input
+                className="field"
+                style={{ flex: 1 }}
+                defaultValue={wert}
+                placeholder="eigenes Zeichen"
+                aria-label="Eigenes Zeichen"
+                onBlur={(e) => {
+                  if (e.target.value !== wert) void speichern(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                    setOffen(false);
+                  }
+                }}
+              />
+              {wert ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    void speichern("");
+                    setOffen(false);
+                  }}
+                  title="Kein Zeichen"
+                >
+                  ✕
+                </button>
+              ) : null}
+            </div>
+            <p className="muted mt-1 text-[10px] leading-relaxed">
+              Eigene Zeichen mit der Emoji-Tastatur: Ctrl + Cmd + Leertaste.
+            </p>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export default function LinkFormular() {
   const {
     isAdmin,
@@ -172,14 +290,7 @@ export default function LinkFormular() {
           {sortiert.map((v, i) => (
             <li key={v.id} className="line rounded-lg border p-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Entwurfsfeld
-                  wert={v.icon ?? ""}
-                  platzhalter="🔗"
-                  titel="Ein Zeichen als Erkennungsmarke"
-                  breite={52}
-                  mittig
-                  speichern={setze(v, "icon")}
-                />
+                <Zeichenwahl wert={v.icon ?? ""} speichern={setze(v, "icon")} />
                 <Entwurfsfeld
                   wert={v.name}
                   platzhalter="Name"
@@ -288,14 +399,7 @@ export default function LinkFormular() {
         <div className="line rounded-lg border p-2" style={{ background: "var(--panel-2)" }}>
           <h3 className="mb-2 text-xs font-semibold">Neuer Eintrag</h3>
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              className="field"
-              style={{ width: 52, textAlign: "center" }}
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              placeholder="🔗"
-              aria-label="Zeichen"
-            />
+            <Zeichenwahl wert={icon} speichern={(z) => setIcon(z)} />
             <input
               className="field"
               style={{ flex: "1 1 160px" }}
