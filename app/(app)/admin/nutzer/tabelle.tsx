@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import {
   aktivSetzen,
   asanaSpiegelnSetzen,
+  asanaSpiegelZielSetzen,
   aufgabenSynchronisieren,
   einladungErneutSenden,
   nutzerEinladen,
@@ -16,6 +17,7 @@ import {
   type SyncMeldung,
 } from "./aktionen";
 import { ROLLE_LABEL, type AppRole } from "@/lib/types";
+import { useStore } from "@/lib/store";
 
 export interface NutzerZeile {
   id: string;
@@ -29,6 +31,8 @@ export interface NutzerZeile {
   invitedAt: string | null;
   /** Aufgaben dieser Person zusaetzlich in Asana anlegen. */
   asanaSpiegeln: boolean;
+  asanaSpiegelBereich: "projekt" | "eigene";
+  asanaSpiegelSectionGid: string;
   hatSichAngemeldet: boolean;
 }
 
@@ -166,6 +170,10 @@ export function NutzerTabelle({
 }) {
   const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
   const [laeuft, starte] = useTransition();
+  // Die Abschnitte beider Bretter - dieselbe Liste, die das
+  // Asana-Board benutzt. Zwei Quellen fuer dasselbe waeren zwei
+  // Gelegenheiten, auseinanderzulaufen.
+  const { asanaSpalten: abschnitte } = useStore();
 
   const fuehreAus = (fn: () => Promise<Ergebnis>) =>
     starte(async () => setErgebnis(await fn()));
@@ -243,7 +251,7 @@ export function NutzerTabelle({
                   <td className="px-3 py-2">
                     <label
                       className="muted flex items-center gap-1.5 text-[11px]"
-                      title="Jede Aufgabe dieser Person zusätzlich in Asana anlegen – Projekt „Buchhaltung und HR“, Abschnitt Eingang, dort ihr selbst zugeteilt."
+                      title="Jede Aufgabe dieser Person zusätzlich in Asana anlegen, dort ihr selbst zugeteilt."
                     >
                       <input
                         type="checkbox"
@@ -255,6 +263,64 @@ export function NutzerTabelle({
                       />
                       Asana
                     </label>
+                    {/* Das Ziel erscheint erst, wenn gespiegelt wird -
+                        vorher waere es eine Einstellung ohne Wirkung,
+                        und die liest sich wie ein Versprechen. */}
+                    {n.asanaSpiegeln ? (
+                      <div className="mt-1 flex flex-col gap-1">
+                        <select
+                          className="field"
+                          style={{ fontSize: 11, padding: "0.1rem 0.3rem" }}
+                          value={n.asanaSpiegelBereich}
+                          disabled={laeuft}
+                          onChange={(e) =>
+                            fuehreAus(() =>
+                              asanaSpiegelZielSetzen(
+                                n.id,
+                                e.target.value as "projekt" | "eigene",
+                                // Brettwechsel heisst: der alte
+                                // Abschnitt gehoert zum anderen Brett
+                                // und waere dort unbekannt.
+                                null,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="projekt">Projekt „Buchhaltung und HR“</option>
+                          <option value="eigene">Persönliche Asana-Liste</option>
+                        </select>
+                        <select
+                          className="field"
+                          style={{ fontSize: 11, padding: "0.1rem 0.3rem" }}
+                          value={n.asanaSpiegelSectionGid}
+                          disabled={laeuft}
+                          onChange={(e) =>
+                            fuehreAus(() =>
+                              asanaSpiegelZielSetzen(
+                                n.id,
+                                n.asanaSpiegelBereich,
+                                e.target.value || null,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="">– Eingang –</option>
+                          {abschnitte
+                            .filter((a) => a.bereich === n.asanaSpiegelBereich)
+                            .map((a) => (
+                              <option key={a.gid} value={a.gid}>
+                                {a.name}
+                              </option>
+                            ))}
+                        </select>
+                        {n.asanaSpiegelBereich === "eigene" ? (
+                          <span className="muted text-[10px] leading-snug">
+                            Die persönliche Liste gehört dem Konto, dessen Asana-Token
+                            hinterlegt ist.
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2">
                     {!n.isActive ? (

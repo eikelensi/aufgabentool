@@ -252,6 +252,45 @@ export async function onofficeNameSetzen(id: string, name: string): Promise<Erge
  * Haken bekommt er jede davon zusaetzlich drueben, im Projekt
  * "Buchhaltung und HR" im Eingang, und dort sich selbst zugeteilt.
  */
+/**
+ * Wohin die Spiegelung dieser Person geht.
+ *
+ * Zwei Menschen, zwei Orte: Lisas Aufgaben gehoeren ins Projekt
+ * "Buchhaltung und HR", weil dort ihr Team arbeitet; Eikes gehoeren
+ * in seine persoenliche Liste, weil sie niemanden sonst betreffen.
+ * Deshalb steht das Ziel am Profil und nicht im Code - sonst waere
+ * jede weitere Person eine Codeaenderung.
+ *
+ * "eigene" meint die persoenliche Asana-Liste, und die gehoert genau
+ * dem Menschen, dessen Zugriffstoken hinterlegt ist. Fuer jeden
+ * anderen waere die Einstellung sinnlos; das steht so auch in der
+ * Oberflaeche.
+ */
+export async function asanaSpiegelZielSetzen(
+  id: string,
+  bereich: "projekt" | "eigene",
+  sectionGid: string | null,
+): Promise<Ergebnis> {
+  try {
+    await verlangeAdmin();
+  } catch (err) {
+    return { ok: false, meldung: (err as Error).message };
+  }
+
+  const sb = supabaseAdmin();
+  const { error } = await sb
+    .from("profiles")
+    .update({
+      asana_spiegel_bereich: bereich,
+      asana_spiegel_section_gid: sectionGid,
+    })
+    .eq("id", id);
+  if (error) return { ok: false, meldung: error.message };
+
+  revalidatePath("/admin/nutzer");
+  return { ok: true, meldung: "Ziel der Spiegelung gespeichert." };
+}
+
 export async function asanaSpiegelnSetzen(id: string, an: boolean): Promise<Ergebnis> {
   try {
     await verlangeAdmin();

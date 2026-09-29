@@ -69,6 +69,16 @@ export async function gibNachAsana(
    * eine Voreinstellung, wer sie bekommen soll.
    */
   asanaGid?: string | null,
+  /**
+   * In welchen Abschnitt drueben - statt in den Eingang.
+   *
+   * Der Eingang ist die richtige Vorgabe fuer eine Uebergabe von
+   * Hand: was ankommt, will gesehen werden. Eine dauerhafte
+   * Spiegelung ist etwas anderes - sie soll an ihren festen Platz,
+   * sonst liegt der halbe Bestand im Eingang und der Eingang bedeutet
+   * nichts mehr.
+   */
+  abschnittGid?: string | null,
 ): Promise<UebergabeErgebnis> {
   const beschreibung = ZIELE[ziel];
   if (!beschreibung) return { ok: false, fehler: "Dieses Ziel gibt es nicht." };
@@ -110,13 +120,19 @@ export async function gibNachAsana(
     };
   }
 
-  // In welchen Abschnitt? In den Eingang des jeweiligen Bretts.
-  const { data: eingang } = await sb
+  // In welchen Abschnitt? Der vorgegebene, sonst der Eingang des
+  // jeweiligen Bretts. Ein vorgegebener Abschnitt, den es nicht mehr
+  // gibt, faellt auf den Eingang zurueck - besser sichtbar am
+  // falschen Platz als lautlos nirgends.
+  const { data: abschnitte } = await sb
     .from("asana_sections")
-    .select("gid, name")
-    .eq("bereich", beschreibung.bereich)
-    .eq("ist_eingang", true)
-    .maybeSingle();
+    .select("gid, name, ist_eingang, bereich")
+    .eq("bereich", beschreibung.bereich);
+
+  const eingang =
+    (abschnittGid ? abschnitte?.find((a) => a.gid === abschnittGid) : null) ??
+    abschnitte?.find((a) => a.ist_eingang) ??
+    null;
 
   try {
     const neu = await ruf<{ gid: string }>({
@@ -276,7 +292,7 @@ export async function spiegleZugeteilte(): Promise<{
 
   const { data: leute } = await sb
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, asana_spiegel_bereich, asana_spiegel_section_gid")
     .eq("asana_spiegeln", true)
     .eq("is_active", true);
 
@@ -293,6 +309,25 @@ export async function spiegleZugeteilte(): Promise<{
     );
 
   const gidVon = new Map((asanaLeute ?? []).map((a) => [a.profile_id, a.gid]));
+
+  /**
+   * Wohin je Person gespiegelt wird.
+   *
+   * Lisa: ins Projekt "Buchhaltung und HR", weil dort ihr Team
+   * arbeitet. Eike: in seine persoenliche Liste, Abschnitt
+   * "OnOffice", weil seine Aufgaben niemanden sonst betreffen. Zwei
+   * Menschen, zwei Orte, eine Regel - deshalb steht das Ziel am
+   * Profil und nicht im Code.
+   */
+  const zielVon = new Map(
+    (leute ?? []).map((l) => [
+      l.id,
+      {
+        ziel: (l.asana_spiegel_bereich === "eigene" ? "eike" : "projekt") as Uebergabeziel,
+        abschnitt: l.asana_spiegel_section_gid ?? null,
+      },
+    ]),
+  );
 
   // Bewusst wenige je Lauf: der Abgleich laeuft oft, und eine
   // Nachzuegler-Aufgabe darf warten. Ein Lauf, der an einer Stelle
@@ -319,7 +354,8 @@ export async function spiegleZugeteilte(): Promise<{
       continue;
     }
 
-    const res = await gibNachAsana(aufgabe.id, "projekt", undefined, gid);
+    const wohin = zielVon.get(aufgabe.assignee_id) ?? { ziel: "projekt" as Uebergabeziel, abschnitt: null };
+    const res = await gibNachAsana(aufgabe.id, wohin.ziel, undefined, gid, wohin.abschnitt);
     if (res.ok) gespiegelt++;
     else fehler.push(`${aufgabe.title}: ${res.fehler}`);
   }

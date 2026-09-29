@@ -47,7 +47,7 @@ export default async function NutzerSeite() {
 
   const { data: profile, error } = await sb
     .from("profiles")
-    .select("id, email, full_name, role, is_active, onoffice_username, onoffice_display_name, phone, invited_at, asana_spiegeln")
+    .select("id, email, full_name, role, is_active, onoffice_username, onoffice_display_name, phone, invited_at, asana_spiegeln, asana_spiegel_bereich, asana_spiegel_section_gid")
     .order("full_name");
 
   if (error) {
@@ -81,6 +81,10 @@ export default async function NutzerSeite() {
     phone: p.phone,
     invitedAt: p.invited_at,
     asanaSpiegeln: Boolean(p.asana_spiegeln),
+    asanaSpiegelBereich: (p.asana_spiegel_bereich === "eigene" ? "eigene" : "projekt") as
+      | "projekt"
+      | "eigene",
+    asanaSpiegelSectionGid: p.asana_spiegel_section_gid ?? "",
     hatSichAngemeldet: angemeldet.has(p.id),
   }));
 
