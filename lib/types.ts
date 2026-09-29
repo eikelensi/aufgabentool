@@ -479,6 +479,16 @@ export interface AppSettings {
    * der Rolle.
    */
   menueStilJeGruppe: Record<MenueGruppe, MenueStil>;
+
+  /**
+   * Wie der optionale Link-Bereich heisst - im Menue, auf seiner
+   * Seite und in der Verwaltung.
+   *
+   * "Verlinkungen" ist die Vorgabe, nicht die Wahrheit: im Haus sagt
+   * vielleicht jemand "Werkzeuge" oder "Anwendungen". Ein Name, der
+   * sich nicht aendern laesst, wird irgendwann umgangen.
+   */
+  linksLabel: string;
 }
 
 export type MenueStil = "text" | "symbole" | "beides";

@@ -9,7 +9,7 @@ export default function LinkVerwaltung() {
     <>
       <Seitenkopf
         titel="Verlinkungen"
-        text="Die übrigen Anwendungen des Hauses, wie sie im Bereich „Verlinkungen“ erscheinen. Abschalten blendet einen Eintrag aus, ohne ihn wegzuwerfen."
+        text="Die übrigen Anwendungen des Hauses und der Name, unter dem der Bereich im Menü steht. Abschalten blendet einen Eintrag aus, ohne ihn wegzuwerfen; Adressen werden beim Verlassen des Feldes gespeichert."
       />
       <LinkFormular />
     </>

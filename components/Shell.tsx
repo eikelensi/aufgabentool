@@ -153,7 +153,10 @@ export default function Shell({
   // auf den Superadmin, der immer alles sieht.
   const sichtbar = (p: Menuepunkt) => darfSehen(profil.role, p.bereich, rechte);
   const haupt = HAUPT.filter(sichtbar);
-  const weitere = WEITERE.filter(sichtbar);
+  // Der Link-Bereich traegt den Namen, den die Verwaltung ihm gibt.
+  const weitere = WEITERE.filter(sichtbar).map((p) =>
+    p.bereich === "links" ? { ...p, label: settings.linksLabel } : p,
+  );
   const darfVerwaltung = sichtbar(VERWALTUNG);
   const inWeiteren = weitere.some((p) => pathname.startsWith(p.href));
 

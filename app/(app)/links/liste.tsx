@@ -3,7 +3,7 @@
 import { useStore } from "@/lib/store";
 
 export default function Liste() {
-  const { verlinkungen } = useStore();
+  const { verlinkungen, settings } = useStore();
 
   // Abgeschaltete stehen in der Verwaltung, nicht hier.
   const sichtbar = [...verlinkungen]
@@ -13,7 +13,7 @@ export default function Liste() {
   return (
     <div style={{ maxWidth: 900 }}>
       <header className="mb-4">
-        <h1 className="text-lg font-semibold">Verlinkungen</h1>
+        <h1 className="text-lg font-semibold">{settings.linksLabel}</h1>
         <p className="muted mt-0.5 text-xs leading-relaxed">
           Die übrigen Anwendungen des Hauses. Jede öffnet sich in einem neuen Tab.
         </p>
@@ -22,7 +22,7 @@ export default function Liste() {
       {sichtbar.length === 0 ? (
         <p className="muted line rounded-lg border border-dashed p-4 text-xs">
           Hier ist noch nichts hinterlegt. Einzutragen in der Verwaltung unter
-          „Verlinkungen“.
+          „{settings.linksLabel}“.
         </p>
       ) : (
         <ul className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>

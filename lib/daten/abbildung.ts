@@ -234,6 +234,9 @@ export function zuEinstellungen(row: any): AppSettings {
       ...MENUE_STIL_VORGABE,
       ...((row?.menue_stil_je_gruppe ?? {}) as Record<string, MenueStil>),
     },
+    // Leer heisst Vorgabe: ein namenloser Menuepunkt waere schlimmer
+    // als ein Name, den jemand nicht gewaehlt hat.
+    linksLabel: String(row?.links_label ?? "").trim() || "Verlinkungen",
   };
 }
 
@@ -255,6 +258,7 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
     z.onoffice_adress_ausschluss = patch.onofficeAdressAusschluss;
   if (patch.onofficeTagsLesen !== undefined) z.onoffice_tags_lesen = patch.onofficeTagsLesen;
   if (patch.menueStilJeGruppe !== undefined) z.menue_stil_je_gruppe = patch.menueStilJeGruppe;
+  if (patch.linksLabel !== undefined) z.links_label = patch.linksLabel;
   return z;
 }
 

@@ -15,6 +15,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStore } from "@/lib/store";
 import { GRUPPEN, gruppeVon } from "./bereiche";
 
 function Reiter({
@@ -59,6 +60,7 @@ function Reiter({
 
 export default function AdminNavigation({ istSuperadmin }: { istSuperadmin: boolean }) {
   const pfad = usePathname();
+  const { settings } = useStore();
   const aktiveGruppe = gruppeVon(pfad);
 
   return (
@@ -95,7 +97,10 @@ export default function AdminNavigation({ istSuperadmin }: { istSuperadmin: bool
             <Reiter
               key={s.href}
               href={s.href}
-              label={s.label}
+              /* Der Link-Bereich heisst, wie die Verwaltung ihn nennt -
+                 sonst hiesse er im Hauptmenue "Werkzeuge" und hier
+                 weiter "Verlinkungen". */
+              label={s.href === "/admin/links" ? settings.linksLabel : s.label}
               titel={s.zweck}
               klein
               aktiv={s.exakt ? pfad === s.href : pfad === s.href || pfad.startsWith(`${s.href}/`)}
