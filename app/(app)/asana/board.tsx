@@ -56,6 +56,17 @@ export default function AsanaBoard() {
   // einen Klick entfernt, aber nicht im Weg.
   const [zeigeFertige, setZeigeFertige] = useState(false);
   const [holt, setHolt] = useState(false);
+  /**
+   * Suche ueber das ganze Brett.
+   *
+   * Elf Spalten mit je einem Dutzend Karten - "wo lag das noch mal"
+   * endete im Durchscrollen. Gesucht wird in Titel, Text und der
+   * onOffice-Nummer; die Spalten bleiben stehen, nur ihre Karten
+   * werden gefiltert. Wer sucht, will wissen WO etwas liegt, nicht
+   * bloss DASS es existiert - eine Trefferliste ohne Spalten haette
+   * genau das verschwiegen.
+   */
+  const [suche, setSuche] = useState("");
 
   /**
    * Bei Asana nachfragen, nicht warten.
@@ -153,6 +164,40 @@ export default function AsanaBoard() {
 
   const spaltenDesBretts = asanaSpalten.filter((sp) => sp.bereich === brett);
 
+  // Klein geschrieben und in Woerter zerlegt: "lisa schluessel"
+  // findet auch "Schlüsseleintragungen ... für Lisa". Alle Woerter
+  // muessen vorkommen, die Reihenfolge nicht.
+  const suchWoerter = suche.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const passt = (t: Task) => {
+    if (!suchWoerter.length) return true;
+    const heuhaufen = [
+      t.title,
+      t.description ?? "",
+      t.onofficeTaskId ?? "",
+      t.onofficeEstateNo ?? "",
+    ]
+      .join(" ")
+      .toLowerCase();
+    return suchWoerter.every((w) => heuhaufen.includes(w));
+  };
+
+  // Wie viele Treffer, und - das ist der eigentliche Dienst - liegen
+  // welche auf dem ANDEREN Brett? Ohne diesen Hinweis sieht "im
+  // Projekt nicht gefunden" aus wie "gibt es nicht", obwohl die
+  // Aufgabe in den eigenen Aufgaben steht.
+  const aufBrett = (t: Task, b: AsanaBereich) => {
+    const gid = b === "eigene" ? t.asanaEigeneSectionGid : t.asanaSectionGid;
+    return !!gid && asanaSpalten.some((sp) => sp.bereich === b && sp.gid === gid);
+  };
+  const zaehle = (b: AsanaBereich) =>
+    asanaTasks.filter(
+      (t) => aufBrett(t, b) && (zeigeFertige || t.status !== "erledigt") && passt(t),
+    ).length;
+
+  const treffer = suchWoerter.length ? zaehle(brett) : 0;
+  const trefferAnderes =
+    suchWoerter.length && darfEigene ? zaehle(brett === "projekt" ? "eigene" : "projekt") : 0;
+
   if (asanaSpalten.length === 0) {
     return (
       <EmptyState text="Noch keine Spalten – der Abgleich mit Asana läuft alle fünf Minuten und war noch nicht dran." />
@@ -194,6 +239,33 @@ export default function AsanaBoard() {
             dem Trackpad, aber nicht jeder arbeitet an einem - also
             zwei Knoepfe, die dasselbe tun. */}
         <span className="ml-auto flex items-center gap-1">
+          {/* Die Suche steht zuerst: wer etwas sucht, sucht es sofort
+              und nicht, nachdem er die Knopfreihe gelesen hat. */}
+          <span className="relative">
+            <input
+              className="field"
+              style={{ width: 190, paddingRight: suche ? 24 : undefined }}
+              value={suche}
+              onChange={(e) => setSuche(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setSuche("");
+              }}
+              placeholder="Suchen…"
+              aria-label="Aufgaben auf diesem Brett suchen"
+            />
+            {suche ? (
+              <button
+                type="button"
+                className="btn btn-ghost absolute"
+                style={{ right: 2, top: "50%", transform: "translateY(-50%)", padding: "0 0.25rem" }}
+                onClick={() => setSuche("")}
+                aria-label="Suche zurücksetzen"
+                title="Suche zurücksetzen (Esc)"
+              >
+                ✕
+              </button>
+            ) : null}
+          </span>
           <button
             type="button"
             className="btn btn-primary"
@@ -239,6 +311,27 @@ export default function AsanaBoard() {
             ▶
           </button>
         </span>
+        {suchWoerter.length ? (
+          <span className="text-[11px]">
+            <strong>
+              {treffer} {treffer === 1 ? "Treffer" : "Treffer"}
+            </strong>{" "}
+            <span className="muted">
+              auf diesem Brett
+              {zeigeFertige ? "" : " (Erledigte sind ausgeblendet)"}.
+            </span>
+            {trefferAnderes ? (
+              <button
+                type="button"
+                className="btn btn-ghost ml-2"
+                style={{ fontSize: 11, padding: "0 0.4rem" }}
+                onClick={() => setBrett(brett === "projekt" ? "eigene" : "projekt")}
+              >
+                {trefferAnderes} auf „{brett === "projekt" ? "Eigene" : "Projekt"}“ →
+              </button>
+            ) : null}
+          </span>
+        ) : null}
         <span className="muted text-[11px]">
           Asana führt: Titel, Text, Zuständigkeit und Spalte kommen von dort. Diese Seite
           fragt beim Öffnen und alle 30 Sekunden nach{holt ? " – gerade jetzt" : ""}. Der
@@ -305,7 +398,8 @@ export default function AsanaBoard() {
             .filter(
               (t) =>
                 (brett === "eigene" ? t.asanaEigeneSectionGid : t.asanaSectionGid) === spalte.gid &&
-                (zeigeFertige || t.status !== "erledigt"),
+                (zeigeFertige || t.status !== "erledigt") &&
+                passt(t),
             )
             .sort((a, b) => rangVon(a) - rangVon(b));
           return (
