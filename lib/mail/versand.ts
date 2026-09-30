@@ -32,6 +32,27 @@ export function leeresErgebnis(): VersandErgebnis {
 }
 
 /**
+ * Die Adresse, unter der das Tool erreichbar ist.
+ *
+ * Fest aus der Umgebung, nicht aus dem Anfrage-Kopf: diese Links
+ * stehen in Mails, die Tage spaeter geoeffnet werden, und ein Cron-Lauf
+ * hat ohnehin keinen Kopf, aus dem sich etwas lesen liesse.
+ */
+export function basisAdresse(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? "https://task.4waendekanzlei.de").replace(/\/+$/, "");
+}
+
+/**
+ * Der Link auf EINE Aufgabe - an einer Stelle, nicht in jeder Route.
+ *
+ * "Steht im Tool" war bisher alles, was eine Mail sagen konnte. Wer
+ * eine Meldung bekam, suchte die Aufgabe danach in einer Liste.
+ */
+export function aufgabenLink(taskId: string): string {
+  return `${basisAdresse()}/aufgabe/${taskId}`;
+}
+
+/**
  * Eine Benachrichtigung an einen Empfaenger. dedupeKey muss den Anlass
  * eindeutig beschreiben, also Aufgabe, Art und den Zeitpunkt, der den
  * Anlass ausgeloest hat.
@@ -56,7 +77,15 @@ export async function sendeBenachrichtigung(args: {
 
   if (!vorlage || vorlage.is_active === false) return "uebersprungen";
 
-  const vars = { ...args.vars, empfaenger: args.empfaenger.name ?? args.empfaenger.email };
+  // link und nummer stehen jeder Vorlage zur Verfuegung, ohne dass
+  // jede Route sie einzeln fuellen muss. Wer sie ausdruecklich
+  // mitgibt, behaelt Vorrang - eine Route weiss manchmal mehr.
+  const vars = {
+    link: args.taskId ? aufgabenLink(args.taskId) : "",
+    nummer: "",
+    ...args.vars,
+    empfaenger: args.empfaenger.name ?? args.empfaenger.email,
+  };
   const betreff = render(vorlage.subject, vars);
   const text = render(vorlage.body, vars);
 

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     .from("tasks")
     .select(
       `id, title, status, is_private, in_progress_note, completed_at, last_status_change_at,
-       onoffice_estate_no, onoffice_estate_id,
+       onoffice_task_id, onoffice_estate_no, onoffice_estate_id,
        creator:profiles!tasks_creator_id_fkey ( id, full_name, email ),
        bearbeiter:profiles!tasks_assignee_id_fkey ( id, full_name, email ),
        makler:broker_contacts!tasks_broker_contact_id_fkey ( id, display_name, email )`,
@@ -73,6 +73,7 @@ export async function POST(request: Request) {
   const makler = aufgabe.makler as unknown as { display_name: string; email: string } | null;
 
   const vars = {
+    nummer: aufgabe.onoffice_task_id ?? "ohne Nummer",
     titel: aufgabe.title,
     bearbeiter: bearbeiter?.full_name ?? profil.fullName,
     ersteller: creator?.full_name ?? "",

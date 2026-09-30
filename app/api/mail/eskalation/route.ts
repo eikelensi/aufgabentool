@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   let eskalationen = 0;
 
   const spalten = `
-    id, title, created_at, onoffice_estate_no, onoffice_estate_id,
+    id, title, created_at, onoffice_task_id, onoffice_estate_no, onoffice_estate_id,
     creator:profiles!tasks_creator_id_fkey ( full_name, email ),
     bearbeiter:profiles!tasks_assignee_id_fkey ( full_name, email )
   `;
@@ -66,6 +66,9 @@ export async function POST(request: Request) {
     if (!bearbeiter?.email) continue;
 
     const vars = {
+      // Die Nummer, unter der die Aufgabe in onOffice gefuehrt wird -
+      // danach fragt jeder als Erstes. Der Link kommt aus dem Versand.
+      nummer: t.onoffice_task_id ?? "ohne Nummer",
       titel: t.title,
       bearbeiter: bearbeiter.full_name,
       ersteller: (t.creator as unknown as { full_name: string } | null)?.full_name ?? "",
@@ -106,6 +109,7 @@ export async function POST(request: Request) {
     const creator = t.creator as unknown as { full_name: string; email: string } | null;
 
     const vars = {
+      nummer: t.onoffice_task_id ?? "ohne Nummer",
       titel: t.title,
       bearbeiter: bearbeiter?.full_name ?? "niemand zugewiesen",
       ersteller: creator?.full_name ?? "",
