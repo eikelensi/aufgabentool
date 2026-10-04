@@ -328,6 +328,16 @@ export default function Shell({
                     <div className="muted text-[11px]">{profil.email}</div>
                     <div className="muted text-[11px]">{ROLLE_LABEL[profil.role]}</div>
                   </div>
+                  {/* Persoenliche Sachen gehoeren hinter das eigene
+                      Zeichen, nicht ins Hauptmenue: sie betreffen
+                      genau einen Menschen und keinen Arbeitsbereich. */}
+                  <Link
+                    href="/meine-mails"
+                    className="block rounded px-1.5 py-1 hover:underline"
+                    onClick={() => setMenuOffen(false)}
+                  >
+                    Meine Mails
+                  </Link>
                   <Link
                     href="/passwort-setzen"
                     className="block rounded px-1.5 py-1 hover:underline"

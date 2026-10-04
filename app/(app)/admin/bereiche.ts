@@ -108,6 +108,11 @@ export const GRUPPEN: Gruppe[] = [
         label: "Vorlagen",
         zweck: "Betreff und Text jeder Mail, die das Tool verschickt.",
       },
+      {
+        href: "/admin/mail/regeln",
+        label: "Versandregeln",
+        zweck: "Welche Mail wann und wie oft rausgeht – und welche davon jeder für sich selbst umstellen darf.",
+      },
     ],
   },
   {

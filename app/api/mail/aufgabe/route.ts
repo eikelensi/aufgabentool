@@ -25,6 +25,7 @@ import {
   sendeBenachrichtigung,
   zaehle,
 } from "@/lib/mail/versand";
+import { darfSenden } from "@/lib/mail/regeln";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ meldung: "Private Aufgabe – keine Benachrichtigung.", verschickt: 0 });
   }
 
-  const creator = aufgabe.creator as unknown as { full_name: string; email: string } | null;
+  const creator = aufgabe.creator as unknown as { id: string; full_name: string; email: string } | null;
   const bearbeiter = aufgabe.bearbeiter as unknown as { full_name: string; email: string } | null;
   const makler = aufgabe.makler as unknown as { display_name: string; email: string } | null;
 
@@ -88,6 +89,20 @@ export async function POST(request: Request) {
 
   try {
     if (status === "in_bearbeitung") {
+      /**
+       * Wessen Einstellung zaehlt hier?
+       *
+       * Die des EMPFAENGERS, nicht die des Ausloesenden. Wer eine
+       * Rueckfrage-Mail nicht will, will sie auch dann nicht, wenn ein
+       * anderer die Rueckfrage stellt. Der Makler ist kein Nutzer des
+       * Tools - fuer ihn gilt die Hausregel.
+       */
+      if (!(await darfSenden("in_bearbeitung_notiz", creator?.id))) {
+        return NextResponse.json({
+          verschickt: 0,
+          meldung: "Diese Mitteilung ist abgeschaltet.",
+        });
+      }
       // Der Zeitstempel des Statuswechsels macht den Schluessel eindeutig:
       // eine neue Notiz beim naechsten Wechsel darf wieder mailen, dieselbe
       // nicht zweimal.
@@ -110,7 +125,7 @@ export async function POST(request: Request) {
         );
       }
     } else if (status === "erledigt") {
-      if (makler) {
+      if (makler && (await darfSenden("aufgabe_erledigt_makler"))) {
         zaehle(
           ergebnis,
           await sendeBenachrichtigung({

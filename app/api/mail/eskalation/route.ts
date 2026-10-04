@@ -18,6 +18,7 @@ import {
   sendeBenachrichtigung,
   zaehle,
 } from "@/lib/mail/versand";
+import { geltendeRegel, stundeImHaus } from "@/lib/mail/regeln";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,21 +49,46 @@ export async function POST(request: Request) {
   let erinnerungen = 0;
   let eskalationen = 0;
 
+  /**
+   * Der Lauf kommt jetzt stuendlich, nicht mehr einmal um 5 Uhr.
+   *
+   * Die Stunde steht in der Regel - und wo eine Person sie
+   * verschieben darf, in ihrer eigenen Zeile. Deshalb traegt jede
+   * faellige Zeile ihre Stunde mit sich; der Lauf nimmt nur die, die
+   * JETZT dran sind.
+   *
+   * Von Hand ausgeloest (Admin oder Geheimnis im Kopf, ohne cron)
+   * zaehlt die Stunde nicht: wer den Knopf drueckt, will sehen, was
+   * passiert, und nicht bis morgen frueh warten.
+   */
+  const vonHand = !request.headers.get("authorization")?.startsWith("Bearer ");
+  const jetzt = stundeImHaus();
+  const dranJetzt = (stunde: number | null | undefined) =>
+    vonHand || (stunde ?? 5) === jetzt;
+
+  // Eine Periode fuer den dedupe-Schluessel: ohne sie liesse die
+  // Sperre gegen Doppelversand eine Wiederholung nie durch - sie ist
+  // ja, mit Absicht, dieselbe Mail zur selben Aufgabe.
+  const heute = new Date().toISOString().slice(0, 10);
+
   const spalten = `
     id, title, created_at, onoffice_task_id, onoffice_estate_no, onoffice_estate_id,
-    creator:profiles!tasks_creator_id_fkey ( full_name, email ),
-    bearbeiter:profiles!tasks_assignee_id_fkey ( full_name, email )
+    creator:profiles!tasks_creator_id_fkey ( id, full_name, email ),
+    bearbeiter:profiles!tasks_assignee_id_fkey ( id, full_name, email )
   `;
 
   // ---------------------------------------------------- Erinnerung (3 Tage)
-  const { data: faellig, error: f1 } = await sb.from("v_faellige_erinnerungen").select("id");
+  const { data: faellig, error: f1 } = await sb
+    .from("v_faellige_erinnerungen")
+    .select("id, stunde");
   if (f1) return NextResponse.json({ fehler: f1.message }, { status: 500 });
 
   for (const zeile of faellig ?? []) {
+    if (!dranJetzt(zeile.stunde)) continue;
     const { data: t } = await sb.from("tasks").select(spalten).eq("id", zeile.id).maybeSingle();
     if (!t) continue;
 
-    const bearbeiter = t.bearbeiter as unknown as { full_name: string; email: string } | null;
+    const bearbeiter = t.bearbeiter as unknown as { id: string; full_name: string; email: string } | null;
     if (!bearbeiter?.email) continue;
 
     const vars = {
@@ -83,7 +109,12 @@ export async function POST(request: Request) {
       taskId: t.id,
       kind: "erinnerung_3t",
       empfaenger: { email: bearbeiter.email, name: bearbeiter.full_name },
-      dedupeKey: `task:${t.id}:erinnerung_3t`,
+      // Nur bei Wiederholung die Periode anhaengen - sonst aendert
+      // sich der Schluessel bestehender Eintraege und alles wuerde
+      // einmal doppelt gehen.
+      dedupeKey: (await geltendeRegel("erinnerung_3t", bearbeiter.id))?.wiederholenTage
+        ? `task:${t.id}:erinnerung_3t:${heute}`
+        : `task:${t.id}:erinnerung_3t`,
       vars,
     });
     zaehle(ergebnis, ausgang, `Erinnerung ${t.id}`);
@@ -98,15 +129,18 @@ export async function POST(request: Request) {
   }
 
   // --------------------------------------------------- Eskalation (7 Tage)
-  const { data: eskaliert, error: f2 } = await sb.from("v_faellige_eskalationen").select("id");
+  const { data: eskaliert, error: f2 } = await sb
+    .from("v_faellige_eskalationen")
+    .select("id, stunde");
   if (f2) return NextResponse.json({ fehler: f2.message }, { status: 500 });
 
   for (const zeile of eskaliert ?? []) {
+    if (!dranJetzt(zeile.stunde)) continue;
     const { data: t } = await sb.from("tasks").select(spalten).eq("id", zeile.id).maybeSingle();
     if (!t) continue;
 
-    const bearbeiter = t.bearbeiter as unknown as { full_name: string; email: string } | null;
-    const creator = t.creator as unknown as { full_name: string; email: string } | null;
+    const bearbeiter = t.bearbeiter as unknown as { id: string; full_name: string; email: string } | null;
+    const creator = t.creator as unknown as { id: string; full_name: string; email: string } | null;
 
     const vars = {
       nummer: t.onoffice_task_id ?? "ohne Nummer",
@@ -121,6 +155,9 @@ export async function POST(request: Request) {
     };
 
     // Nach 7 Tagen zusaetzlich an den Ersteller beziehungsweise Admin.
+    const wiederholtEskalation = Boolean(
+      (await geltendeRegel("eskalation_7t", bearbeiter?.id ?? creator?.id))?.wiederholenTage,
+    );
     let einerGing = false;
     for (const e of [
       bearbeiter ? { email: bearbeiter.email, name: bearbeiter.full_name, rolle: "bearbeiter" } : null,
@@ -131,7 +168,9 @@ export async function POST(request: Request) {
         taskId: t.id,
         kind: "eskalation_7t",
         empfaenger: { email: e.email, name: e.name },
-        dedupeKey: `task:${t.id}:eskalation_7t:${e.rolle}`,
+        dedupeKey: wiederholtEskalation
+          ? `task:${t.id}:eskalation_7t:${e.rolle}:${heute}`
+          : `task:${t.id}:eskalation_7t:${e.rolle}`,
         vars,
       });
       zaehle(ergebnis, ausgang, `Eskalation ${t.id} an ${e.email}`);

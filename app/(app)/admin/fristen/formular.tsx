@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /**
  * Alles, was mit Zeit zu tun hat: wann erinnert wird, wann eskaliert
  * wird, wann Erledigtes verschwindet - und ab wann eine Aufgabe im
@@ -35,26 +37,23 @@ export default function FristenFormular() {
           oder auf „Rückfragen offen“ gesetzt wird, hört die Eskalation sofort auf.
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Erinnerung an den Bearbeiter nach (Tagen)">
-            <input
-              type="number"
-              min={1}
-              className="field"
-              value={settings.reminderDays}
-              onChange={(e) => updateSettings({ reminderDays: Number(e.target.value) })}
-            />
-          </Field>
-          <Field label="Eskalation an Ersteller und Admin nach (Tagen)">
-            <input
-              type="number"
-              min={1}
-              className="field"
-              value={settings.escalationDays}
-              onChange={(e) => updateSettings({ escalationDays: Number(e.target.value) })}
-            />
-          </Field>
-        </div>
+        {/* Die beiden Zahlen standen hier und steuerten den Versand -
+            bis sie es nicht mehr taten. Seit die Fristen je Mailart
+            und je Person gelten, waeren sie eine Anzeige ohne Wirkung,
+            und so etwas glaubt man genau einmal. Also der Verweis
+            statt der Felder. */}
+        <p className="line muted rounded-lg border border-dashed p-2.5 text-[11px] leading-relaxed">
+          Nach wie vielen Tagen erinnert und eskaliert wird, steht jetzt unter{" "}
+          <Link
+            href="/admin/mail/regeln"
+            className="underline"
+            style={{ color: "var(--color-ci-500)" }}
+          >
+            Mitteilungen → Versandregeln
+          </Link>{" "}
+          – zusammen mit der Uhrzeit, der Wiederholung und der Frage, wer das für sich
+          selbst umstellen darf.
+        </p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button

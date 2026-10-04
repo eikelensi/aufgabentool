@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";
 import { datumDeutsch, leeresErgebnis, sendeBenachrichtigung, zaehle } from "@/lib/mail/versand";
+import { darfSenden } from "@/lib/mail/regeln";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,16 @@ export async function POST(request: Request) {
   // Private Aufgaben gehen niemanden etwas an, auch nicht die Hilfe.
   if (aufgabe.is_private) {
     return NextResponse.json({ meldung: "Private Aufgabe – keine Meldung.", verschickt: 0 });
+  }
+
+  // Abgeschaltet heisst abgeschaltet - auch wenn die Vorlage noch da
+  // ist und eine Adresse hinterlegt ist. Die Hilfe ist eine Adresse,
+  // kein Nutzer: hier zaehlt allein die Hausregel.
+  if (!(await darfSenden("aufgabe_in_pool"))) {
+    return NextResponse.json({
+      verschickt: 0,
+      meldung: "Diese Meldung ist in der Verwaltung abgeschaltet.",
+    });
   }
 
   const empfaenger = (einst?.pool_notify_email ?? "").trim();

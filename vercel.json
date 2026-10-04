@@ -7,7 +7,7 @@
     },
     {
       "path": "/api/mail/eskalation",
-      "schedule": "0 5 * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/sync/anhaenge",
