@@ -20,6 +20,7 @@ import { tryCall, elements, type OnOfficeRecord } from "@/lib/onoffice/client";
 import { TAGS_FELD } from "@/lib/onoffice/mapping";
 import { readTaskFields } from "@/lib/onoffice/tasks";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { protokolliere } from "./protokoll";
 
 export interface TagAbgleichErgebnis {
   /** Hat onOffice den Filter ueberhaupt angenommen? */
@@ -281,24 +282,33 @@ export async function ordneAuftragUeberTagFilter(): Promise<TagAbgleichErgebnis>
    * "Auftrag von" leer bleibt, ohne zu wissen, woran es liegt. Genau
    * diese Blindheit hat heute Stunden gekostet.
    */
-  try {
-    await sb.from("onoffice_sync_log").insert({
-      direction: "pull",
-      resource: "task",
-      reference: "tag-filter",
-      ok: ergebnis.moeglich,
-      message: ergebnis.moeglich
-        ? `Tag-Filter angenommen · ${ergebnis.zugeordnet}× „Auftrag von“ gesetzt · ` +
-          (Object.entries(ergebnis.jeTag)
-            .map(([t, n]) => `${t}: ${n}`)
-            .join(", ") || "keine Treffer") +
-          ` · ${ergebnis.ohneTagInOnoffice.length} Kollegen ohne Tag in onOffice`
-        : `Tag-Filter abgelehnt · ${ergebnis.hinweise.join(" | ").slice(0, 400)}`,
-      payload: ergebnis,
-    });
-  } catch {
-    /* Das Protokoll ist Beiwerk - der Lauf zaehlt. */
-  }
+  /**
+   * Ins Protokoll - aber nicht 720 Mal am Tag dasselbe.
+   *
+   * Diese Zeile habe ich am 28.09. eingebaut, damit sichtbar wird, ob
+   * der Filterweg traegt. Sie hat in einer Woche 6,6 MB geschrieben,
+   * 4.832 Mal denselben Satz, und das ganze Ergebnisobjekt gleich
+   * mit. Gemeint war Sichtbarkeit, geworden ist es Rauschen.
+   *
+   * Jetzt: ein Lauf, der nichts zugeordnet hat, ist nicht relevant -
+   * er aktualisiert die eine "ruhig"-Zeile. Sobald etwas passiert
+   * oder der Filter abgelehnt wird, steht es wieder einzeln da.
+   */
+  await protokolliere({
+    direction: "pull",
+    resource: "tag-filter",
+    reference: "tag-filter",
+    ok: ergebnis.moeglich,
+    relevant: !ergebnis.moeglich || ergebnis.zugeordnet > 0,
+    message: ergebnis.moeglich
+      ? `Tag-Filter angenommen · ${ergebnis.zugeordnet}× „Auftrag von“ gesetzt · ` +
+        (Object.entries(ergebnis.jeTag)
+          .map(([t, n]) => `${t}: ${n}`)
+          .join(", ") || "keine Treffer") +
+        ` · ${ergebnis.ohneTagInOnoffice.length} Kollegen ohne Tag in onOffice`
+      : `Tag-Filter abgelehnt · ${ergebnis.hinweise.join(" | ").slice(0, 400)}`,
+    payload: ergebnis,
+  });
 
   return ergebnis;
 }

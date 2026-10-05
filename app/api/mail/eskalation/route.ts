@@ -19,6 +19,7 @@ import {
   zaehle,
 } from "@/lib/mail/versand";
 import { geltendeRegel, stundeImHaus } from "@/lib/mail/regeln";
+import { raeumeProtokolleAuf } from "@/lib/sync/protokoll-aufraeumen";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -190,10 +191,26 @@ export async function POST(request: Request) {
     }
   }
 
+  /**
+   * Einmal am Tag mitraeumen, in der Stunde nach Mitternacht.
+   *
+   * An den stuendlichen Lauf angehaengt statt in einen eigenen
+   * Zeitplan: ein zweiter Zeitplan ist ein zweiter Ort, an dem etwas
+   * stillschweigend aufhoeren kann.
+   */
+  let aufgeraeumt = "";
+  if (stundeImHaus() === 1) {
+    const r = await raeumeProtokolleAuf();
+    const summe = Object.values(r.geloescht).reduce((a, b) => a + b, 0);
+    if (summe) aufgeraeumt = ` ${summe} alte Protokollzeile(n) entfernt.`;
+    if (r.hinweise.length) aufgeraeumt += ` Aufräumen: ${r.hinweise.join("; ")}`;
+  }
+
   const meldung =
     `${erinnerungen} Erinnerung(en) und ${eskalationen} Eskalationsmail(s) versendet. ` +
     `${ergebnis.uebersprungen} übersprungen, weil der Anlass schon erledigt war.` +
-    (ergebnis.fehler.length ? ` Fehler: ${ergebnis.fehler.slice(0, 5).join("; ")}` : "");
+    (ergebnis.fehler.length ? ` Fehler: ${ergebnis.fehler.slice(0, 5).join("; ")}` : "") +
+    aufgeraeumt;
 
   return NextResponse.json({
     erinnerungen,

@@ -19,6 +19,7 @@
  */
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { protokolliere } from "./protokoll";
 import { onofficeConfigured } from "@/lib/onoffice/client";
 import { dateiWegBekannt, ladeDatei, pushFileToTask } from "@/lib/onoffice/files";
 import { taskFileIds } from "@/lib/onoffice/relations";
@@ -411,15 +412,19 @@ export async function syncAnhaenge(): Promise<AnhangErgebnis> {
   if (ergebnis.fehler.length) teile.push(`Fehler: ${ergebnis.fehler.slice(0, 3).join("; ")}`);
   ergebnis.meldung = teile.join(", ");
 
-  await supabaseAdmin()
-    .from("onoffice_sync_log")
-    .insert({
-      direction: "push",
-      resource: "file",
-      ok: ergebnis.fehler.length === 0,
-      message: ergebnis.meldung,
-      payload: { fehler: ergebnis.fehler.slice(0, 10) },
-    });
+  // 4.800 Zeilen "0 nach onOffice, 0 von onOffice geholt" - der Lauf
+  // hatte schlicht nichts zu tun. Dafuer reicht eine Zeile mit Zaehler.
+  await protokolliere({
+    direction: "push",
+    resource: "file",
+    ok: ergebnis.fehler.length === 0,
+    relevant:
+      ergebnis.hochgeladen > 0 ||
+      ergebnis.heruntergeladen > 0 ||
+      ergebnis.fehler.length > 0,
+    message: ergebnis.meldung,
+    payload: { fehler: ergebnis.fehler.slice(0, 10) },
+  });
 
   return ergebnis;
 }

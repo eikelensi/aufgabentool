@@ -25,6 +25,7 @@ import { createTask } from "@/lib/onoffice/tasks";
 import { haeufigsteArt } from "@/lib/sync/onoffice-neu";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { protokolliere } from "./protokoll";
 import { schreibeAuftragNachOnoffice } from "@/lib/sync/auftrag";
 import { schreibeBearbeiterNachOnoffice } from "@/lib/sync/bearbeiter";
 import type { TaskStatus } from "@/lib/types";
@@ -846,10 +847,15 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
   if (ergebnis.fehler.length) teile.push(`${ergebnis.fehler.length} Fehler`);
   ergebnis.meldung = teile.join(", ");
 
-  await sb.from("onoffice_sync_log").insert({
+  await protokolliere({
     direction: "pull",
     resource: "asana",
     ok: ergebnis.fehler.length === 0,
+    relevant:
+      ergebnis.uebernommen > 0 ||
+      ergebnis.neu > 0 ||
+      ergebnis.kommentare > 0 ||
+      ergebnis.fehler.length > 0,
     message: ergebnis.meldung,
     payload: { fehler: ergebnis.fehler.slice(0, 20) },
   });

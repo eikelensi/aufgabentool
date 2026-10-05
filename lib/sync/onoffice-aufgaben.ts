@@ -31,6 +31,7 @@ import {
   zieheVerknuepfungenNach,
 } from "@/lib/sync/onoffice-neu";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { protokolliere } from "./protokoll";
 
 export interface NameMitAnzahl {
   name: string;
@@ -608,11 +609,29 @@ export async function synchronisiereAufgaben(
     });
   }
 
-  await sb.from("onoffice_sync_log").insert({
+  /**
+   * Nur wenn der Lauf etwas bewirkt hat.
+   *
+   * "84 gelesen, 0 uebernommen (0 neu, 0 aktualisiert)" stand rund
+   * 10.000 Mal im Protokoll - alle zwei Minuten, Tag und Nacht. Dass
+   * der Abgleich laeuft, sieht man an EINER Zeile mit Zeitstempel und
+   * Zaehler genauso gut.
+   *
+   * Hinweise zaehlen als Ergebnis: sie sagen, was der Lauf NICHT
+   * konnte, und das darf nie unter den Tisch fallen.
+   */
+  await protokolliere({
     direction: "pull",
     resource: "task",
     reference: `seit ${seit}`,
     ok: ergebnis.fehler.length === 0,
+    relevant:
+      ergebnis.uebernommen > 0 ||
+      ergebnis.neu > 0 ||
+      ergebnis.anhaengeErfasst > 0 ||
+      ergebnis.fehler.length > 0 ||
+      ergebnis.hinweise.length > 0 ||
+      Boolean(ergebnis.erkundung),
     message: ergebnis.erkundung
       ? `Erkundung: ${ergebnis.gelesen} gelesen, nichts uebernommen ` +
         `(noch keine Zuordnung), ${ergebnis.gefundeneNamen.length} Namen gefunden`

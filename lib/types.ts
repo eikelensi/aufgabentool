@@ -449,6 +449,16 @@ export interface AppSettings {
   onofficeEmailIdentity: string;
   smtpFrom: string;
   doneHideAfterHours: number;
+  /**
+   * Wie lange Protokolle bleiben - zwei Fristen, weil es zwei Dinge sind.
+   *
+   * Technik: "lief der Abgleich heute Nacht". Danach fragt nach einem
+   * Monat niemand mehr. Verlauf: "wer hat das geaendert" - danach
+   * fragt man genau dann, wenn es unangenehm wird, und das ist spaet.
+   * 0 heisst in beiden Faellen: nie loeschen.
+   */
+  protokollTageTechnik: number;
+  protokollTageVerlauf: number;
   /** Ab so vielen Minuten im Pool wird die Karte orange umrandet. */
   poolWarnMinuten: number;
   /** Ab so vielen Minuten rot. */

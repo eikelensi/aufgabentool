@@ -227,6 +227,8 @@ export function zuEinstellungen(row: any): AppSettings {
     attachmentDefaultArt: row?.attachment_default_art ?? "Dokument",
     onofficeAdressAusschluss: row?.onoffice_adress_ausschluss ?? "",
     onofficeTagsLesen: row?.onoffice_tags_lesen === true,
+    protokollTageTechnik: row?.protokoll_tage_technik ?? 30,
+    protokollTageVerlauf: row?.protokoll_tage_verlauf ?? 730,
     // Fehlt oder ist unvollstaendig, gilt die Vorgabe - ein Menue,
     // das wegen einer halben Zeile in der Datenbank verschwindet,
     // waere der schlechteste denkbare Fehler.
@@ -259,6 +261,8 @@ export function einstellungenZurZeile(patch: Partial<AppSettings>): Record<strin
   if (patch.onofficeTagsLesen !== undefined) z.onoffice_tags_lesen = patch.onofficeTagsLesen;
   if (patch.menueStilJeGruppe !== undefined) z.menue_stil_je_gruppe = patch.menueStilJeGruppe;
   if (patch.linksLabel !== undefined) z.links_label = patch.linksLabel;
+  if (patch.protokollTageTechnik !== undefined) z.protokoll_tage_technik = patch.protokollTageTechnik;
+  if (patch.protokollTageVerlauf !== undefined) z.protokoll_tage_verlauf = patch.protokollTageVerlauf;
   return z;
 }
 

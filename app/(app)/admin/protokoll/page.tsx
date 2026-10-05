@@ -9,6 +9,7 @@
 import { supabaseAdmin, serviceRoleVorhanden } from "@/lib/supabase/admin";
 import { NOTIFY_LABEL, type NotifyKind } from "@/lib/types";
 import { AENDERUNGEN } from "@/lib/daten/aenderungen";
+import Aufbewahrung from "./aufbewahrung";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -148,6 +149,20 @@ export default async function ProtokollSeite({
 
   const sb = supabaseAdmin();
 
+  // Was die Protokolle gerade kosten. Eine Frist ohne Groessenangabe
+  // ist eine Zahl ohne Bedeutung - und bis hierher musste man in die
+  // Datenbank schauen, um sie zu kennen.
+  const { data: groessenRoh } = await sb.rpc("protokoll_groessen").then(
+    (r) => r,
+    () => ({ data: null }),
+  );
+  const groessen = (groessenRoh ?? []) as {
+    tabelle: string;
+    label: string;
+    zeilen: number;
+    groesse: string;
+  }[];
+
   const [protokoll, mails] = await Promise.all([
     sb.from("v_protokoll").select("*").limit(200),
     sb
@@ -192,6 +207,8 @@ export default async function ProtokollSeite({
           Verschickte Mails
         </a>
       </div>
+
+      <Aufbewahrung groessen={groessen} />
 
       {systemAnsicht ? (
         <div className="max-w-[80ch]">
