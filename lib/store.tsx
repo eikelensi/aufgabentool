@@ -511,9 +511,10 @@ export function StoreProvider({
       setTasks((alt) => alt.map((t) => (t.id === taskId ? { ...t, status } : t)));
 
       const { error } = await sb.from("tasks").update(zeile).eq("id", taskId);
-      await neuLaden();
 
       if (error) {
+        // Der lokale Vorgriff war falsch - zurueck auf den echten Stand.
+        await neuLaden();
         return {
           ok: false,
           error: /tasks_in_bearbeitung_braucht_notiz/.test(error.message)
@@ -522,7 +523,45 @@ export function StoreProvider({
         };
       }
 
+      /**
+       * Ab hier laeuft alles NEBENHER.
+       *
+       * Der Statuswechsel steht, sobald die Datenbank ihn bestaetigt
+       * hat - das ist eine Abfrage. Danach kamen bisher noch das
+       * vollstaendige Neuladen, die Mail-Route, der onOffice-Status und
+       * der Asana-Status, alle abgewartet: vier Rundreisen, bis der
+       * Aufrufer eine Antwort bekam. Im Aufgabenfenster hiess das, dass
+       * "Erledigt" ein paar Sekunden auf "Moment..." stand und das
+       * Fenster offen blieb, obwohl die Aufgabe laengst fertig war.
+       *
+       * Die Pruefung, die das einmal gerechtfertigt hat, bleibt: eine
+       * ABLEHNUNG der Datenbank wird weiter abgewartet und gemeldet.
+       * Was danach kommt, kann die Aufgabe nicht mehr verhindern - es
+       * gehoert also nicht in den Weg des Menschen, sondern in eine
+       * Meldung.
+       */
+      void nacharbeitZumStatus(taskId, status, aufgabe, note);
+
+      return { ok: true };
+    }
+
+    /**
+     * Was nach einem Statuswechsel noch zu tun ist - ohne Abwarten.
+     *
+     * Fehlschlaege hier sind keine Fehlschlaege des Statuswechsels.
+     * Sie landen deshalb in der allgemeinen Meldung und nicht in der
+     * Rueckgabe: lautlos duerfen sie nicht bleiben, aber sie duerfen
+     * auch niemanden festhalten.
+     */
+    async function nacharbeitZumStatus(
+      taskId: string,
+      status: TaskStatus,
+      aufgabe: Task,
+      note?: string,
+    ): Promise<void> {
       let hinweis: string | undefined;
+
+      await neuLaden();
 
       if (status === "in_bearbeitung" || status === "erledigt") {
         // Mails laufen auf dem Server; ein Fehlschlag darf den
@@ -629,7 +668,7 @@ export function StoreProvider({
         }
       }
 
-      return hinweis ? { ok: true, error: hinweis } : { ok: true };
+      if (hinweis) setFehler(hinweis);
     }
 
     /**
