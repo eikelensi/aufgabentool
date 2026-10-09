@@ -5,14 +5,23 @@ Claude Code. Alles darüber ist eingebaut und ausgeliefert.
 
 ## Nach dem Ausrollen prüfen
 
-- **Asana → Tool, Bearbeiter.** Wer in Asana zugeteilt wird, soll im Tool
-  zugeteilt sein (Commit `b846c1d`). Prüffall war „Zinsen Markus":
-  in Asana an Lisa Peissig, Projekt „Buchhaltung und HR"; im Tool stand
-  die Aufgabe noch bei Eike. Die Zeile wurde einmal von Hand korrigiert,
-  der Automatismus ist noch nicht in der Praxis beobachtet.
-- Das Aufgabenfenster schließt beim Klick auf „Erledigt" sofort.
-- Das Protokoll wächst nur noch, wenn wirklich etwas passiert.
-- Der Mail-Regelbereich im Admin und `/meine-mails`.
+Geprüft am 9. Oktober 2026, 09:15 Uhr, in der Datenbank:
+
+- ✅ **Asana → Tool, Bearbeiter** (Commit `b846c1d`). In der Praxis
+  beobachtet: „Schlüsseleintragungen Lager" wurde um 09:07 Uhr in Asana
+  von Lisa auf Eike umgestellt. Der Abgleich hat das übernommen und zwei
+  Sekunden später in onOffice nachgezogen (32111, „BaufiPeissig" →
+  „BaufiLensinger"). Die folgenden onOffice-Läufe haben es nicht
+  zurückgedreht. Alle 15 offenen übergebenen Aufgaben stimmen zwischen
+  Asana und Tool überein, „Zinsen Markus" eingeschlossen.
+- ✅ Das Protokoll wächst nur noch, wenn etwas passiert: ergebnislose
+  Läufe zählen eine einzige Zeile hoch (Asana rund 19.900-mal, Anhänge
+  rund 7.500-mal).
+- ✅ Mailversand: 17 Mails in zwei Tagen, alle verschickt, keine Fehler;
+  5 Regeln angelegt.
+- **Noch offen, nur in der Oberfläche prüfbar:** Das Aufgabenfenster
+  schließt beim Klick auf „Erledigt" sofort; der Mail-Regelbereich im
+  Admin und `/meine-mails` lassen sich bedienen.
 
 ## Offene Frage an Eike
 
