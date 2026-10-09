@@ -1,8 +1,13 @@
-# Aufgabentool – Prototyp (4wändekanzlei)
+# Aufgabentool (4wändekanzlei)
 
-Klickbarer Prototyp des internen Aufgabenmanagements. **Demo-Daten im Browser (localStorage),
-keine Datenbank, kein Mailversand.** Dient der Abnahme von Bedienung und Logik, bevor Supabase,
-Auth und die onOffice-Schnittstelle gebaut werden.
+Internes Aufgabenmanagement im Echtbetrieb unter **task.4waendekanzlei.de**.
+Supabase als Datenbank, Anmeldung über Supabase Auth, Anbindung an onOffice
+und Asana, Mailversand über onOffice mit SMTP als Rückfall.
+
+Arbeitsregeln und die gemessenen Grenzen der onOffice-Schnittstelle stehen in
+**`CLAUDE.md`**, was noch offen ist in **`docs/offene-punkte.md`**. Die
+Routentabelle unten ist der Stand der Oberfläche; einige Bereiche sind seither
+hinzugekommen (Asana, Verlinkungen, Archiv, eigene Mail-Einstellungen).
 
 ## Lokal starten
 
@@ -45,9 +50,9 @@ ist `.env.example`.
 | Benutzerliste für Maklerkollegen | fertig |
 | Objektnummer und Kundendatensatz auflösen | fertig |
 | Datei an Aufgabe hängen und löschen | fertig (zweistufig, blockweise bei großen Dateien) |
-| Aufgaben-Dateien lesen | Leseversuch eingebaut, Ergebnis meldet die Probe-Route |
+| Aufgaben-Dateien lesen | von onOffice gesperrt (Code 24/25), Supportanfrage liegt bereit |
 | Mailversand onOffice + SMTP-Fallback | fertig |
-| Anbindung an Supabase | nächster Schritt |
+| Anbindung an Supabase | fertig, im Echtbetrieb |
 
 ## Datenbank
 
@@ -57,7 +62,4 @@ ausführbar, idempotent.
 
 ## Nächste Schritte
 
-1. Supabase-Projekt anlegen, `schema.sql` einspielen
-2. Supabase Auth anbinden, `lib/store.tsx` gegen echte Queries tauschen
-3. `/api/cron/reminders` + Vercel Cron für Erinnerung (3 Tage) und Eskalation (7 Tage)
-4. onOffice-Adapter: HMAC v2, `task` lesen/schreiben, `sendmail` mit `emailidentity`
+Siehe `docs/offene-punkte.md`.
