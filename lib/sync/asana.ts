@@ -539,12 +539,14 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
       is_pool: boolean;
       asana_rang: number | null;
       asana_section_gid: string | null;
+      asana_assignee_gid: string | null;
+      assignee_id: string | null;
     }
   >();
   if (gids.length) {
     const { data } = await sb
       .from("tasks")
-      .select("id, asana_task_gid, asana_modified_at, bereich, status, is_pool, asana_rang, asana_section_gid")
+      .select("id, asana_task_gid, asana_modified_at, bereich, status, is_pool, asana_rang, asana_section_gid, asana_assignee_gid, assignee_id")
       .in("asana_task_gid", gids);
     for (const t of data ?? []) {
       if (t.asana_task_gid) {
@@ -556,6 +558,8 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
           is_pool: Boolean(t.is_pool),
           asana_rang: t.asana_rang ?? null,
           asana_section_gid: t.asana_section_gid ?? null,
+          asana_assignee_gid: t.asana_assignee_gid ?? null,
+          assignee_id: t.assignee_id ?? null,
         });
       }
     }
@@ -614,7 +618,79 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
         }
       }
 
-      // Die zweite: in welcher Spalte die Karte drueben steht.
+      /**
+       * Die zweite: WER sie drueben bekommen hat.
+       *
+       * Hier lag ein echter Bruch. Wer in Asana die Zustaendigkeit
+       * aendert, aendert sie fuer die Aufgabe - nicht nur fuer eine
+       * Karte. "Zinsen Markus" lag in Asana bei Lisa und im Tool
+       * weiter bei Eike als offen, und niemand konnte sehen, warum.
+       *
+       * Uebernommen wird nur, wenn Asana wirklich jemand ANDEREN
+       * nennt als beim letzten Mal. Der Vergleich geht gegen den
+       * zuletzt von drueben gelesenen Wert, nicht gegen den
+       * Bearbeiter hier: sonst wuerde jede Zuteilung im Tool beim
+       * naechsten Lauf wieder zurueckgedreht.
+       *
+       * Drei Grenzen, und jede hat einen Grund:
+       *  - Nur ausserhalb der Pool-Spalte. Was im Pool liegt, gehoert
+       *    dem Haus; dort darf Asana niemandem etwas zuteilen.
+       *  - Nur bei einem bekannten Menschen. Ein Asana-Konto ohne
+       *    Zugang zum Tool wuerde die Aufgabe sonst herrenlos machen.
+       *  - Leeren tut Asana nicht. Eine Karte ohne Zustaendigen heisst
+       *    drueben "noch nicht verteilt", hier hiesse es "zurueck in
+       *    den Pool" - das ist etwas anderes und braucht einen Grund.
+       */
+      const asanaWer = aufgabe.assignee?.gid ?? null;
+      const asanaHatGewechselt =
+        asanaWer !== null && asanaWer !== (vorhanden.asana_assignee_gid ?? null);
+
+      const inPoolSpalte = Boolean(poolGid && spalte?.gid === poolGid);
+
+      if (asanaHatGewechselt && !inPoolSpalte && bearbeiterId) {
+        if (bearbeiterId !== vorhanden.assignee_id) {
+          try {
+            const { error } = await sb
+              .from("tasks")
+              .update({
+                assignee_id: bearbeiterId,
+                onoffice_bearbeiter_id: null,
+                is_pool: false,
+                asana_assignee_gid: asanaWer,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", vorhanden.id);
+            if (error) throw new Error(error.message);
+            ergebnis.aktualisiert++;
+
+            /**
+             * Und sofort nach onOffice.
+             *
+             * Ohne das liest der naechste onOffice-Abgleich den alten
+             * Bearbeiter zurueck und macht die Zuteilung wieder
+             * rueckgaengig - derselbe Ablauf, der Aufgabe 32105 in
+             * den Pool fallen liess.
+             */
+            try {
+              await schreibeBearbeiterNachOnoffice(vorhanden.id);
+            } catch {
+              /* fail-soft: der naechste Lauf holt es nach */
+            }
+          } catch (err) {
+            ergebnis.fehler.push(
+              `Zuteilung aus Asana für ${aufgabe.name}: ${(err as Error).message}`,
+            );
+          }
+        } else {
+          // Gleicher Mensch, nur die Kennung war noch nicht vermerkt.
+          await sb
+            .from("tasks")
+            .update({ asana_assignee_gid: asanaWer })
+            .eq("id", vorhanden.id);
+        }
+      }
+
+      // Die dritte: in welcher Spalte die Karte drueben steht.
       //
       // Uebergebene Aufgaben stehen jetzt auch im Asana-Brett des
       // Tools - gruppiert nach genau diesem Feld. Ohne es lag die
@@ -632,7 +708,7 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
         }
       }
 
-      // Die dritte: die Kommentare holen wir weiter. Wer in Asana
+      // Die vierte: die Kommentare holen wir weiter. Wer in Asana
       // etwas zu einer abgegebenen Aufgabe schreibt, schreibt es dem
       // Kollegen, der sie jetzt hat - das darf nicht im Board der
       // Geschaeftsfuehrung haengenbleiben.
