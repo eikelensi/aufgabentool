@@ -29,7 +29,7 @@ export const PRIO_RANG: Record<TaskPriority, number> = {
  * was er ist: der Schluessel fuer alles, unabhaengig von jeder
  * Einstellung.
  */
-export type AppRole = "superadmin" | "gf" | "qm" | "gf_assistenz" | "user";
+export type AppRole = "superadmin" | "gf" | "qm" | "gf_assistenz" | "kbi" | "user";
 
 /** Die Bereiche, deren Sichtbarkeit sich je Rolle steuern laesst. */
 export type Bereich =
@@ -123,8 +123,23 @@ export const ROLLE_LABEL: Record<AppRole, string> = {
   // Sieht mehr als ein Mitarbeiter, darf aber dasselbe: die eigenen
   // Aufgaben. Wer verteilen soll, bekommt Qualitaetsmanagement.
   gf_assistenz: "GF-Assistenz",
+  // Kundenberater Immobilien: wie ein Mitarbeiter, darf aber neue
+  // Aufgaben in den Pool geben - nur nicht selbst jemandem zuweisen.
+  kbi: "KBI",
   user: "Mitarbeiter",
 };
+
+/**
+ * Darf diese Rolle eine neue Aufgabe in den Pool geben?
+ *
+ * Wer verteilen darf (Geschaeftsfuehrung, Qualitaetsmanagement,
+ * Superadmin), darf das ohnehin. Dazu der KBI: er gibt in den Pool,
+ * WER die Aufgabe bekommt, entscheidet aber nicht er - die Kollegen
+ * ziehen sie sich dort, oder die Leitung verteilt sie.
+ */
+export function darfInDenPoolGeben(rolle: AppRole): boolean {
+  return ["superadmin", "gf", "qm", "kbi"].includes(rolle);
+}
 
 /** Eine Spalte des Asana-Boards. */
 export type AsanaBereich = "projekt" | "eigene";
@@ -526,7 +541,7 @@ export function menueGruppeVon(rolle: AppRole): MenueGruppe {
   if (rolle === "qm") return "qm";
   // Die GF-Assistenz arbeitet wie ein Mitarbeiter, nur mit mehr
   // Bereichen - fuer das Aussehen des Menues ist sie dieselbe Gruppe.
-  if (rolle === "user" || rolle === "gf_assistenz") return "user";
+  if (rolle === "user" || rolle === "gf_assistenz" || rolle === "kbi") return "user";
   return "admin";
 }
 

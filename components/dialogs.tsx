@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useStore } from "@/lib/store";
-import { darfPrivatWerden } from "@/lib/types";
+import { darfInDenPoolGeben, darfPrivatWerden } from "@/lib/types";
 import { addressLink, estateLink } from "@/lib/onoffice/links";
 import { isoDate } from "@/lib/data";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
@@ -240,7 +240,12 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
   // Aufgabe "Social Media", weil das oben in der Liste stand.
   const [categoryId, setCategoryId] = useState<string>("");
   const [priority, setPriority] = useState<TaskPriority>("normal");
-  const [assignee, setAssignee] = useState<string>(darfAlles ? "__pool" : `p:${me.id}`);
+  // Der KBI darf in den Pool geben, aber niemandem zuweisen: er sieht
+  // genau zwei Ziele - den Pool und sich selbst.
+  const nurPoolOderIch = !darfAlles && darfInDenPoolGeben(me.role);
+  const [assignee, setAssignee] = useState<string>(
+    darfAlles || nurPoolOderIch ? "__pool" : `p:${me.id}`,
+  );
   const [brokerContactId, setBroker] = useState<string>("");
   const [visibleFrom, setVisibleFrom] = useState(isoDate(0));
   const [dueDate, setDueDate] = useState("");
@@ -387,8 +392,25 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
 
         <Field
           label="Bearbeiter"
-          hint={darfAlles ? "Nutzer des Tools oder ein Kollege, der nur in onOffice arbeitet." : "Mitarbeitende legen Aufgaben für sich selbst an."}
+          hint={
+            darfAlles
+              ? "Nutzer des Tools oder ein Kollege, der nur in onOffice arbeitet."
+              : nurPoolOderIch
+                ? "In den Pool geben oder selbst übernehmen. Wer sie aus dem Pool bekommt, entscheidest nicht du."
+                : "Mitarbeitende legen Aufgaben für sich selbst an."
+          }
         >
+          {nurPoolOderIch ? (
+            <select
+              className="field"
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              disabled={isPrivate}
+            >
+              <option value="__pool">In den Aufgabenpool</option>
+              <option value={`p:${me.id}`}>Mir selbst ({me.fullName})</option>
+            </select>
+          ) : (
           <select
             className="field"
             value={assignee}
@@ -421,6 +443,7 @@ export function NewTaskDialog({ prefill, onClose }: { prefill?: Prefill; onClose
               ))}
             </optgroup>
           </select>
+          )}
         </Field>
 
         {/* Nur bei einem Asana-Ziel. Bei allen anderen Bearbeitern

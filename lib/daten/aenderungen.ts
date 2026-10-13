@@ -24,6 +24,12 @@ export interface Aenderung {
 
 export const AENDERUNGEN: Aenderung[] = [
   {
+    datum: "2026-10-13",
+    titel: "Neue Rolle: KBI",
+    text: "Kundenberater Immobilien arbeiten wie Mitarbeiter, dürfen aber beim Anlegen eine Aufgabe in den Aufgabenpool geben. Jemandem direkt zuweisen dürfen sie nicht – zur Wahl stehen nur der Pool und sie selbst. Welche Bereiche die Rolle sieht, steht wie bei allen anderen unter Verwaltung → Rollen.",
+    bereich: "Neue Aufgabe, Verwaltung",
+  },
+  {
     datum: "2026-09-25",
     titel: "Mitarbeiterverwaltung: das Formular stand außerhalb des Bildes",
     text: "Das Bearbeiten-Formular wurde unter der ganzen Tabelle gezeichnet – bei 25 Kollegen also zweitausend Pixel weiter unten. Wer auf „Bearbeiten“ klickte, sah nichts passieren und schloss daraus, es gebe kein Feld. Es gab eines. Jetzt klappt es direkt unter der angeklickten Zeile auf. Der onOffice-Tag steht außerdem als eigene Spalte in der Tabelle.",

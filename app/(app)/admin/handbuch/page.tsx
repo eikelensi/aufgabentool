@@ -26,6 +26,8 @@ const ROLLE_TEXT: Record<string, string> = {
   superadmin: "sieht und darf alles, auch die Einstellungen – immer, unabhängig von jeder Einstellung",
   gf: "sieht alle Aufgaben, darf umverteilen und verwalten, dazu den Asana-Bereich",
   qm: "sieht alle Aufgaben, das Dashboard und den Team-Bereich und darf jede Aufgabe ändern – nur nicht die Verwaltung",
+  gf_assistenz: "sieht mehr Bereiche als ein Mitarbeiter, darf aber dasselbe: die eigenen Aufgaben",
+  kbi: "sieht die eigenen Aufgaben und den Pool und darf neue Aufgaben in den Pool geben – aber niemandem direkt zuweisen",
   user: "sieht die eigenen Aufgaben und den Pool",
 };
 
@@ -95,7 +97,7 @@ export default async function HandbuchSeite() {
   // Wer sieht welchen Bereich - aus der Tabelle, nicht aus dem Text.
   // Damit stimmt dieser Abschnitt auch dann, wenn jemand einen Haken
   // umsetzt.
-  const ROLLEN: AppRole[] = ["gf", "qm", "gf_assistenz", "user"];
+  const ROLLEN: AppRole[] = ["gf", "qm", "gf_assistenz", "kbi", "user"];
   const rechte: Bereichsrechte = {};
   for (const z of bereiche.data ?? []) (rechte[z.role] ??= {})[z.bereich] = z.sichtbar;
   const alleBereiche = Object.keys(BEREICH_LABEL) as Bereich[];

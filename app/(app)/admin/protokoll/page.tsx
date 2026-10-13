@@ -70,6 +70,8 @@ const WERT_LABEL: Record<string, string> = {
   hoch: "Hoch",
   superadmin: "Superadmin",
   gf: "Geschäftsführung",
+  gf_assistenz: "GF-Assistenz",
+  kbi: "KBI",
   user: "Mitarbeiter",
   manuell: "manuell angelegt",
   onoffice: "aus onOffice",
