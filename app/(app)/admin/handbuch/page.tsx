@@ -8,6 +8,7 @@
  */
 import { supabaseAdmin, serviceRoleVorhanden } from "@/lib/supabase/admin";
 import { onofficeConfigured } from "@/lib/onoffice/client";
+import { ALLE_ROLLEN, RECHTE } from "@/lib/rechte";
 import {
   BEREICH_LABEL,
   ROLLE_LABEL,
@@ -188,7 +189,78 @@ export default async function HandbuchSeite() {
         </div>
       </Abschnitt>
 
-      <Abschnitt nummer={2} titel="Der Weg einer Aufgabe">
+      <Abschnitt nummer={2} titel="Wer darf was">
+        <p>
+          Sichtbarkeit ist einstellbar, Rechte sind es nicht. Welchen Menüpunkt
+          eine Rolle sieht, steht in der Verwaltung unter <strong>Rollen</strong>;
+          was sie <em>tun</em> darf, steckt fest im Tool und steht hier. Die
+          Tabelle wird aus derselben Stelle erzeugt, die das Tool bei jedem Klick
+          fragt – sie kann also nicht daneben liegen.
+        </p>
+        <p className="muted">
+          Die wichtigsten Grenzen zieht zusätzlich die Datenbank selbst. Wer eine
+          Aufgabe nicht ändern darf, kann das auch nicht, indem er die Adresse
+          direkt aufruft oder die Oberfläche umgeht.
+        </p>
+
+        <div className="scroll-x mt-2">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="line border-b">
+                <th className="py-1 pr-3 text-left font-semibold">Das darf …</th>
+                {ALLE_ROLLEN.map((r) => (
+                  <th key={r} className="px-2 py-1 text-left font-semibold">
+                    {ROLLE_LABEL[r]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {RECHTE.map((recht) => (
+                <tr key={recht.label} className="line border-b align-top">
+                  <td className="py-1.5 pr-3">
+                    {recht.label}
+                    {recht.hinweis ? (
+                      <span className="muted block text-[10px] leading-snug">
+                        {recht.hinweis}
+                      </span>
+                    ) : null}
+                  </td>
+                  {ALLE_ROLLEN.map((r) => (
+                    <td key={r} className="px-2 py-1.5">
+                      {recht.wer.includes(r) ? "ja" : "–"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <p className="mt-3">
+          Drei Dinge, die regelmäßig gefragt werden:
+        </p>
+        <ul className="space-y-1">
+          <li>
+            <strong>Qualitätsmanagement</strong> kommt an jede Aufgabe heran –
+            sehen, ändern, zuweisen, nach Asana übergeben –, aber nicht in die
+            Verwaltung. Wer Kategorien, Fristen oder Zugänge pflegen soll,
+            braucht Geschäftsführung.
+          </li>
+          <li>
+            <strong>GF-Assistenz</strong> sieht mehr Bereiche als ein
+            Mitarbeiter, darf aber genau dasselbe: die eigenen Aufgaben. Das ist
+            Absicht – wer verteilen soll, bekommt Qualitätsmanagement.
+          </li>
+          <li>
+            <strong>Private Aufgaben</strong> stehen außerhalb dieser Tabelle.
+            Sie gehören dem, der sie angelegt hat, und sonst niemandem – auch dem
+            Superadmin nicht.
+          </li>
+        </ul>
+      </Abschnitt>
+
+      <Abschnitt nummer={3} titel="Der Weg einer Aufgabe">
         <p>
           Es gibt genau drei Status:{" "}
           <strong>{Object.values(STATUS_LABEL).join(" → ")}</strong>. Mehr nicht,
@@ -209,7 +281,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={3} titel="Priorität und Kategorien">
+      <Abschnitt nummer={4} titel="Priorität und Kategorien">
         <p>
           Drei Prioritäten: <strong>Hoch</strong>, <strong>Normal</strong> und{" "}
           <strong>Niedrig</strong>. Hoch wird rot dargestellt, Niedrig mit einem
@@ -219,7 +291,7 @@ export default async function HandbuchSeite() {
           onOffice kennt fünf Stufen. Eins und zwei kommen hier als Hoch an, drei
           als Normal, vier und fünf als Niedrig; zurück geschrieben werden
           entsprechend zwei, drei und fünf. Die Priorität entscheidet auch über
-          die Reihenfolge im Trichter (Abschnitt 12).
+          die Reihenfolge im Trichter (Abschnitt 13).
         </p>
         <p>
           Kategorien sind frei konfigurierbar und werden <em>nicht</em> nach
@@ -241,7 +313,7 @@ export default async function HandbuchSeite() {
         ) : null}
       </Abschnitt>
 
-      <Abschnitt nummer={4} titel="Der Aufgabenpool">
+      <Abschnitt nummer={5} titel="Der Aufgabenpool">
         <p>
           Aufgaben ohne Bearbeiter liegen im Pool und sind für alle sichtbar. Wer
           eine übernimmt, zieht sie in seinen Bereich – danach ist sie aus dem
@@ -275,7 +347,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={5} titel="Startdatum, Fälligkeit, privat">
+      <Abschnitt nummer={6} titel="Startdatum, Fälligkeit, privat">
         <p>
           Das <strong>Startdatum</strong> steuert, ab wann eine Aufgabe im
           Tagesgeschäft auftaucht. Etwas, das erst nächsten Monat ansteht, stört
@@ -301,7 +373,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={6} titel="Dateien">
+      <Abschnitt nummer={7} titel="Dateien">
         <p>
           An jeder Aufgabe lassen sich Dateien ablegen, bis {maxMb} MB je Datei.
           Geöffnet werden sie über eine Adresse, die beim Klick erzeugt wird und
@@ -315,7 +387,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={7} titel="Erinnerungen und Eskalation">
+      <Abschnitt nummer={8} titel="Erinnerungen und Eskalation">
         <p>
           Bleibt eine Aufgabe <strong>{erinnerung} Tage</strong> offen, bekommt
           der Bearbeiter eine Erinnerung. Nach{" "}
@@ -335,7 +407,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={8} titel="Was aus onOffice kommt">
+      <Abschnitt nummer={9} titel="Was aus onOffice kommt">
         <p>
           Übernommen wird <strong>nur</strong>, was einen Nutzer dieses Tools als
           Bearbeiter oder als Verantwortung hat. Alles andere bleibt im CRM.
@@ -377,7 +449,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={9} titel="Makler und Kollegen">
+      <Abschnitt nummer={10} titel="Makler und Kollegen">
         <p>
           Jede Aufgabe kann festhalten, <strong>wer sie in Auftrag gegeben
           hat</strong> – das Feld „Auftrag von (Makler)“. Es beantwortet beim
@@ -420,7 +492,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={10} titel="Was mitgeschrieben wird">
+      <Abschnitt nummer={11} titel="Was mitgeschrieben wird">
         <p>
           Jede Änderung an Aufgaben, Zugängen, Kollegen, Kategorien und
           Mailvorlagen wird protokolliert: wer, wann, was vorher und was nachher
@@ -433,7 +505,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={11} titel="Das Dashboard">
+      <Abschnitt nummer={12} titel="Das Dashboard">
         <p>
           Der erste Menüpunkt, sichtbar ab dem Qualitätsmanagement, zeigt zwei
           Blicke auf dieselbe Arbeit.
@@ -442,7 +514,7 @@ export default async function HandbuchSeite() {
           <strong>Aktueller Tag</strong>: oben in der Mitte, wie viele Aufgaben
           gerade im Pool liegen; darunter je Mitarbeiter zwei Kacheln – aktuelle
           Aufgaben und Aufgaben in Rückstellung. Auf derselben Kachel sitzt der
-          Schalter für den Trichter (Abschnitt 12).
+          Schalter für den Trichter (Abschnitt 13).
         </p>
         <p>
           <strong>Woche</strong>: Eingang und Ausgang des Pools, dazu je
@@ -464,7 +536,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={12} titel="Der Trichter (Dosierung je Mitarbeiter)">
+      <Abschnitt nummer={13} titel="Der Trichter (Dosierung je Mitarbeiter)">
         <p>
           Der Trichter ist eine Einstellung <em>je Person</em> und steht im
           Dashboard unter <strong>Aktueller Tag</strong> auf der Kachel des
@@ -513,7 +585,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={13} titel="Eine Aufgabe bearbeiten">
+      <Abschnitt nummer={14} titel="Eine Aufgabe bearbeiten">
         <p>
           Im Aufgabenfenster öffnet <strong>✎ Bearbeiten</strong> die Felder:
           Betreff, Beschreibung, Priorität, Fälligkeit und Sichtbar-ab. Die
@@ -531,7 +603,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={14} titel="Notizen und Nachrichten">
+      <Abschnitt nummer={15} titel="Notizen und Nachrichten">
         <p>
           Jede Aufgabe hat einen <strong>Notizverlauf</strong> – eigene Notizen
           rechts, fremde links, Enter schickt ab. Wer schreibt, benachrichtigt
@@ -556,7 +628,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={15} titel="Der Asana-Bereich (Geschäftsführung)">
+      <Abschnitt nummer={16} titel="Der Asana-Bereich (Geschäftsführung)">
         <p>
           Der Menüpunkt <strong>Asana</strong> spiegelt das Projekt „Buchhaltung
           und HR“: {asanaSpalten.length} Spalten, Karten mit Titel, Text,
@@ -628,7 +700,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={16} titel="Archiv">
+      <Abschnitt nummer={17} titel="Archiv">
         <p>
           Erledigtes verschwindet nach <strong>{ausblenden} Stunden</strong> aus
           dem Tagesgeschäft und liegt danach unter <strong>Archiv</strong> – nach
@@ -641,7 +713,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={17} titel="Was nach onOffice geschrieben wird">
+      <Abschnitt nummer={18} titel="Was nach onOffice geschrieben wird">
         <p>
           Der Abgleich läuft alle zwei Minuten in beide Richtungen. Was das Tool
           drüben verändern darf, steht unter Verwaltung → onOffice → „Anbindung“
@@ -670,7 +742,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={18} titel="Objekt und Kunde verknüpfen">
+      <Abschnitt nummer={19} titel="Objekt und Kunde verknüpfen">
         <p>
           Beim Anlegen nehmen zwei Felder eine <strong>Objektnummer</strong> und
           eine <strong>Kundennummer</strong>. Beides ist erlaubt – die Aufgabe
@@ -719,7 +791,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={19} titel="Die Begrüßung beim Anmelden">
+      <Abschnitt nummer={20} titel="Die Begrüßung beim Anmelden">
         <p>
           Nach jedem Anmelden erscheint ein kurzes Fenster: der eigene Name, die
           offenen Aufgaben, die offenen Rückfragen und wie viel im Pool liegt.
@@ -732,7 +804,7 @@ export default async function HandbuchSeite() {
         </p>
       </Abschnitt>
 
-      <Abschnitt nummer={20} titel="Was sich am Tool ändert">
+      <Abschnitt nummer={21} titel="Was sich am Tool ändert">
         <p>
           Jede Änderung am Tool selbst – neue Funktionen und behobene Fehler –
           steht unter <strong>Verwaltung → Protokolle → Am System geändert</strong>,

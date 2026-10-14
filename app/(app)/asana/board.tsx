@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@/lib/store";
+import { darfEigeneAsanaSpalten } from "@/lib/rechte";
 import TaskCard from "@/components/TaskCard";
 import { TaskDetailDialog } from "@/components/dialogs";
 import { EmptyState, Field, Modal } from "@/components/ui";
@@ -44,7 +45,7 @@ export default function AsanaBoard() {
    * dem, dessen Zugriffstoken hinterlegt ist. Deshalb sieht den
    * Umschalter nur der Superadmin.
    */
-  const darfEigene = me.role === "superadmin";
+  const darfEigene = darfEigeneAsanaSpalten(me.role);
   const [brett, setBrett] = useState<AsanaBereich>("projekt");
   const [offen, setOffen] = useState<Task | null>(null);
   const [zieht, setZieht] = useState<Task | null>(null);

@@ -37,6 +37,15 @@ export default function RollenTabelle({
         steht nicht in der Liste – er sieht immer alles, damit sich niemand
         aussperren kann.
       </p>
+      <p className="muted mb-3 text-xs leading-relaxed">
+        Hier geht es nur um die Sichtbarkeit im Menü. Was eine Rolle <em>tun</em>
+        darf, steckt fest im Tool und lässt sich nicht umstellen – die Übersicht
+        dazu steht im{" "}
+        <a href="/admin/handbuch" className="underline">
+          Handbuch, Abschnitt 2 „Wer darf was“
+        </a>
+        .
+      </p>
 
       <div className="scroll-x">
         <table className="w-full text-xs">

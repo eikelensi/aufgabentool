@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";
+import { darfTrichtern } from "@/lib/rechte";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const profil = await aktuellesProfil();
   if (!profil) return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
 
-  if (!["superadmin", "gf", "qm"].includes(profil.role)) {
+  if (!darfTrichtern(profil.role)) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
   }
 

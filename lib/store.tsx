@@ -34,6 +34,11 @@ import {
   pinZurZeile,
 } from "@/lib/daten/abbildung";
 import { ALLOWED_EXTENSIONS } from "./data";
+import {
+  darfAllesRolle,
+  darfPinnen as darfPinnenRolle,
+  darfVerwalten,
+} from "./rechte";
 import type {
   AppSettings,
   AsanaBereich,
@@ -453,8 +458,8 @@ export function StoreProvider({
         initials: profil.fullName.slice(0, 2).toUpperCase(),
       };
 
-    const isAdmin = me.role === "gf" || me.role === "superadmin";
-    const darfAlles = isAdmin || me.role === "qm";
+    const isAdmin = darfVerwalten(me.role);
+    const darfAlles = darfAllesRolle(me.role);
 
     const profileById = (id: string | null) => profiles.find((p) => p.id === id);
     const categoryById = (id: string | null) => categories.find((c) => c.id === id);
@@ -1787,7 +1792,7 @@ export function StoreProvider({
       // die, die auch sonst verteilen und korrigieren. Durchgesetzt
       // wird sie in der Datenbank; hier steht sie nur, damit die
       // Oberflaeche keine Knoepfe zeigt, die nichts tun.
-      darfPinnen: ["superadmin", "gf", "qm"].includes(profil.role),
+      darfPinnen: darfPinnenRolle(profil.role),
       pinSpeichern,
       pinLoeschen,
       pinKategorieSpeichern,

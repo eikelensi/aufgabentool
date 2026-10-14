@@ -7,6 +7,7 @@
  */
 import { supabaseServer } from "./server";
 import type { AppRole } from "@/lib/types";
+import { darfAllesRolle, darfVerwalten } from "@/lib/rechte";
 
 export interface AngemeldetesProfil {
   id: string;
@@ -43,7 +44,7 @@ export async function aktuellesProfil(): Promise<AngemeldetesProfil | null> {
 }
 
 export function istAdmin(profil: AngemeldetesProfil | null): boolean {
-  return profil?.role === "gf" || profil?.role === "superadmin";
+  return profil ? darfVerwalten(profil.role) : false;
 }
 
 /**
@@ -59,7 +60,7 @@ export function istAdmin(profil: AngemeldetesProfil | null): boolean {
  * warten.
  */
 export function darfAlles(profil: AngemeldetesProfil | null): boolean {
-  return istAdmin(profil) || profil?.role === "qm";
+  return profil ? darfAllesRolle(profil.role) : false;
 }
 
 /**

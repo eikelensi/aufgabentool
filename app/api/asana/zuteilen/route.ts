@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";
+import { darfAsanaFuehren } from "@/lib/rechte";
 import { asanaKonfiguriert, ruf } from "@/lib/asana/client";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   const profil = await aktuellesProfil();
   if (!profil) return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
 
-  if (!["superadmin", "gf"].includes(profil.role)) {
+  if (!darfAsanaFuehren(profil.role)) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
   }
 

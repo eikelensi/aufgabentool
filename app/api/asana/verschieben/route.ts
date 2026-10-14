@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";
+import { darfAsanaFuehren, darfEigeneAsanaSpalten } from "@/lib/rechte";
 import { asanaKonfiguriert, ruf } from "@/lib/asana/client";
 import { gibAbAnDenPool } from "@/lib/sync/asana";
 
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
   // Zugriffstoken in ASANA_TOKEN steht. Das Tool kann nicht pruefen,
   // wer das ist; es kann nur den Kreis so eng ziehen, dass nur einer
   // darin steht.
-  if (!["superadmin", "gf"].includes(profil.role)) {
+  if (!darfAsanaFuehren(profil.role)) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
   }
 
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
   const rangSpalte = eigene ? "asana_eigene_rang" : "asana_rang";
   const abschnittSpalte = eigene ? "asana_eigene_section_gid" : "asana_section_gid";
 
-  if (eigene && profil.role !== "superadmin") {
+  if (eigene && !darfEigeneAsanaSpalten(profil.role)) {
     return NextResponse.json(
       { fehler: "Die persönlichen Asana-Aufgaben gehören nicht dir." },
       { status: 403 },

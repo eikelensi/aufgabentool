@@ -24,6 +24,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";
+import { darfVerknuepfen } from "@/lib/rechte";
 import { findeKunde, findeObjekt, kundenNummern, objektNummern } from "@/lib/onoffice/records";
 import { verknuepfeAufgabe } from "@/lib/onoffice/relations";
 import { onofficeConfigured } from "@/lib/onoffice/client";
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
 
   // Verknuepfen greift in fremde CRM-Daten ein. Wer verteilt, darf das -
   // wer nur abarbeitet, nicht.
-  if (!["superadmin", "gf", "qm"].includes(profil.role)) {
+  if (!darfVerknuepfen(profil.role)) {
     return NextResponse.json({ fehler: "Nicht berechtigt." }, { status: 403 });
   }
 

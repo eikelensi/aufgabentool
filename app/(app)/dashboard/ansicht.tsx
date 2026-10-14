@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { darfTrichtern } from "@/lib/rechte";
 import { useStore } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui";
@@ -191,7 +192,7 @@ export default function DashboardAnsicht() {
   const aktive = profiles;
   // Die Dosierung ist Sache derer, die verteilen. Wer das Dashboard nur
   // liest, sieht die Kacheln - aber keine Schalter.
-  const darfTrichtern = ["superadmin", "gf", "qm"].includes(me.role);
+  const darfSchalten = darfTrichtern(me.role);
 
   if (!bereit) return <p className="muted text-xs">Lade…</p>;
 
@@ -256,7 +257,7 @@ export default function DashboardAnsicht() {
                     <Kachel zahl={offen} text="aktuelle Aufgaben" />
                     <Kachel zahl={rueck} text="in Rückstellung" ton={rueck > 0 ? "warn" : undefined} />
                   </div>
-                  {darfTrichtern ? (
+                  {darfSchalten ? (
                     <Trichter person={p} wartend={wartendeJePerson(p.id)} />
                   ) : null}
                 </section>
