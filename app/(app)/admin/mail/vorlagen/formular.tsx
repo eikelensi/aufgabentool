@@ -11,13 +11,25 @@ import { NOTIFY_LABEL, type NotifyKind } from "@/lib/types";
 
 const PLATZHALTER = [
   "{{titel}}",
+  "{{nummer}}",
+  "{{aufgabe}}",
+  "{{rahmen}}",
+  "{{beschreibung}}",
+  "{{art}}",
+  "{{kategorie}}",
+  "{{prio}}",
+  "{{faellig}}",
+  "{{angelegt}}",
   "{{empfaenger}}",
   "{{bearbeiter}}",
   "{{ersteller}}",
+  "{{makler}}",
   "{{notiz}}",
   "{{objekt}}",
+  "{{kunde}}",
   "{{datum}}",
   "{{tage}}",
+  "{{link}}",
 ];
 
 export default function VorlagenFormular() {
@@ -29,7 +41,10 @@ export default function VorlagenFormular() {
   return (
     <section className="panel p-4" style={{ maxWidth: 820 }}>
       <p className="muted mb-3 text-[11px] leading-relaxed">
-        Platzhalter werden beim Verschicken ersetzt:{" "}
+        <strong>{"{{rahmen}}"}</strong> ist der fertige Block mit Nummer, Betreff,
+        Art, Frist und Objekt – damit erkennt der Empfänger die Aufgabe auch
+        ohne Zugang zum Tool. Leere Zeilen fallen darin weg. Alle Platzhalter
+        werden beim Verschicken ersetzt:{" "}
         {PLATZHALTER.map((p, i) => (
           <span key={p}>
             {i > 0 ? " · " : ""}

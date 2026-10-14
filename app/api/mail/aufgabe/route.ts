@@ -20,11 +20,15 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";
 import {
+  anredeName,
+  aufgabenRahmen,
   datumDeutsch,
+  kurzfassung,
   leeresErgebnis,
   sendeBenachrichtigung,
   zaehle,
 } from "@/lib/mail/versand";
+import { PRIO_LABEL, type TaskPriority } from "@/lib/types";
 import { darfSenden } from "@/lib/mail/regeln";
 
 export const runtime = "nodejs";
@@ -49,11 +53,14 @@ export async function POST(request: Request) {
   const { data: aufgabe, error } = await sb
     .from("tasks")
     .select(
-      `id, title, status, is_private, in_progress_note, completed_at, last_status_change_at,
-       onoffice_task_id, onoffice_estate_no, onoffice_estate_id,
+      `id, title, description, status, priority, due_date, created_at,
+       is_private, in_progress_note, completed_at, last_status_change_at,
+       onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_no,
        creator:profiles!tasks_creator_id_fkey ( id, full_name, email ),
        bearbeiter:profiles!tasks_assignee_id_fkey ( id, full_name, email ),
-       makler:broker_contacts!tasks_broker_contact_id_fkey ( id, display_name, email )`,
+       makler:broker_contacts!tasks_broker_contact_id_fkey ( id, display_name, email ),
+       kategorie:categories!tasks_category_id_fkey ( name ),
+       art:task_types!tasks_task_type_id_fkey ( label )`,
     )
     .eq("id", taskId)
     .maybeSingle();
@@ -73,15 +80,59 @@ export async function POST(request: Request) {
   const bearbeiter = aufgabe.bearbeiter as unknown as { full_name: string; email: string } | null;
   const makler = aufgabe.makler as unknown as { display_name: string; email: string } | null;
 
+  const kategorie = (aufgabe.kategorie as unknown as { name: string } | null)?.name ?? "";
+  const art = (aufgabe.art as unknown as { label: string } | null)?.label ?? "";
+
+  const nummer = aufgabe.onoffice_task_id ?? "";
+  const objekt = aufgabe.onoffice_estate_no ?? aufgabe.onoffice_estate_id ?? "";
+  const kunde = aufgabe.onoffice_address_no ?? "";
+  // Gekuerzt, nicht vollstaendig - die Begruendung steht in kurzfassung().
+  const beschreibung = kurzfassung(aufgabe.description, 600, aufgabe.title);
+
+  /**
+   * Woran der Kollege die Aufgabe erkennt - in einer Zeile, fuer
+   * Betreff und Anrede. Ohne Nummer bleibt der Betreff sauber, statt
+   * "#ohne Nummer" zu behaupten.
+   */
+  const aufgabeKurz = nummer ? `#${nummer} - ${aufgabe.title}` : aufgabe.title;
+
+  const rahmen = [
+    aufgabenRahmen([
+      ["Aufgabe", aufgabeKurz],
+      ["Art", art],
+      ["Kategorie", kategorie],
+      ["Priorität", PRIO_LABEL[aufgabe.priority as TaskPriority] ?? ""],
+      ["Frist", aufgabe.due_date ? datumDeutsch(aufgabe.due_date) : ""],
+      ["Objekt", objekt],
+      ["Kunde", kunde],
+      ["Auftrag von", anredeName(makler?.display_name)],
+      ["Bearbeiter", anredeName(bearbeiter?.full_name ?? profil.fullName)],
+      ["Verantwortung", anredeName(creator?.full_name)],
+      ["Angelegt am", datumDeutsch(aufgabe.created_at)],
+    ]),
+    beschreibung ? `Beschreibung:\n${beschreibung}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   const vars = {
-    nummer: aufgabe.onoffice_task_id ?? "ohne Nummer",
+    nummer: nummer || "ohne Nummer",
+    aufgabe: aufgabeKurz,
     titel: aufgabe.title,
-    bearbeiter: bearbeiter?.full_name ?? profil.fullName,
-    ersteller: creator?.full_name ?? "",
+    beschreibung,
+    rahmen,
+    art,
+    kategorie,
+    prio: PRIO_LABEL[aufgabe.priority as TaskPriority] ?? "",
+    bearbeiter: anredeName(bearbeiter?.full_name ?? profil.fullName),
+    ersteller: anredeName(creator?.full_name),
+    makler: anredeName(makler?.display_name),
     notiz: aufgabe.in_progress_note ?? "",
-    objekt: aufgabe.onoffice_estate_no ?? aufgabe.onoffice_estate_id ?? "–",
+    objekt: objekt || "–",
+    kunde: kunde || "–",
+    faellig: aufgabe.due_date ? datumDeutsch(aufgabe.due_date) : "ohne Frist",
+    angelegt: datumDeutsch(aufgabe.created_at),
     datum: datumDeutsch(aufgabe.completed_at ?? new Date().toISOString()),
-    faellig: "",
     tage: "",
   };
 
@@ -109,7 +160,7 @@ export async function POST(request: Request) {
       const anlass = aufgabe.last_status_change_at ?? "";
       for (const e of [
         creator ? { email: creator.email, name: creator.full_name, rolle: "verantwortung" } : null,
-        makler ? { email: makler.email, name: makler.display_name, rolle: "makler" } : null,
+        makler ? { email: makler.email, name: anredeName(makler.display_name), rolle: "makler" } : null,
       ]) {
         if (!e) continue;
         zaehle(
@@ -131,7 +182,7 @@ export async function POST(request: Request) {
           await sendeBenachrichtigung({
             taskId: aufgabe.id,
             kind: "aufgabe_erledigt_makler",
-            empfaenger: { email: makler.email, name: makler.display_name },
+            empfaenger: { email: makler.email, name: anredeName(makler.display_name) },
             dedupeKey: `task:${aufgabe.id}:erledigt:${aufgabe.completed_at ?? ""}`,
             vars,
           }),

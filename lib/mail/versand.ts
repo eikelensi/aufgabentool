@@ -140,6 +140,98 @@ export function zaehle(
   else ergebnis.fehler.push(beschreibung);
 }
 
+/**
+ * Die Rahmenbedingungen einer Aufgabe als fertiger Block.
+ *
+ * Der zugeordnete Kollege arbeitet nicht im Tool. Eine Mail, die nur
+ * "die Aufgabe ist erledigt" sagt, zwingt ihn zum Raten: er hat
+ * mehrere offene Vorgaenge, und der Betreff allein unterscheidet sie
+ * nicht. Deshalb steht hier alles, woran er die Aufgabe erkennt -
+ * Nummer, Betreff, Art, Frist, Objekt.
+ *
+ * Zeilen ohne Inhalt fallen weg. Eine Aufgabe ohne Frist soll keine
+ * Zeile "Frist: -" erzeugen; das liest sich wie ein Fehler.
+ */
+export function aufgabenRahmen(felder: Array<[string, string | null | undefined]>): string {
+  const gefuellt = felder.filter(([, wert]) => {
+    const w = String(wert ?? "").trim();
+    return w !== "" && w !== "-" && w !== "\u2013";
+  });
+  if (gefuellt.length === 0) return "";
+
+  const breite = Math.max(...gefuellt.map(([name]) => name.length));
+  return gefuellt.map(([name, wert]) => `${name.padEnd(breite)} : ${String(wert).trim()}`).join("\n");
+}
+
+/**
+ * Die Beschreibung auf das Wesentliche kuerzen.
+ *
+ * Aufgaben entstehen hier meist aus einer E-Mail, und dann steht in
+ * der Beschreibung die GANZE Mail: Anliegen, Signatur, Telefonnummern,
+ * Social-Media-Zeilen, Haftungsausschluss. Ungekuerzt in eine
+ * Benachrichtigung gesetzt, ersaeuft das Anliegen in zwei Kilobyte
+ * Fusszeile - und der Empfaenger liest sie nicht.
+ *
+ * Darum: abschneiden, wo die Hoeflichkeit beginnt. Was dahinter steht,
+ * ist nie die Aufgabe. Die vollstaendige Beschreibung bleibt an der
+ * Aufgabe im Tool.
+ */
+const SCHLUSSFORMELN = [
+  /^\s*(mit\s+)?(freundliche[nm]?|viele|beste|liebe|herzliche)\s+gr(ü|ue)(ß|ss)e/i,
+  /^\s*(mfg|lg|vg)\s*$/i,
+  /^\s*diese\s+e-?mail\s+enth(ä|ae)lt/i,
+  /^\s*vertretungsberechtigte\s*:/i,
+  /^\s*(um\s+diese\s+nachricht\s+anzuh(ö|oe)ren|to\s+listen\s+to\s+this\s+message)/i,
+  /^\s*(vielen\s+dank|thank\s+you)\s*,?\s*$/i,
+];
+
+export function kurzfassung(
+  text: string | null | undefined,
+  maxZeichen = 600,
+  titel?: string | null,
+): string {
+  const zeilen = String(text ?? "").replace(/\r\n?/g, "\n").split("\n");
+
+  // Aufgaben aus einer Mail tragen deren Betreff doppelt: als Titel und
+  // als erste Zeile der Beschreibung. Einmal genuegt.
+  const kopf = String(titel ?? "").trim().toLowerCase();
+  while (kopf && zeilen.length > 0 && zeilen[0].trim().toLowerCase() === kopf) zeilen.shift();
+
+  const bis = zeilen.findIndex((z) => SCHLUSSFORMELN.some((r) => r.test(z)));
+  let kurz = (bis > 0 ? zeilen.slice(0, bis) : zeilen)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  if (kurz.length > maxZeichen) {
+    const schnitt = kurz.slice(0, maxZeichen);
+    const luecke = schnitt.lastIndexOf(" ");
+    kurz = `${(luecke > maxZeichen * 0.6 ? schnitt.slice(0, luecke) : schnitt).trimEnd()} […]`;
+  }
+
+  return kurz;
+}
+
+/**
+ * Aus "Marker, Gerrit (Marker)" wird "Gerrit Marker".
+ *
+ * Die Kollegen stehen so in onOffice, wie onOffice sie sortiert:
+ * Nachname zuerst, dahinter das Kuerzel in Klammern. In einer Liste
+ * ist das richtig. In einer Anrede - "Hallo Marker, Gerrit (Marker)" -
+ * sieht es nach Maschine aus.
+ *
+ * Bewusst zurueckhaltend: kein Herr, keine Frau (das Geschlecht steht
+ * nirgends), und bei allem, was nicht dem Muster entspricht, bleibt
+ * der Name unveraendert.
+ */
+export function anredeName(name: string | null | undefined): string {
+  const roh = String(name ?? "").replace(/\s*\([^)]*\)\s*$/, "").trim();
+  const teile = roh.split(",");
+  if (teile.length !== 2) return roh;
+  const [nach, vor] = teile.map((s) => s.trim());
+  return vor && nach ? `${vor} ${nach}` : roh;
+}
+
 /** Datum fuer Mails: 16.09.2026 statt ISO. */
 export function datumDeutsch(iso: string | null | undefined): string {
   if (!iso) return "–";

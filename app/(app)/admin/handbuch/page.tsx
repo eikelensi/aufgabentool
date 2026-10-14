@@ -398,6 +398,21 @@ export default async function HandbuchSeite() {
           Die Uhr stoppt, sobald sich der Status bewegt. Dieselbe Mail geht nie
           zweimal raus – jeder Anlass wird vor dem Versand festgehalten.
         </p>
+        <p>
+          Wird eine Aufgabe <strong>erledigt</strong> oder{" "}
+          <strong>zurückgestellt</strong>, geht eine Mail an den zugeordneten
+          Kollegen. Darin stehen Aufgabennummer, Betreff und die
+          Rahmenbedingungen – Art, Kategorie, Priorität, Frist, Objekt, Kunde,
+          Auftrag von, Bearbeiter, Verantwortung, angelegt am. Der Kollege
+          arbeitet nicht im Tool; er muss die Aufgabe aus der Mail allein
+          erkennen können.
+        </p>
+        <p className="muted">
+          Zeilen ohne Inhalt fallen weg – eine Aufgabe ohne Frist erzeugt keine
+          Zeile „Frist: –“. Die Beschreibung steht gekürzt dabei: Aufgaben
+          entstehen meist aus einer Mail, und Signatur, Telefonnummern und
+          Haftungstext sind nie die Aufgabe. Der vollständige Text bleibt hier.
+        </p>
         <p className="muted">
           Versandweg: <strong>{weg}</strong>
           {weg === "onoffice" ? " (mit Rückfall auf SMTP, falls onOffice ablehnt)" : ""}.{" "}
