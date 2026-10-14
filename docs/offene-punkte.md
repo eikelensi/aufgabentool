@@ -23,6 +23,14 @@ Geprüft am 9. Oktober 2026, 09:15 Uhr, in der Datenbank:
   schließt beim Klick auf „Erledigt" sofort; der Mail-Regelbereich im
   Admin und `/meine-mails` lassen sich bedienen.
 
+## Wartet auf den Deploy
+
+`scripts/sql/vorlagen-rahmen.sql` setzt die neuen Texte der beiden
+Statusmails (erledigt, zurückgestellt). **Erst nach dem Ausrollen
+einspielen** – die Vorlagen stehen in der Datenbank und wirken sofort,
+`{{rahmen}}` füllt aber erst der neue Code. Vorher eingespielt,
+verschickt das Tool Mails mit gestrichenen Platzhaltern.
+
 ## Offene Frage an Eike
 
 „Projekt **auf H setzen**" – gemeint war vermutlich das Verschieben nach
