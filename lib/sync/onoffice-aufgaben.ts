@@ -32,6 +32,7 @@ import {
 } from "@/lib/sync/onoffice-neu";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { protokolliere } from "./protokoll";
+import type { TaskStatus } from "@/lib/types";
 
 export interface NameMitAnzahl {
   name: string;
@@ -347,12 +348,22 @@ export async function synchronisiereAufgaben(
   const ids = crmAufgaben.map((t) => t.id).filter(Boolean);
   const bekannt = new Map<
     string,
-    { id: string; in_progress_note: string | null; broker_contact_id: string | null }
+    {
+      id: string;
+      in_progress_note: string | null;
+      broker_contact_id: string | null;
+      status: TaskStatus;
+      onoffice_status_raw: string | null;
+      completed_at: string | null;
+    }
   >();
   if (ids.length) {
     const { data: vorhanden } = await sb
       .from("tasks")
-      .select("id, onoffice_task_id, in_progress_note, broker_contact_id")
+      // Eine einzige Zeichenkette, nicht zusammengesetzt: eine
+      // zusammengesetzte Spaltenliste kann der getypte Client nicht
+      // lesen, und dann faellt die ganze Zeile auf Fehlertypen zurueck.
+      .select("id, onoffice_task_id, in_progress_note, broker_contact_id, status, onoffice_status_raw, completed_at")
       .in("onoffice_task_id", ids);
     for (const t of vorhanden ?? []) {
       if (t.onoffice_task_id) {
@@ -360,6 +371,9 @@ export async function synchronisiereAufgaben(
           id: t.id,
           in_progress_note: t.in_progress_note,
           broker_contact_id: t.broker_contact_id,
+          status: t.status as TaskStatus,
+          onoffice_status_raw: t.onoffice_status_raw,
+          completed_at: t.completed_at,
         });
       }
     }
@@ -410,12 +424,58 @@ export async function synchronisiereAufgaben(
       continue;
     }
 
+    /**
+     * Wessen Status gilt - unserer oder der aus onOffice?
+     *
+     * Bisher immer der aus onOffice. Das hat eine Erledigung
+     * ueberschrieben, die eine Sekunde alt war: wer im Tool abhakt,
+     * loest den Weg nach onOffice erst danach aus, und wenn der
+     * Abgleich in dieses Fenster faellt, liest er drueben noch
+     * "Nicht begonnen" und schreibt es zurueck. Im Protokoll steht
+     * dann ein Systemwechsel "erledigt -> offen", eine Sekunde nach
+     * dem Menschen. Der Kollege bekam zwei Mails, der Bearbeiter
+     * hakte zweimal ab, und sehen konnte das niemand.
+     *
+     * Entschieden wird NICHT ueber Zeitstempel. onOffice gibt bei
+     * "modified" nur das Datum her, ohne Uhrzeit - damit liesse sich
+     * nicht sagen, wer zuerst war, und unser Stand gewaenne den
+     * ganzen Tag.
+     *
+     * Die Frage ist stattdessen: hat sich drueben ueberhaupt etwas
+     * geruehrt? Nach jeder erfolgreichen Uebertragung merkt sich das
+     * Tool in onoffice_status_raw, was drueben nun steht. Liest der
+     * Abgleich genau diesen Wert wieder, bringt onOffice keine neue
+     * Nachricht mit - dann bleibt unser Stand. Steht dort etwas
+     * anderes, hat jemand Hand angelegt, und onOffice gewinnt.
+     *
+     * Das deckt auch den Fall ab, dass das Zurueckschreiben
+     * abgeschaltet ist: dann rührt sich drueben nie etwas, und die
+     * Erledigung im Tool bleibt die Erledigung im Tool.
+     */
+    let eigenerStatus: TaskStatus | undefined;
+    if (vorhandene && vorhandene.status !== aufgabe.status) {
+      const zuletztGelesen = (vorhandene.onoffice_status_raw ?? "").trim();
+      const jetztDrueben = (aufgabe.rawStatus ?? "").trim();
+      if (zuletztGelesen && zuletztGelesen === jetztDrueben) {
+        eigenerStatus = vorhandene.status;
+        ergebnis.hinweise.push(
+          `Aufgabe ${aufgabe.id}: in onOffice steht unveraendert „${jetztDrueben}“, ` +
+            `im Tool „${vorhandene.status}“ – der Stand aus dem Tool bleibt.`,
+        );
+      }
+    }
+
+    /** Der Status, der nach dieser Entscheidung gilt. */
+    const wirksam: TaskStatus = eigenerStatus ?? aufgabe.status;
+
     // Die Datenbank verlangt bei "Rückfragen offen" eine Notiz (in onOffice
     // heisst dieser Status "In Bearbeitung"). Aus onOffice
     // kommt keine - das Feld Kommentar existiert in diesem Mandanten nicht.
     // Also ein ehrlicher Platzhalter, aber nur wenn noch keine Notiz da ist.
+    // Gefragt wird nach dem wirksamen Status: bleibt unser Stand stehen,
+    // braucht es keinen Platzhalter fuer einen Status, der nicht gilt.
     let notiz = vorhandene?.in_progress_note ?? null;
-    if (aufgabe.status === "in_bearbeitung" && !notiz?.trim()) {
+    if (wirksam === "in_bearbeitung" && !notiz?.trim()) {
       notiz = "Status aus onOffice übernommen – dort ist keine Notiz hinterlegt.";
     }
 
@@ -425,7 +485,7 @@ export async function synchronisiereAufgaben(
       // steht hier schon in task_notes - er darf nicht als
       // Beschreibung zurueckkommen, sonst steht er bald doppelt.
       description: ohneNotizen(aufgabe.description) || null,
-      status: aufgabe.status,
+      status: wirksam,
       priority: aufgabe.priority,
       assignee_id: bearbeiterId ?? null,
       creator_id: creatorId,
@@ -502,8 +562,24 @@ export async function synchronisiereAufgaben(
       }
     }
 
-    if (aufgabe.status === "erledigt") {
-      zeile.completed_at = modified ?? new Date().toISOString();
+    /**
+     * Wann wurde erledigt?
+     *
+     * Hier stand onOffices "modified" - und das ist nur ein DATUM,
+     * ohne Uhrzeit. Jede Erledigung bekam damit Mitternacht
+     * zugewiesen, auch wenn sie um 14:11 passierte. Daran haengt,
+     * wann Erledigtes aus dem Tagesgeschaeft verschwindet: eine
+     * nachmittags erledigte Aufgabe war schon um Mitternacht wieder
+     * weg statt am naechsten Nachmittag.
+     *
+     * Steht bei uns ein Zeitstempel, bleibt er. Fehlt er, tritt
+     * onOffices Datum ein - besser als nichts. Und maßgeblich ist der
+     * wirksame Status, nicht der aus onOffice: sonst loescht der
+     * Abgleich den Zeitpunkt einer Erledigung, die er gerade stehen
+     * gelassen hat.
+     */
+    if (wirksam === "erledigt") {
+      zeile.completed_at = vorhandene?.completed_at ?? modified ?? new Date().toISOString();
     } else {
       zeile.completed_at = null;
       zeile.completed_by = null;

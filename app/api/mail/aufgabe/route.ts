@@ -76,6 +76,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ meldung: "Private Aufgabe – keine Benachrichtigung.", verschickt: 0 });
   }
 
+  /**
+   * Steht der Status ueberhaupt noch so?
+   *
+   * Die Route bekam bisher den Status aus der Anfrage und glaubte ihn.
+   * Das hat eine Mail "ist erledigt" verschickt, obwohl die Aufgabe
+   * zwei Sekunden vorher wieder auf offen gesprungen war - der
+   * Abgleich hatte sie zurueckgeholt. Der Sperrschluessel wird aus
+   * completed_at gebildet, das war dann leer, und als die Aufgabe
+   * wirklich erledigt wurde, passte der Schluessel nicht mehr: der
+   * Kollege bekam dieselbe Nachricht zweimal.
+   *
+   * Was im Haus gilt, steht in der Datenbank, nicht in der Anfrage.
+   */
+  if (aufgabe.status !== status) {
+    return NextResponse.json({
+      verschickt: 0,
+      meldung: `Die Aufgabe steht inzwischen auf „${aufgabe.status}“ – keine Benachrichtigung verschickt.`,
+    });
+  }
+
   const creator = aufgabe.creator as unknown as { id: string; full_name: string; email: string } | null;
   const bearbeiter = aufgabe.bearbeiter as unknown as { full_name: string; email: string } | null;
   const makler = aufgabe.makler as unknown as { display_name: string; email: string } | null;
@@ -183,7 +203,11 @@ export async function POST(request: Request) {
             taskId: aufgabe.id,
             kind: "aufgabe_erledigt_makler",
             empfaenger: { email: makler.email, name: anredeName(makler.display_name) },
-            dedupeKey: `task:${aufgabe.id}:erledigt:${aufgabe.completed_at ?? ""}`,
+            // Nie leer: ohne Zeitstempel beansprucht der Schluessel
+            // keinen Anlass, und die naechste Erledigung mailt erneut.
+            dedupeKey: `task:${aufgabe.id}:erledigt:${
+              aufgabe.completed_at ?? aufgabe.last_status_change_at ?? "ohne-zeit"
+            }`,
             vars,
           }),
           `${makler.email}: Versand fehlgeschlagen`,
