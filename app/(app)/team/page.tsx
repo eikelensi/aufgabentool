@@ -4,7 +4,12 @@ import { useState } from "react";
 import { useStore } from "@/lib/store";
 import Board from "@/components/Board";
 import TaskCard from "@/components/TaskCard";
-import Filters, { EMPTY_FILTER, applyFilters, type FilterState } from "@/components/Filters";
+import Filters, {
+  EMPTY_FILTER,
+  applyFilters,
+  istGefiltert,
+  type FilterState,
+} from "@/components/Filters";
 import { NoteDialog, TaskDetailDialog } from "@/components/dialogs";
 import { Avatar, EmptyState } from "@/components/ui";
 import { ROLLE_LABEL, type AppRole, type Task, type TaskStatus } from "@/lib/types";
@@ -51,6 +56,28 @@ export default function TeamPage() {
 
   const tasks = applyFilters(visibleTasks, filter);
   const personId = person || profiles[0]?.id || "";
+
+  /**
+   * Welche Zeilen die Mitarbeitendenansicht zeigt.
+   *
+   * Vorher: immer alle. Wer oben eine Kollegin auswaehlte, bekam
+   * trotzdem das ganze Haus zu sehen - nur mit Strichen in jeder
+   * anderen Zeile. Der Filter wirkte auf die Aufgaben, nicht auf die
+   * Uebersicht, und sah damit aus, als wirke er gar nicht.
+   *
+   * Jetzt: ohne Filter alle, denn "null offen" ist eine Information.
+   * Mit ausgewaehlter Person genau diese eine - auch wenn sie nichts
+   * hat, das ist dann ja die Antwort. Mit einem anderen Filter nur
+   * die, bei denen etwas uebrig bleibt.
+   */
+  const gefiltert = istGefiltert(filter);
+  const eingang = tasks.filter((t) => t.isPool && t.assigneeId === null && t.status !== "erledigt");
+  const zeilen = filter.assignee
+    ? profiles.filter((p) => p.id === filter.assignee)
+    : gefiltert
+      ? profiles.filter((p) => tasks.some((t) => t.assigneeId === p.id))
+      : profiles;
+  const zeigeEingang = !filter.assignee && (!gefiltert || eingang.length > 0);
 
   const dropInto = (taskId: string, assigneeId: string | null, status: TaskStatus) => {
     const task = visibleTasks.find((t) => t.id === taskId);
@@ -109,20 +136,22 @@ export default function TeamPage() {
             </div>
 
             {/* Eingangsbahn */}
-            <Lane
-              key="pool"
-              label="Aufgabeneingang"
-              sub="unbesetzt"
-              tasks={tasks.filter((t) => t.isPool && t.assigneeId === null && t.status !== "erledigt")}
-              assigneeId={null}
-              over={over}
-              setOver={setOver}
-              onDrop={dropInto}
-              onOpen={setDetail}
-              onVerschiebe={verschiebe}
-            />
+            {zeigeEingang ? (
+              <Lane
+                key="pool"
+                label="Aufgabeneingang"
+                sub="unbesetzt"
+                tasks={eingang}
+                assigneeId={null}
+                over={over}
+                setOver={setOver}
+                onDrop={dropInto}
+                onOpen={setDetail}
+                onVerschiebe={verschiebe}
+              />
+            ) : null}
 
-            {profiles.map((p) => (
+            {zeilen.map((p) => (
               <Lane
                 key={p.id}
                 label={p.fullName}
@@ -138,6 +167,10 @@ export default function TeamPage() {
                 onVerschiebe={verschiebe}
               />
             ))}
+
+            {zeilen.length === 0 && !zeigeEingang ? (
+              <EmptyState text="Zu diesem Filter gibt es keine Aufgabe." />
+            ) : null}
           </div>
           <p className="muted mt-2 text-[11px]">
             Karten lassen sich zwischen Status <em>und</em> zwischen Mitarbeitenden ziehen – so wird bei

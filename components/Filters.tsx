@@ -22,6 +22,21 @@ export const EMPTY_FILTER: FilterState = {
   date: "alle",
 };
 
+/**
+ * Ist ueberhaupt ein Filter gesetzt?
+ *
+ * Eine Ansicht, die nach Personen gegliedert ist, soll ohne Filter
+ * ALLE zeigen - auch die ohne Aufgabe, denn "null offen" ist eine
+ * Information. Sobald aber gefiltert wird, ist jede leere Zeile nur
+ * noch Rauschen: wer nach einer Kollegin sucht, will nicht zwoelf
+ * Striche sehen.
+ */
+export function istGefiltert(f: FilterState): boolean {
+  return Boolean(
+    f.q.trim() || f.assignee || f.category || f.priority || f.status || f.date !== "alle",
+  );
+}
+
 export function applyFilters(tasks: Task[], f: FilterState): Task[] {
   const today = new Date().toISOString().slice(0, 10);
   const inWeek = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
