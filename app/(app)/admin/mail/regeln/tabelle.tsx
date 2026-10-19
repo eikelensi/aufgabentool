@@ -130,36 +130,22 @@ export default function RegelTabelle({ zeilen }: { zeilen: RegelZeile[] }) {
               </div>
             ) : null}
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <label className="muted flex items-center gap-1.5 text-[11px]">
-                <input
-                  type="checkbox"
-                  checked={z.nutzerDarfAendern}
-                  disabled={laeuft}
-                  onChange={(e) => setze(z.kind, { nutzerDarfAendern: e.target.checked })}
-                />
-                jeder darf das für sich selbst umstellen
-              </label>
-              {/* Ohne diese Zahl bliebe offen, ob die Vorgabe
-                  ueberhaupt gilt - und die Antwort gehoert neben die
-                  Vorgabe, nicht in eine andere Ansicht. */}
-              {z.abweichend > 0 ? (
-                <span className="muted text-[11px]">
-                  · {z.abweichend}{" "}
-                  {z.abweichend === 1 ? "Person weicht ab" : "Personen weichen ab"}
-                  {z.nutzerDarfAendern ? "" : " (gilt gerade nicht)"}
-                </span>
-              ) : null}
-            </div>
+            {/* Ohne diese Zahl bliebe offen, ob die Vorgabe fuer alle
+                gilt - und die Antwort gehoert neben die Vorgabe. Wer
+                genau, steht unten bei den Ausnahmen. */}
+            {z.abweichend > 0 && z.aktiv ? (
+              <p className="muted mt-2 text-[11px]">
+                bei {z.abweichend} {z.abweichend === 1 ? "Person" : "Personen"} abgeschaltet –
+                siehe Ausnahmen unten
+              </p>
+            ) : null}
           </li>
         ))}
       </ul>
 
       <p className="muted mt-3 text-[11px] leading-relaxed">
-        Abgeschaltet heißt: die Mail geht nicht raus, der Text bleibt erhalten. Nimmst du die
-        Erlaubnis zum Selbstumstellen zurück, bleiben die persönlichen Einstellungen
-        gespeichert – sie wirken nur nicht mehr und gelten wieder, sobald du die Erlaubnis
-        zurückgibst.
+        Abgeschaltet heißt: die Mail geht an niemanden raus, der Text bleibt erhalten. Einzelne
+        Mitarbeiter nimmst du unten bei den Ausnahmen heraus.
       </p>
 
       {meldung ? (

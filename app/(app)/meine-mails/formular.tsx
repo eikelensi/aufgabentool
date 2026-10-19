@@ -72,17 +72,13 @@ export default function MeineMails({ zeilen }: { zeilen: MeineZeile[] }) {
       <header className="mb-4">
         <h1 className="text-lg font-semibold">Meine Mails</h1>
         <p className="muted mt-0.5 text-xs leading-relaxed">
-          Welche Mitteilungen du bekommst – und bei den freigegebenen, wann und wie oft.
-          Was hier nicht einstellbar ist, legt die Verwaltung für alle fest.
+          Welche Mitteilungen du bekommst. Was du bekommst, stellt der Admin ein – wenn du
+          etwas nicht mehr bekommen möchtest, sag ihm Bescheid.
         </p>
       </header>
 
+      {meine.length === 0 ? null : (
       <section className="panel mb-4 p-4">
-        {meine.length === 0 ? (
-          <p className="muted text-xs">
-            Zurzeit ist keine Mailart zum Selbsteinstellen freigegeben.
-          </p>
-        ) : (
           <ul className="space-y-2">
             {meine.map((z) => (
               <li key={z.kind} className="line rounded-lg border p-2.5">
@@ -152,17 +148,17 @@ export default function MeineMails({ zeilen }: { zeilen: MeineZeile[] }) {
               </li>
             ))}
           </ul>
-        )}
       </section>
+      )}
 
       {/* Das Feste nicht verschweigen: wer nicht weiss, dass es eine
           Eskalationsmail gibt, haelt sie fuer einen Fehler, wenn sie
           kommt. */}
       {feste.length ? (
         <section className="panel p-4">
-          <h2 className="mb-1 text-xs font-semibold">Vom Haus festgelegt</h2>
+          <h2 className="mb-1 text-xs font-semibold">Deine Mitteilungen</h2>
           <p className="muted mb-2 text-[11px] leading-relaxed">
-            Diese Mitteilungen gelten für alle gleich und lassen sich hier nicht umstellen.
+            ✓ heißt: du bekommst sie. Umstellen kann das nur der Admin.
           </p>
           <ul className="muted space-y-1 text-[11px]">
             {feste.map((z) => (

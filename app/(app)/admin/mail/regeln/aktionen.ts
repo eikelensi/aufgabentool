@@ -51,3 +51,57 @@ export async function regelSetzen(
   revalidatePath("/admin/mail/regeln");
   return { ok: true, meldung: "Gespeichert." };
 }
+
+/**
+ * Eine Mailart fuer eine einzelne Person ab- oder wieder einschalten.
+ *
+ * Das darf nur der Admin - die Mitarbeiter stellen das nicht mehr
+ * selbst um. Abschalten legt eine Zeile mit aktiv = false an.
+ * Einschalten nimmt die Abweichung wieder heraus, statt "aktiv = true"
+ * zu speichern: dann gilt wieder die Hausregel, und schaltet das Haus
+ * die Mailart spaeter ab, ist sie auch fuer diese Person aus.
+ */
+export async function personMailSetzen(
+  profileId: string,
+  kind: string,
+  aktiv: boolean,
+): Promise<Ergebnis> {
+  if (!istAdmin(await aktuellesProfil())) {
+    return { ok: false, meldung: "Nicht berechtigt." };
+  }
+
+  const sb = supabaseAdmin();
+  const { data: regel } = await sb.from("mail_regeln").select("kind").eq("kind", kind).maybeSingle();
+  if (!regel) return { ok: false, meldung: "Diese Mailart gibt es nicht." };
+
+  if (!aktiv) {
+    const { error } = await sb.from("mail_einstellungen").upsert(
+      { profile_id: profileId, kind, aktiv: false, updated_at: new Date().toISOString() },
+      { onConflict: "profile_id,kind" },
+    );
+    if (error) return { ok: false, meldung: error.message };
+  } else {
+    // Alte Zeilen koennen noch eigene Zeiten tragen (aus der Zeit, als
+    // jeder selbst umstellen durfte). Die bleiben stehen, nur das
+    // Abschalten faellt weg; eine leere Zeile wird ganz entfernt.
+    const { error } = await sb
+      .from("mail_einstellungen")
+      .update({ aktiv: null, updated_at: new Date().toISOString() })
+      .eq("profile_id", profileId)
+      .eq("kind", kind);
+    if (error) return { ok: false, meldung: error.message };
+    await sb
+      .from("mail_einstellungen")
+      .delete()
+      .eq("profile_id", profileId)
+      .eq("kind", kind)
+      .is("aktiv", null)
+      .is("tage_bis", null)
+      .is("wiederholen_tage", null)
+      .is("stunde", null);
+  }
+
+  revalidatePath("/admin/mail/regeln");
+  revalidatePath("/meine-mails");
+  return { ok: true, meldung: aktiv ? "Wieder eingeschaltet." : "Für diese Person abgeschaltet." };
+}

@@ -3,6 +3,17 @@
 Stand 9. Oktober 2026, übergeben aus dem Chat in der Claude-App an
 Claude Code. Alles darüber ist eingebaut und ausgeliefert.
 
+## Mails je Mitarbeiter abschalten (19. Oktober 2026)
+
+Versandregeln → „Ausnahmen je Mitarbeiter“: der Admin schaltet jede
+Mailart (außer der Pool-Meldung an die feste Adresse) für einzelne
+Personen ab. Mitarbeiter stellen nichts mehr selbst um, „Meine Mails“
+zeigt nur noch an. Reihenfolge: erst Code ausliefern, **dann** Migration
+`at_65_mail_ausnahmen_je_person` einspielen (SQL in
+`scripts/sql/at_65_mail_ausnahmen_je_person.sql`, gegen die echte
+Datenbank zur Probe gelaufen und zurückgenommen: fällige Erinnerungen und
+Eskalationen vorher wie nachher gleich).
+
 ## Nach dem Ausrollen prüfen
 
 Geprüft am 9. Oktober 2026, 09:15 Uhr, in der Datenbank:

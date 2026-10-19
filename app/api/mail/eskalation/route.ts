@@ -18,7 +18,7 @@ import {
   sendeBenachrichtigung,
   zaehle,
 } from "@/lib/mail/versand";
-import { geltendeRegel, stundeImHaus } from "@/lib/mail/regeln";
+import { darfSenden, geltendeRegel, stundeImHaus } from "@/lib/mail/regeln";
 import { raeumeProtokolleAuf } from "@/lib/sync/protokoll-aufraeumen";
 
 export const runtime = "nodejs";
@@ -161,10 +161,19 @@ export async function POST(request: Request) {
     );
     let einerGing = false;
     for (const e of [
-      bearbeiter ? { email: bearbeiter.email, name: bearbeiter.full_name, rolle: "bearbeiter" } : null,
-      creator ? { email: creator.email, name: creator.full_name, rolle: "ersteller" } : null,
+      bearbeiter
+        ? { id: bearbeiter.id, email: bearbeiter.email, name: bearbeiter.full_name, rolle: "bearbeiter" }
+        : null,
+      creator ? { id: creator.id, email: creator.email, name: creator.full_name, rolle: "ersteller" } : null,
     ]) {
       if (!e?.email) continue;
+      // Je Empfaenger: hat der Admin die Eskalation fuer DIESE Person
+      // abgeschaltet, bekommt sie keine - der andere aber schon. Das
+      // zaehlt als erledigt, sonst versuchte es jeder Lauf erneut.
+      if (!(await darfSenden("eskalation_7t", e.id))) {
+        einerGing = true;
+        continue;
+      }
       const ausgang = await sendeBenachrichtigung({
         taskId: t.id,
         kind: "eskalation_7t",

@@ -1,12 +1,10 @@
 /**
- * "Meine Mails" - was JEDER fuer sich selbst einstellen darf.
+ * "Meine Mails" - welche Mitteilungen ich bekomme.
  *
- * Nicht alles: die Verwaltung gibt je Mailart frei, ob sie
- * ueberschreibbar ist. Eine Eskalation, die sich jeder abschalten
- * kann, waere keine Eskalation; eine Erinnerung, die niemand
- * abschalten kann, wird zum Rauschen und damit ebenfalls wirkungslos.
- * Deshalb steht hier beides nebeneinander - was man aendern darf, und
- * was fest ist, mitsamt dem Grund.
+ * Seit Oktober 2026 stellt das allein der Admin ein, je Person unter
+ * Versandregeln -> Ausnahmen je Mitarbeiter. Hier steht nur, was gilt.
+ * Der Bereich zum Selbsteinstellen bleibt im Formular stehen, zeigt
+ * aber nichts mehr, solange keine Mailart "nutzer_darf_aendern" traegt.
  */
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { aktuellesProfil } from "@/lib/supabase/profil";

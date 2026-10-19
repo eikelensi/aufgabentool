@@ -58,7 +58,7 @@ export async function POST(request: Request) {
        onoffice_task_id, onoffice_estate_no, onoffice_estate_id, onoffice_address_no,
        creator:profiles!tasks_creator_id_fkey ( id, full_name, email ),
        bearbeiter:profiles!tasks_assignee_id_fkey ( id, full_name, email ),
-       makler:broker_contacts!tasks_broker_contact_id_fkey ( id, display_name, email ),
+       makler:broker_contacts!tasks_broker_contact_id_fkey ( id, display_name, email, profile_id ),
        kategorie:categories!tasks_category_id_fkey ( name ),
        art:task_types!tasks_task_type_id_fkey ( label )`,
     )
@@ -98,7 +98,11 @@ export async function POST(request: Request) {
 
   const creator = aufgabe.creator as unknown as { id: string; full_name: string; email: string } | null;
   const bearbeiter = aufgabe.bearbeiter as unknown as { full_name: string; email: string } | null;
-  const makler = aufgabe.makler as unknown as { display_name: string; email: string } | null;
+  const makler = aufgabe.makler as unknown as {
+    display_name: string;
+    email: string;
+    profile_id: string | null;
+  } | null;
 
   const kategorie = (aufgabe.kategorie as unknown as { name: string } | null)?.name ?? "";
   const art = (aufgabe.art as unknown as { label: string } | null)?.label ?? "";
@@ -165,24 +169,32 @@ export async function POST(request: Request) {
        *
        * Die des EMPFAENGERS, nicht die des Ausloesenden. Wer eine
        * Rueckfrage-Mail nicht will, will sie auch dann nicht, wenn ein
-       * anderer die Rueckfrage stellt. Der Makler ist kein Nutzer des
-       * Tools - fuer ihn gilt die Hausregel.
+       * anderer die Rueckfrage stellt. Abgeschaltet wird das je Person
+       * vom Admin (Versandregeln, Ausnahmen je Mitarbeiter).
        */
-      if (!(await darfSenden("in_bearbeitung_notiz", creator?.id))) {
-        return NextResponse.json({
-          verschickt: 0,
-          meldung: "Diese Mitteilung ist abgeschaltet.",
-        });
-      }
       // Der Zeitstempel des Statuswechsels macht den Schluessel eindeutig:
       // eine neue Notiz beim naechsten Wechsel darf wieder mailen, dieselbe
       // nicht zweimal.
       const anlass = aufgabe.last_status_change_at ?? "";
       for (const e of [
-        creator ? { email: creator.email, name: creator.full_name, rolle: "verantwortung" } : null,
-        makler ? { email: makler.email, name: anredeName(makler.display_name), rolle: "makler" } : null,
+        creator
+          ? { id: creator.id, email: creator.email, name: creator.full_name, rolle: "verantwortung" }
+          : null,
+        makler
+          ? {
+              id: makler.profile_id,
+              email: makler.email,
+              name: anredeName(makler.display_name),
+              rolle: "makler",
+            }
+          : null,
       ]) {
         if (!e) continue;
+        // Je Empfaenger geprueft: ist die Mail fuer den Ersteller
+        // abgeschaltet, bekommt der Makler sie trotzdem - und umgekehrt.
+        // Ein Makler ohne Zugang zum Tool hat keine Person; fuer ihn
+        // gilt die Hausregel.
+        if (!(await darfSenden("in_bearbeitung_notiz", e.id))) continue;
         zaehle(
           ergebnis,
           await sendeBenachrichtigung({
@@ -196,7 +208,7 @@ export async function POST(request: Request) {
         );
       }
     } else if (status === "erledigt") {
-      if (makler && (await darfSenden("aufgabe_erledigt_makler"))) {
+      if (makler && (await darfSenden("aufgabe_erledigt_makler", makler.profile_id))) {
         zaehle(
           ergebnis,
           await sendeBenachrichtigung({
