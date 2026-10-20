@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import {
   aktivSetzen,
   asanaSpiegelnSetzen,
+  startseiteSetzen,
   asanaSpiegelZielSetzen,
   aufgabenSynchronisieren,
   einladungErneutSenden,
@@ -34,6 +35,8 @@ export interface NutzerZeile {
   asanaSpiegelBereich: "projekt" | "eigene";
   asanaSpiegelSectionGid: string;
   hatSichAngemeldet: boolean;
+  /** Leer = nach Rolle. */
+  startseite: "" | "dashboard" | "mein-tag";
 }
 
 function Meldung({ ergebnis }: { ergebnis: Ergebnis | null }) {
@@ -203,6 +206,9 @@ export function NutzerTabelle({
               <th className="px-3 py-2 font-medium" title="Aufgaben dieser Person zusätzlich in Asana anlegen">
                 Asana
               </th>
+              <th className="px-3 py-2 font-medium" title="Welche Seite beim Öffnen des Tools erscheint">
+                Startseite
+              </th>
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 font-medium">Aktionen</th>
             </tr>
@@ -325,6 +331,25 @@ export function NutzerTabelle({
                         ) : null}
                       </div>
                     ) : null}
+                  </td>
+                  {/* Auch fuer die eigene Zeile: die Startseite sperrt
+                      niemanden aus, beide Seiten stehen im Menue. */}
+                  <td className="px-3 py-2">
+                    <select
+                      className="field"
+                      style={{ width: "auto", padding: "0.2rem 0.4rem", fontSize: "0.72rem" }}
+                      value={n.startseite}
+                      disabled={laeuft}
+                      onChange={(e) =>
+                        fuehreAus(() =>
+                          startseiteSetzen(n.id, (e.target.value || null) as "dashboard" | "mein-tag" | null),
+                        )
+                      }
+                    >
+                      <option value="">nach Rolle</option>
+                      {n.role !== "user" ? <option value="dashboard">Dashboard</option> : null}
+                      <option value="mein-tag">Mein Tag</option>
+                    </select>
                   </td>
                   <td className="px-3 py-2">
                     {!n.isActive ? (

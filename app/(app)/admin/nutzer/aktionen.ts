@@ -364,3 +364,37 @@ export async function aufgabenSynchronisieren(seit?: string): Promise<SyncMeldun
     return { ok: false, meldung: (err as Error).message };
   }
 }
+
+/** Startseite je Person: leer = nach Rolle, sonst Dashboard oder Mein Tag. */
+export async function startseiteSetzen(id: string, startseite: "dashboard" | "mein-tag" | null): Promise<Ergebnis> {
+  try {
+    await verlangeAdmin();
+  } catch (err) {
+    return { ok: false, meldung: (err as Error).message };
+  }
+  if (startseite !== null && startseite !== "dashboard" && startseite !== "mein-tag") {
+    return { ok: false, meldung: "Unbekannte Startseite." };
+  }
+
+  const sb = supabaseAdmin();
+  const { error } = await sb.from("profiles").update({ startseite }).eq("id", id);
+  if (error) {
+    return {
+      ok: false,
+      meldung: /startseite/.test(error.message)
+        ? "Die Datenbank kennt die Startseite noch nicht (Migration at_67 fehlt)."
+        : error.message,
+    };
+  }
+
+  revalidatePath("/admin/nutzer");
+  return {
+    ok: true,
+    meldung:
+      startseite === "mein-tag"
+        ? "Diese Person startet ab jetzt in „Mein Tag“."
+        : startseite === "dashboard"
+          ? "Diese Person startet ab jetzt im Dashboard."
+          : "Die Startseite richtet sich wieder nach der Rolle.",
+  };
+}

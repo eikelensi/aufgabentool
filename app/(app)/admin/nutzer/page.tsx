@@ -59,6 +59,14 @@ export default async function NutzerSeite() {
     );
   }
 
+  // Startseite getrennt geholt: fehlt die Spalte noch (at_67), bleibt
+  // die Liste trotzdem heil und alle stehen auf "nach Rolle".
+  const startseiten = new Map<string, string>();
+  const { data: wahlen } = await sb.from("profiles").select("id, startseite");
+  for (const w of (wahlen ?? []) as { id: string; startseite: string | null }[]) {
+    if (w.startseite) startseiten.set(w.id, w.startseite);
+  }
+
   // Wer sich schon einmal angemeldet hat, steckt in auth.users.
   const angemeldet = new Set<string>();
   try {
@@ -86,6 +94,7 @@ export default async function NutzerSeite() {
       | "eigene",
     asanaSpiegelSectionGid: p.asana_spiegel_section_gid ?? "",
     hatSichAngemeldet: angemeldet.has(p.id),
+    startseite: (startseiten.get(p.id) ?? "") as NutzerZeile["startseite"],
   }));
 
   const offeneEinladungen = nutzer.filter((n) => !n.hatSichAngemeldet && n.isActive).length;

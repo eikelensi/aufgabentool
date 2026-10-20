@@ -6,6 +6,9 @@
  * die Arbeit gerade liegt. Deshalb schickt diese Seite ab dem
  * Qualitaetsmanagement ins Dashboard und alle anderen in "Mein Tag".
  *
+ * Der Admin kann das je Person umstellen (Nutzerverwaltung, Spalte
+ * "Startseite", profiles.startseite). Leer heisst: Regel nach Rolle.
+ *
  * Wichtig: das ist eine WEICHE, keine Sperre. Beide Seiten haben ihre
  * eigene Adresse und stehen im Menue - hier wird nur entschieden, was
  * ohne weitere Angabe erscheint. Wer das Dashboard nicht sehen darf,
@@ -29,7 +32,14 @@ export default async function Startseite() {
   for (const z of data ?? []) (rechte[z.role] ??= {})[z.bereich] = z.sichtbar;
 
   const rolle = profil.role as AppRole;
-  const insDashboard = rolle !== "user" && darfSehen(rolle, "dashboard", rechte);
+  const darfDashboard = rolle !== "user" && darfSehen(rolle, "dashboard", rechte);
+
+  // Eigene Wahl je Person. Fehlt die Spalte noch (Migration at_67 nicht
+  // eingespielt), kommt ein Fehler zurueck - dann gilt die Regel nach Rolle.
+  const { data: wahl } = await sb.from("profiles").select("startseite").eq("id", profil.id).maybeSingle();
+  const startseite = (wahl as { startseite?: string | null } | null)?.startseite ?? null;
+
+  const insDashboard = startseite === "mein-tag" ? false : darfDashboard;
 
   redirect(insDashboard ? "/dashboard" : "/mein-tag");
 }

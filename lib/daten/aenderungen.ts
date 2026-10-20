@@ -25,6 +25,18 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-10-20",
+    titel: "Ein Einhorn für jede erledigte Aufgabe",
+    text: "Wer eine Aufgabe auf „Erledigt“ setzt, bekommt ein Einhorn, das einmal quer durchs Bild hüpft. Es stört nicht beim Weiterarbeiten und ist nach gut zwei Sekunden wieder weg. Wer am Rechner „Bewegung reduzieren“ eingestellt hat, sieht es nicht.",
+    bereich: "Überall",
+  },
+  {
+    datum: "2026-10-20",
+    titel: "Startseite je Mitarbeiter einstellbar",
+    text: "In der Nutzerverwaltung gibt es die neue Spalte „Startseite“. Damit lässt sich je Person festlegen, ob das Tool beim Öffnen im Dashboard oder in „Mein Tag“ beginnt. „nach Rolle“ heißt wie bisher: ab dem Qualitätsmanagement Dashboard, sonst Mein Tag.",
+    bereich: "Verwaltung → Nutzer",
+  },
+  {
+    datum: "2026-10-20",
     titel: "Dashboard: alle zurückgestellten Aufgaben auf einen Blick",
     text: "Unter den Kacheln je Mitarbeiter steht jetzt eine Liste aller Aufgaben mit offenen Rückfragen – nach Aufgaben statt nach Personen, mit Bearbeiter, seit wann sie zurückgestellt sind, der Rückfrage und der Frist. Die älteste Rückstellung steht oben, filtern lässt sich nach Bearbeiter und Kategorie. Sichtbar ab dem Qualitätsmanagement.",
     bereich: "Dashboard",

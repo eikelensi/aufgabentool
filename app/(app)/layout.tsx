@@ -9,6 +9,7 @@
 import { redirect } from "next/navigation";
 import { StoreProvider } from "@/lib/store";
 import Shell from "@/components/Shell";
+import Einhorn from "@/components/Einhorn";
 import { aktuellesProfil } from "@/lib/supabase/profil";
 import { supabaseServer } from "@/lib/supabase/server";
 import { istVoreinstellung, sicherePalette, themaCss } from "@/lib/design/farben";
@@ -78,6 +79,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <Shell profil={profil} rechte={rechte}>
         {children}
       </Shell>
+      <Einhorn />
     </StoreProvider>
   );
 }
