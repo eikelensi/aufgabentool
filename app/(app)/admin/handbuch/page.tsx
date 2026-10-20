@@ -395,6 +395,11 @@ export default async function HandbuchSeite() {
           Verantwortung.
         </p>
         <p>
+          Gezählt wird ab der Anlage. Hat die Aufgabe eine <strong>Frist in der
+          Zukunft</strong>, beginnt die Uhr erst am Fristtag – vorher gibt es weder
+          den Hinweis „Tage offen“ auf der Karte noch eine Erinnerung oder Eskalation.
+        </p>
+        <p>
           Die Uhr stoppt, sobald sich der Status bewegt. Dieselbe Mail geht nie
           zweimal raus – jeder Anlass wird vor dem Versand festgehalten.
         </p>

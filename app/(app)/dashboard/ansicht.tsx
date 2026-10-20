@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui";
 import type { Profile } from "@/lib/types";
+import Rueckstellungen from "./rueckstellungen";
 
 /**
  * Das Dashboard: zwei Blicke auf dieselbe Arbeit.
@@ -152,7 +153,7 @@ function Trichter({ person, wartend }: { person: Profile; wartend: number }) {
 }
 
 export default function DashboardAnsicht() {
-  const { bereit, visibleTasks, profiles, me, wartendeJePerson } = useStore();
+  const { bereit, visibleTasks, profiles, me, wartendeJePerson, darfAlles } = useStore();
   const [tab, setTab] = useState<"heute" | "woche">("heute");
   const [verschiebung, setVerschiebung] = useState(0);
   const [zeilen, setZeilen] = useState<WochenZeile[]>([]);
@@ -268,6 +269,9 @@ export default function DashboardAnsicht() {
           {aktive.length === 0 ? (
             <p className="muted text-xs">Noch keine aktiven Zugänge.</p>
           ) : null}
+
+          {/* Nach Aufgaben statt nach Personen - ab dem Qualitaetsmanagement */}
+          {darfAlles ? <Rueckstellungen /> : null}
         </>
       ) : (
         <>

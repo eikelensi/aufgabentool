@@ -24,6 +24,18 @@ export interface Aenderung {
 
 export const AENDERUNGEN: Aenderung[] = [
   {
+    datum: "2026-10-20",
+    titel: "Dashboard: alle zurückgestellten Aufgaben auf einen Blick",
+    text: "Unter den Kacheln je Mitarbeiter steht jetzt eine Liste aller Aufgaben mit offenen Rückfragen – nach Aufgaben statt nach Personen, mit Bearbeiter, seit wann sie zurückgestellt sind, der Rückfrage und der Frist. Die älteste Rückstellung steht oben, filtern lässt sich nach Bearbeiter und Kategorie. Sichtbar ab dem Qualitätsmanagement.",
+    bereich: "Dashboard",
+  },
+  {
+    datum: "2026-10-20",
+    titel: "„Tage offen“ zählt bei Fristen in der Zukunft erst ab dem Fristtag",
+    text: "Eine früh angelegte Aufgabe mit späterer Frist wurde bisher schon gelb und rot, bevor sie überhaupt dran war. Jetzt beginnt der Zähler auf der Karte – und damit auch Erinnerung und Eskalation per Mail – erst am Fristtag. Ohne Frist zählt es wie bisher ab der Anlage.",
+    bereich: "Karten, Mails",
+  },
+  {
     datum: "2026-10-13",
     titel: "Neue Rolle: KBI",
     text: "Kundenberater Immobilien arbeiten wie Mitarbeiter, dürfen aber beim Anlegen eine Aufgabe in den Aufgabenpool geben. Jemandem direkt zuweisen dürfen sie nicht – zur Wahl stehen nur der Pool und sie selbst. Welche Bereiche die Rolle sieht, steht wie bei allen anderen unter Verwaltung → Rollen.",

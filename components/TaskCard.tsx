@@ -8,12 +8,12 @@ import {
   CategoryChip,
   PriorityChip,
   dauer,
-  daysSince,
   formatDate,
   formatDateTime,
   minutenSeit,
 } from "./ui";
 import { addressLink, estateLink, taskLink } from "@/lib/onoffice/links";
+import { tageOffen } from "@/lib/zeit/zaehler";
 
 /**
  * Eine Nummer auf der Karte, die nach onOffice fuehrt.
@@ -102,7 +102,8 @@ export default function TaskCard({
   const category = categoryById(task.categoryId);
   const assignee = profileById(task.assigneeId);
   const broker = brokerById(task.brokerContactId);
-  const age = daysSince(task.createdAt);
+  // Zaehlt ab der Anlage - bei einer Frist in der Zukunft erst ab dem Fristtag (null = noch nicht)
+  const age = tageOffen(task);
   const overdue = task.dueDate ? task.dueDate < new Date().toISOString().slice(0, 10) : false;
 
   const fertig = task.status === "erledigt";
@@ -214,7 +215,7 @@ export default function TaskCard({
             ) : null}
             {task.attachments.length > 0 ? <span>📎{task.attachments.length}</span> : null}
             {task.isPrivate ? <span title="Privat">🔒</span> : null}
-            {task.status === "offen" && !task.isPrivate && age >= settings.escalationDays ? (
+            {task.status === "offen" && !task.isPrivate && age !== null && age >= settings.escalationDays ? (
               <span style={{ color: "var(--err-fg)", fontWeight: 700 }} title={`${age} Tage offen`}>
                 ⚠︎{age}
               </span>
@@ -370,9 +371,9 @@ export default function TaskCard({
             📥 im Pool seit {dauer(poolMinuten)}
           </span>
         ) : null}
-        {task.status === "offen" && !task.isPrivate && age >= settings.escalationDays ? (
+        {task.status === "offen" && !task.isPrivate && age !== null && age >= settings.escalationDays ? (
           <span style={{ color: "var(--err-fg)", fontWeight: 600 }}>⚠︎ {age} Tage offen</span>
-        ) : task.status === "offen" && !task.isPrivate && age >= settings.reminderDays ? (
+        ) : task.status === "offen" && !task.isPrivate && age !== null && age >= settings.reminderDays ? (
           <span style={{ color: "var(--warn-fg)", fontWeight: 600 }}>⏰ {age} Tage offen</span>
         ) : null}
       </div>

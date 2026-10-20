@@ -20,6 +20,7 @@ import {
 } from "@/lib/mail/versand";
 import { darfSenden, geltendeRegel, stundeImHaus } from "@/lib/mail/regeln";
 import { raeumeProtokolleAuf } from "@/lib/sync/protokoll-aufraeumen";
+import { tageOffen } from "@/lib/zeit/zaehler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,8 +37,9 @@ async function darfLaufen(request: Request): Promise<boolean> {
   return istAdmin(await aktuellesProfil());
 }
 
-function tageSeit(iso: string): number {
-  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5));
+/** Tage offen - ab der Anlage, bei einer Frist in der Zukunft ab dem Fristtag (wie die Karte). */
+function tageSeit(t: { created_at: string; due_date: string | null }): number {
+  return Math.max(0, tageOffen({ createdAt: t.created_at, dueDate: t.due_date }) ?? 0);
 }
 
 export async function POST(request: Request) {
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
   const heute = new Date().toISOString().slice(0, 10);
 
   const spalten = `
-    id, title, created_at, onoffice_task_id, onoffice_estate_no, onoffice_estate_id,
+    id, title, created_at, due_date, onoffice_task_id, onoffice_estate_no, onoffice_estate_id,
     creator:profiles!tasks_creator_id_fkey ( id, full_name, email ),
     bearbeiter:profiles!tasks_assignee_id_fkey ( id, full_name, email )
   `;
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
       bearbeiter: bearbeiter.full_name,
       ersteller: (t.creator as unknown as { full_name: string } | null)?.full_name ?? "",
       objekt: t.onoffice_estate_no ?? t.onoffice_estate_id ?? "–",
-      tage: String(tageSeit(t.created_at)),
+      tage: String(tageSeit(t)),
       datum: datumDeutsch(new Date().toISOString()),
       notiz: "",
       faellig: "",
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
       bearbeiter: bearbeiter?.full_name ?? "niemand zugewiesen",
       ersteller: creator?.full_name ?? "",
       objekt: t.onoffice_estate_no ?? t.onoffice_estate_id ?? "–",
-      tage: String(tageSeit(t.created_at)),
+      tage: String(tageSeit(t)),
       datum: datumDeutsch(new Date().toISOString()),
       notiz: "",
       faellig: "",

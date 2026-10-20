@@ -3,6 +3,18 @@
 Stand 9. Oktober 2026, übergeben aus dem Chat in der Claude-App an
 Claude Code. Alles darüber ist eingebaut und ausgeliefert.
 
+## Zurückgestellte Aufgaben im Dashboard, Zähler ab Frist (20. Oktober 2026)
+
+Dashboard → „Aktueller Tag“: Liste aller Aufgaben mit Status „Rückfragen
+offen“ (ab QM), älteste Rückstellung zuerst. Zähler „Tage offen“ beginnt bei
+einer Frist in der Zukunft erst am Fristtag (`lib/zeit/zaehler.ts`), ebenso
+Erinnerung und Eskalation: Migration `at_66_zaehler_ab_frist`
+(`scripts/sql/at_66_zaehler_ab_frist.sql`). Reihenfolge: Code ausliefern,
+**dann at_65, danach at_66** – at_66 baut auf der Eskalationssicht von at_65
+auf. Probe gegen die echte Datenbank (nur lesend, 20.10.2026): Erinnerungen
+42 → 42, Eskalationen 274 → 271 (drei Aufgaben mit Frist in der Zukunft).
+Tests: `node --test lib/zeit/*.test.mjs`.
+
 ## Mails je Mitarbeiter abschalten (19. Oktober 2026)
 
 Versandregeln → „Ausnahmen je Mitarbeiter“: der Admin schaltet jede
