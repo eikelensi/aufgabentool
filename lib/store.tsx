@@ -341,23 +341,52 @@ export function StoreProvider({
    *
    * Eigene Aenderungen rufen weiter neuLaden direkt auf und warten darauf.
    */
-  const laedtGerade = useRef(false);
-  const nochEinmal = useRef(false);
-  const ladenImHintergrund = useCallback(async () => {
-    if (laedtGerade.current) {
-      nochEinmal.current = true;
+  /**
+   * Nur die Aufgaben neu holen - fuer Realtime-Meldungen.
+   *
+   * Eine Aenderung an einer Aufgabe oder Notiz betrifft nur die
+   * Aufgabenliste. Vorher holte jede Meldung alle dreizehn Tabellen
+   * (Profile, Kategorien, Vorlagen, Mailprotokoll, Pinnwand ...) mit.
+   */
+  const aufgabenNeuLaden = useCallback(async () => {
+    const sb = supabaseBrowser();
+    const { data, error } = await sb
+      .from("tasks")
+      .select(AUFGABE_SPALTEN)
+      .order("position", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) {
+      setFehler(error.message);
       return;
     }
-    laedtGerade.current = true;
-    try {
-      do {
-        nochEinmal.current = false;
-        await neuLaden();
-      } while (nochEinmal.current);
-    } finally {
-      laedtGerade.current = false;
-    }
-  }, [neuLaden]);
+    if (data) setTasks(data.map(zuAufgabe));
+  }, []);
+
+  const laedtGerade = useRef(false);
+  // Was nach dem laufenden Ladevorgang noch dran ist: "alles" schlaegt "aufgaben".
+  const nochEinmal = useRef<"nichts" | "aufgaben" | "alles">("nichts");
+  const ladenImHintergrund = useCallback(
+    async (umfang: "aufgaben" | "alles" = "alles") => {
+      if (laedtGerade.current) {
+        if (nochEinmal.current !== "alles") nochEinmal.current = umfang;
+        return;
+      }
+      laedtGerade.current = true;
+      try {
+        let jetzt: "aufgaben" | "alles" = umfang;
+        for (;;) {
+          nochEinmal.current = "nichts";
+          await (jetzt === "alles" ? neuLaden() : aufgabenNeuLaden());
+          const naechstes = nochEinmal.current as "nichts" | "aufgaben" | "alles";
+          if (naechstes === "nichts") break;
+          jetzt = naechstes;
+        }
+      } finally {
+        laedtGerade.current = false;
+      }
+    },
+    [neuLaden, aufgabenNeuLaden],
+  );
 
   /**
    * Von allein nachladen.
@@ -392,13 +421,14 @@ export function StoreProvider({
     document.addEventListener("visibilitychange", beiRueckkehr);
     window.addEventListener("focus", beiRueckkehr);
 
-    // Fuenfundzwanzig statt sechzig Sekunden: der Abgleich mit onOffice
-    // laeuft alle zwei Minuten, dazu kommen Aenderungen von Kollegen.
-    // Wer am Board arbeitet, soll nicht auf eine Minute warten, um zu
-    // sehen, dass eine Aufgabe weg ist.
+    // Sechzig Sekunden reichen wieder: Aenderungen an Aufgaben - vom
+    // Abgleich wie von Kollegen - meldet Realtime sofort (unten). Der
+    // Takt ist nur das Netz, falls die Verbindung einmal hakt, und holt
+    // nebenbei Profile, Einstellungen und Pinnwand nach. Mit 25 Sekunden
+    // lud jedes offene Fenster dreimal so oft alle dreizehn Tabellen.
     const takt = setInterval(() => {
-      if (sichtbar()) void ladenImHintergrund();
-    }, 25_000);
+      if (sichtbar()) void ladenImHintergrund("alles");
+    }, 60_000);
 
     return () => {
       document.removeEventListener("visibilitychange", beiRueckkehr);
@@ -422,7 +452,7 @@ export function StoreProvider({
     const spaeter = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        if (document.visibilityState === "visible") void ladenImHintergrund();
+        if (document.visibilityState === "visible") void ladenImHintergrund("aufgaben");
       }, 700);
     };
 

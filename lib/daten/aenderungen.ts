@@ -25,6 +25,12 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-10-21",
+    titel: "Das Tool lädt deutlich schneller",
+    text: "Die Aufgabenliste kommt jetzt etwa viermal so schnell aus der Datenbank, weil die Zugriffsprüfung nur noch einmal je Abruf läuft statt für jede Zeile einzeln. Bei einer Änderung wird nur noch die Aufgabenliste neu geholt statt aller Daten, und im Hintergrund lädt jedes Fenster nur noch einmal pro Minute statt alle 25 Sekunden. Wer was sehen darf, bleibt unverändert.",
+    bereich: "Überall",
+  },
+  {
+    datum: "2026-10-21",
     titel: "Die Figur bei erledigten Aufgaben wechselt mit der Jahreszeit",
     text: "Statt immer des Einhorns hüpft jetzt eine Figur zur Jahreszeit durchs Bild, und zwar größer als bisher: im Oktober und November ein Halloween-Kürbis, im Dezember der Weihnachtsmann, im Januar und Februar ein Schneemann, im März und April der Osterhase und von Mai bis September das Einhorn.",
     bereich: "Überall",
