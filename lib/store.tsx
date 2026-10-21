@@ -13,7 +13,7 @@
  * Datenbank abgelehnt hat.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   aufgabeZurZeile,
@@ -331,6 +331,35 @@ export function StoreProvider({
   }, [neuLaden]);
 
   /**
+   * Nachladen von allein (Takt, Tab-Wechsel, Realtime) - nie doppelt.
+   *
+   * Laeuft schon ein Ladevorgang, wird kein zweiter gestartet, sondern
+   * genau einer hinterher. Vorher stapelten sie sich: war die Datenbank
+   * einmal langsam (zwanzig Sekunden statt einer), kamen Takt und
+   * Realtime-Meldungen dazu, jeder startete die volle Liste von vorn,
+   * und die Last wuchs, bis Abfragen mit Fehler abbrachen.
+   *
+   * Eigene Aenderungen rufen weiter neuLaden direkt auf und warten darauf.
+   */
+  const laedtGerade = useRef(false);
+  const nochEinmal = useRef(false);
+  const ladenImHintergrund = useCallback(async () => {
+    if (laedtGerade.current) {
+      nochEinmal.current = true;
+      return;
+    }
+    laedtGerade.current = true;
+    try {
+      do {
+        nochEinmal.current = false;
+        await neuLaden();
+      } while (nochEinmal.current);
+    } finally {
+      laedtGerade.current = false;
+    }
+  }, [neuLaden]);
+
+  /**
    * Von allein nachladen.
    *
    * Der Abgleich mit onOffice laeuft alle fuenf Minuten auf dem Server.
@@ -357,7 +386,7 @@ export function StoreProvider({
     const sichtbar = () => document.visibilityState === "visible";
 
     const beiRueckkehr = () => {
-      if (sichtbar()) void neuLaden();
+      if (sichtbar()) void ladenImHintergrund();
     };
 
     document.addEventListener("visibilitychange", beiRueckkehr);
@@ -368,7 +397,7 @@ export function StoreProvider({
     // Wer am Board arbeitet, soll nicht auf eine Minute warten, um zu
     // sehen, dass eine Aufgabe weg ist.
     const takt = setInterval(() => {
-      if (sichtbar()) void neuLaden();
+      if (sichtbar()) void ladenImHintergrund();
     }, 25_000);
 
     return () => {
@@ -376,7 +405,7 @@ export function StoreProvider({
       window.removeEventListener("focus", beiRueckkehr);
       clearInterval(takt);
     };
-  }, [neuLaden]);
+  }, [ladenImHintergrund]);
 
   /**
    * Sofort mitbekommen, wenn sich an den Aufgaben etwas aendert.
@@ -393,7 +422,7 @@ export function StoreProvider({
     const spaeter = () => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        if (document.visibilityState === "visible") void neuLaden();
+        if (document.visibilityState === "visible") void ladenImHintergrund();
       }, 700);
     };
 
@@ -407,7 +436,7 @@ export function StoreProvider({
       if (timer) clearTimeout(timer);
       void sb.removeChannel(kanal);
     };
-  }, [neuLaden]);
+  }, [ladenImHintergrund]);
 
   /**
    * Sofort mitbekommen, wenn jemand etwas schreibt.

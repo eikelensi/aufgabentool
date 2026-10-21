@@ -26,6 +26,7 @@ import { haeufigsteArt } from "@/lib/sync/onoffice-neu";
 import { pruefeSchreibsperre } from "@/lib/onoffice/schreibsperre";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { protokolliere } from "./protokoll";
+import { gleicherZeitpunkt } from "@/lib/zeit/zeitpunkt";
 import { schreibeAuftragNachOnoffice } from "@/lib/sync/auftrag";
 import { schreibeBearbeiterNachOnoffice } from "@/lib/sync/bearbeiter";
 import type { TaskStatus } from "@/lib/types";
@@ -712,8 +713,8 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
       // etwas zu einer abgegebenen Aufgabe schreibt, schreibt es dem
       // Kollegen, der sie jetzt hat - das darf nicht im Board der
       // Geschaeftsfuehrung haengenbleiben.
-      const veraendertDrueben =
-        (aufgabe.modified_at ?? "") !== (vorhanden.asana_modified_at ?? "");
+      // Nach Zeit vergleichen, nicht als Text - siehe gleicherZeitpunkt.
+      const veraendertDrueben = !gleicherZeitpunkt(aufgabe.modified_at, vorhanden.asana_modified_at);
 
       if (veraendertDrueben) {
         try {
@@ -817,7 +818,7 @@ export async function synchronisiereAsana(): Promise<AsanaErgebnis> {
     // Nur nachsehen, wenn sich drueben etwas getan hat - Kommentare
     // kosten je Aufgabe einen Aufruf.
     const veraendert =
-      !vorhanden || (aufgabe.modified_at ?? "") !== (vorhanden.asana_modified_at ?? "");
+      !vorhanden || !gleicherZeitpunkt(aufgabe.modified_at, vorhanden.asana_modified_at);
 
     if (veraendert) {
       try {

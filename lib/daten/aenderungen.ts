@@ -24,6 +24,13 @@ export interface Aenderung {
 
 export const AENDERUNGEN: Aenderung[] = [
   {
+    datum: "2026-10-21",
+    titel: "Tool hing und brach ab – behoben",
+    text: "Der Asana-Abgleich hat jede Minute rund vierzig Aufgaben neu gespeichert, obwohl sich nichts geändert hatte. Jedes Speichern ließ alle offenen Fenster die komplette Aufgabenliste neu laden. Kamen morgens viele Fenster dazu, wurde das zu viel, und das Laden brach ab. Jetzt wird nur noch gespeichert, was sich wirklich geändert hat, und ein Fenster lädt nie zweimal gleichzeitig.",
+    bereich: "Überall",
+    behoben: true,
+  },
+  {
     datum: "2026-10-20",
     titel: "Ein Einhorn für jede erledigte Aufgabe",
     text: "Wer eine Aufgabe auf „Erledigt“ setzt, bekommt ein Einhorn, das einmal quer durchs Bild hüpft. Es stört nicht beim Weiterarbeiten und ist nach gut zwei Sekunden wieder weg. Wer am Rechner „Bewegung reduzieren“ eingestellt hat, sieht es nicht.",
