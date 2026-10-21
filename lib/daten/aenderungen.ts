@@ -25,6 +25,12 @@ export interface Aenderung {
 export const AENDERUNGEN: Aenderung[] = [
   {
     datum: "2026-10-21",
+    titel: "Die Figur bei erledigten Aufgaben wechselt mit der Jahreszeit",
+    text: "Statt immer des Einhorns hüpft jetzt eine Figur zur Jahreszeit durchs Bild, und zwar größer als bisher: im Oktober und November ein Halloween-Kürbis, im Dezember der Weihnachtsmann, im Januar und Februar ein Schneemann, im März und April der Osterhase und von Mai bis September das Einhorn.",
+    bereich: "Überall",
+  },
+  {
+    datum: "2026-10-21",
     titel: "Tool hing und brach ab – behoben",
     text: "Der Asana-Abgleich hat jede Minute rund vierzig Aufgaben neu gespeichert, obwohl sich nichts geändert hatte. Jedes Speichern ließ alle offenen Fenster die komplette Aufgabenliste neu laden. Kamen morgens viele Fenster dazu, wurde das zu viel, und das Laden brach ab. Jetzt wird nur noch gespeichert, was sich wirklich geändert hat, und ein Fenster lädt nie zweimal gleichzeitig.",
     bereich: "Überall",

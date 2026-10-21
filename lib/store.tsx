@@ -576,7 +576,7 @@ export function StoreProvider({
        */
       void nacharbeitZumStatus(taskId, status, aufgabe, note);
 
-      // Kleine Belohnung: components/Einhorn.tsx hoert darauf.
+      // Kleine Belohnung: components/feier/Feierfigur.tsx hoert darauf.
       if (status === "erledigt" && aufgabe.status !== "erledigt" && typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("aufgabe-erledigt"));
       }
