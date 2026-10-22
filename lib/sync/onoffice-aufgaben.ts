@@ -31,6 +31,7 @@ import {
   zieheVerknuepfungenNach,
 } from "@/lib/sync/onoffice-neu";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { fingerabdruck } from "./fingerabdruck";
 import { protokolliere } from "./protokoll";
 import type { TaskStatus } from "@/lib/types";
 
@@ -44,6 +45,8 @@ export interface SyncErgebnis {
   uebernommen: number;
   neu: number;
   aktualisiert: number;
+  /** Gelesen, aber inhaltlich gleich geblieben - nicht neu geschrieben. */
+  unveraendert: number;
   uebersprungen: number;
   /**
    * Abgeschlossene Aufgaben, die wir noch nicht kennen - nicht geholt.
@@ -278,6 +281,7 @@ export async function synchronisiereAufgaben(
     uebernommen: 0,
     neu: 0,
     aktualisiert: 0,
+    unveraendert: 0,
     uebersprungen: 0,
     altlasten: 0,
     unbekannteNamen: [],
@@ -355,6 +359,7 @@ export async function synchronisiereAufgaben(
       status: TaskStatus;
       onoffice_status_raw: string | null;
       completed_at: string | null;
+      sync_hash: string | null;
     }
   >();
   if (ids.length) {
@@ -363,7 +368,7 @@ export async function synchronisiereAufgaben(
       // Eine einzige Zeichenkette, nicht zusammengesetzt: eine
       // zusammengesetzte Spaltenliste kann der getypte Client nicht
       // lesen, und dann faellt die ganze Zeile auf Fehlertypen zurueck.
-      .select("id, onoffice_task_id, in_progress_note, broker_contact_id, status, onoffice_status_raw, completed_at")
+      .select("id, onoffice_task_id, in_progress_note, broker_contact_id, status, onoffice_status_raw, completed_at, sync_hash")
       .in("onoffice_task_id", ids);
     for (const t of vorhanden ?? []) {
       if (t.onoffice_task_id) {
@@ -374,6 +379,7 @@ export async function synchronisiereAufgaben(
           status: t.status as TaskStatus,
           onoffice_status_raw: t.onoffice_status_raw,
           completed_at: t.completed_at,
+          sync_hash: t.sync_hash,
         });
       }
     }
@@ -585,6 +591,16 @@ export async function synchronisiereAufgaben(
       zeile.completed_by = null;
     }
 
+    // Nur schreiben, was sich wirklich geaendert hat - siehe
+    // lib/sync/fingerabdruck.ts. Ein unnoetiger Schreibvorgang kostet
+    // hier nicht nur eine Zeile: er laedt jedes offene Fenster neu.
+    zeile.sync_hash = fingerabdruck(zeile);
+    if (vorhandene && vorhandene.sync_hash === zeile.sync_hash) {
+      angefasst.push({ onofficeTaskId: aufgabe.id, taskId: vorhandene.id });
+      ergebnis.unveraendert++;
+      continue;
+    }
+
     try {
       if (vorhandene) {
         const { error } = await sb.from("tasks").update(zeile).eq("id", vorhandene.id);
@@ -713,6 +729,7 @@ export async function synchronisiereAufgaben(
         `(noch keine Zuordnung), ${ergebnis.gefundeneNamen.length} Namen gefunden`
       : `${ergebnis.gelesen} gelesen, ${ergebnis.uebernommen} uebernommen ` +
         `(${ergebnis.neu} neu, ${ergebnis.aktualisiert} aktualisiert), ` +
+        `${ergebnis.unveraendert} unveraendert, ` +
         `${ergebnis.uebersprungen} uebersprungen, ` +
         `${ergebnis.altlasten} abgeschlossene nicht geholt, ` +
         `${ergebnis.anhaengeErfasst} neue Dateien entdeckt`,
