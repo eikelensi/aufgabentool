@@ -233,6 +233,12 @@ export interface StoreProfil {
   role: Profile["role"];
 }
 
+/**
+ * Wie alt Profile, Kategorien, Vorlagen und Co. hoechstens werden,
+ * bevor ein Hintergrund-Laden sie mitholt: zehn Minuten.
+ */
+const STAMMDATEN_ALLE_MS = 10 * 60_000;
+
 export function StoreProvider({
   children,
   profil,
@@ -257,9 +263,13 @@ export function StoreProvider({
   const [pinKategorien, setPinKategorien] = useState<PinKategorie[]>([]);
   const [verlinkungen, setVerlinkungen] = useState<Verlinkung[]>([]);
 
+  /** Wann zuletzt ALLES geladen wurde - siehe STAMMDATEN_ALLE_MS. */
+  const letztesVollesLaden = useRef(0);
+
   const neuLaden = useCallback(async () => {
     const sb = supabaseBrowser();
     setFehler(null);
+    letztesVollesLaden.current = Date.now();
 
     const [a, p, k, ka, v, e, n, m, as, an, pn, pk, vl] = await Promise.all([
       sb
@@ -272,11 +282,16 @@ export function StoreProvider({
       sb.from("categories").select("id, name, color, sort_order, is_active").order("sort_order"),
       sb.from("email_templates").select("key, label, subject, body, is_active"),
       sb.from("app_settings").select("*").maybeSingle(),
-      sb
-        .from("notifications_log")
-        .select("id, task_id, kind, recipient, recipient_name, subject, body, provider, status, dedupe_key, created_at, tasks ( title )")
-        .order("created_at", { ascending: false })
-        .limit(200),
+      // Das Mailprotokoll sehen nur Admins. Vorher holte jedes Fenster
+      // jedes Mitarbeiters bei jedem Neuladen 200 Mails samt Text - um
+      // sie dann nicht anzeigen zu duerfen.
+      darfVerwalten(profil.role)
+        ? sb
+            .from("notifications_log")
+            .select("id, task_id, kind, recipient, recipient_name, subject, body, provider, status, dedupe_key, created_at, tasks ( title )")
+            .order("created_at", { ascending: false })
+            .limit(200)
+        : Promise.resolve({ data: null, error: null }),
       sb
         .from("notifications")
         .select("id, task_id, note_id, kind, titel, text, created_at, read_at")
@@ -324,7 +339,7 @@ export function StoreProvider({
     if (vl.data) setVerlinkungen(vl.data.map(zuVerlinkung));
 
     setBereit(true);
-  }, []);
+  }, [profil.role]);
 
   useEffect(() => {
     void neuLaden();
@@ -414,20 +429,27 @@ export function StoreProvider({
   useEffect(() => {
     const sichtbar = () => document.visibilityState === "visible";
 
+    // Die Aufgaben jedes Mal, den Rest (Profile, Kategorien, Vorlagen,
+    // Asana-Personen, Pinnwand, Links, Mailprotokoll) nur, wenn er
+    // aelter als zehn Minuten ist. Der aendert sich fast nie, und wer
+    // ihn selbst aendert, laedt danach ohnehin alles neu.
+    const umfang = (): "aufgaben" | "alles" =>
+      Date.now() - letztesVollesLaden.current > STAMMDATEN_ALLE_MS ? "alles" : "aufgaben";
+
     const beiRueckkehr = () => {
-      if (sichtbar()) void ladenImHintergrund();
+      if (sichtbar()) void ladenImHintergrund(umfang());
     };
 
     document.addEventListener("visibilitychange", beiRueckkehr);
     window.addEventListener("focus", beiRueckkehr);
 
-    // Sechzig Sekunden reichen wieder: Aenderungen an Aufgaben - vom
-    // Abgleich wie von Kollegen - meldet Realtime sofort (unten). Der
-    // Takt ist nur das Netz, falls die Verbindung einmal hakt, und holt
-    // nebenbei Profile, Einstellungen und Pinnwand nach. Mit 25 Sekunden
-    // lud jedes offene Fenster dreimal so oft alle dreizehn Tabellen.
+    // Sechzig Sekunden reichen: Aenderungen an Aufgaben - vom Abgleich
+    // wie von Kollegen - meldet Realtime sofort (unten). Der Takt ist
+    // nur das Netz, falls die Verbindung einmal hakt. Bis 22.10.2026
+    // holte er jede Minute alle dreizehn Tabellen - rund 300-mal je
+    // Stunde und Haus, 13 Abfragen jedes Mal.
     const takt = setInterval(() => {
-      if (sichtbar()) void ladenImHintergrund("alles");
+      if (sichtbar()) void ladenImHintergrund(umfang());
     }, 60_000);
 
     return () => {
